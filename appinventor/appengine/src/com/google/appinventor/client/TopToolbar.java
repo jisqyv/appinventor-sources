@@ -61,7 +61,7 @@ public class TopToolbar extends Composite {
   private static final String KNOWN_ISSUES_LINK_URL =
       Ode.APP_INVENTOR_DOCS_URL + "/knownIssues.html";
   private static final String RELEASE_NOTES_LINK_URL =
-      Ode.APP_INVENTOR_DOCS_URL + "/ReleaseNotes.html";
+      "http://appinventor.mit.edu/ai2/ReleaseNotes.html";
   private static final String KNOWN_ISSUES_LINK_AND_TEXT =
       "<a href=\"" + KNOWN_ISSUES_LINK_URL + "\" target=\"_blank\">known issues</a>" ;
   private static final String RELEASE_NOTES_LINK_AND_TEXT =
@@ -680,7 +680,7 @@ public class TopToolbar extends Composite {
   private static class FeedbackAction implements Command {
     @Override
     public void execute() {
-      Window.open("http://something.example.com", "_blank", "scrollbars=1");
+      Window.open("http://appinv.us/aifeedback", "_blank", "scrollbars=1");
     }
   }
 

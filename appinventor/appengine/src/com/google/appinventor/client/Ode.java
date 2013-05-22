@@ -1106,7 +1106,7 @@ public class Ode implements EntryPoint {
     dialogBox.setAnimationEnabled(true);
     dialogBox.center();
     VerticalPanel DialogBoxContents = new VerticalPanel();
-    HTML message = new HTML("<h2>This is the Splash Screen. Make this an iframe to your splash screen.</h2>");
+    HTML message = new HTML("<iframe src=\"http://dl.qyv.me/mit1/\" style=\"border: 0; width: 400px; height: 370px;\"></iframe>");
     message.setStyleName("DialogBox-message");
     SimplePanel holder = new SimplePanel();
     Button ok = new Button("Continue");
@@ -1425,7 +1425,8 @@ public class Ode implements EntryPoint {
     VerticalPanel DialogBoxContents = new VerticalPanel();
     HTML message = new HTML("<p><b>We detected errors while reading in your project</b></p>" +
         "<p>To protect your project from damage, we have ended this session. You may close this " +
-        "window.</p>");
+        "window.</p>" +
+        "<p>For more information see <a href=\"http://appinventor.mit.edu/explore/ai2/support/troubleshooting.html#Corrupt\" target=\"_blank\">the Trouble Shooting Page</a></p>");
     message.setStyleName("DialogBox-message");
     DialogBoxContents.add(message);
     dialogBox.setWidget(DialogBoxContents);

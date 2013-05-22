@@ -93,7 +93,7 @@ public class TopPanel extends Composite {
     feedbackLink.addClickHandler(new ClickHandler() {
       @Override
       public void onClick(ClickEvent event) {
-        Window.open("http://something.example.com", "_blank", "scrollbars=1");
+        Window.open("http://appinv.us/aifeedback", "_blank", "scrollbars=1");
       }
     });
 
