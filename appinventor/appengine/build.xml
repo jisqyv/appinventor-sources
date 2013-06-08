@@ -47,6 +47,9 @@
     <mkdir dir="${build.war.dir}" />
     <copy todir="${build.war.dir}/">
       <fileset dir="war"/>
+      <fileset dir="${lib.dir}">
+        <include name="closure-library/closure/goog/css/dialog.css"/>
+      </fileset>
       <fileset dir="src/${appinventor.pkg}">
         <!-- canvas is a special case (see MockCanvas.java) -->
         <include name="images/canvas.png" />
@@ -57,11 +60,6 @@
         <include name="media/*"/>
         <include name="**/*.css"/>
         <include name="1x1.gif"/>
-      </fileset>
-    </copy>
-    <copy todir="${build.war.dir}/">
-      <fileset dir="${lib.dir}">
-        <include name="closure-library/**/*"/>
       </fileset>
     </copy>
   </target>
@@ -380,7 +378,7 @@
       <jvmarg line="${XstartOnFirstThread}"/>
       <arg line="-war"/>
       <arg value="${build.war.dir}"/>
-      <arg line="-logLevel INFO -style pretty"/>
+      <arg line="-logLevel INFO -localWorkers 4 -optimize 9"/>
       <arg value="com.google.appinventor.YaClient"/>
     </java>
   </target>
