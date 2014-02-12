@@ -763,7 +763,7 @@ public class YaVersion {
   // is invoked from the running Companion.
 
   public static final String PREFERRED_COMPANION = "2.20ai2zx1";
-  public static final String COMPANION_UPDATE_URL = "";
+  public static final String COMPANION_UPDATE_URL = "/companions/MITAI2Companion.asc";
   public static final String [] ACCEPTABLE_COMPANIONS = { "2.16ai2", "2.16ai2zx1", "2.17ai2", "2.17ai2zx1",
                                                           "2.19ai2", "2.19ai2zx1", "2.20ai2", "2.20ai2zx1" };
 
