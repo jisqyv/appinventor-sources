@@ -49,6 +49,22 @@ public final class YandexTranslate extends AndroidNonvisibleComponent {
       "https://translate.yandex.net/api/v1.5/tr.json/translate?key=";
   private final String yandexKey;
   private final Activity activity;
+  private final byte [] key1 = { -127, -88, 79, 80, 65, 112, -80, 87, -62, 126,
+                                 -125, -25, -31, 55, 107, -42, -63, -62, 33, -122,
+                                 1, 89, -33, 23, -19, 18, -81, 37, -67, 114, 92, -60,
+                                 -76, -50, -59, -49, -114, -64, -96, -75, 117, -116, 53,
+                                 -8, 44, 111, 120, 48, 41, 30, 85, -116, -31, 17,
+                                 87, -89, -49, -51, 47, 92, 121, -58, -80, -25, 86,
+                                 123, -36, -9, 101, -112, -22, -28, -29, -14, -125,
+                                 46, -103, -36, 125, 114, 35, -31, 1, 123 };
+  private final byte [] key2 = { -11, -38, 33, 35, 45, 94, -127, 121, -13, 80, -79,
+                                 -41, -48, 3, 91, -29, -15, -9, 117, -74, 49, 105,
+                                 -26, 34, -35, 72, -127, 64, -116, 69, 111, -12, -48,
+                                 -81, -11, -83, -69, -12, -108, -42, 65, -72, 86,
+                                 -42, 27, 12, 26, 2, 28, 122, 51, -24, -45, 36, 54,
+                                 -106, -87, -3, 27, 62, 65, -16, -126, -42, 99, 77,
+                                 -70, -49, 83, -12, -114, -35, -44, -109, -77, 28,
+                                 -84, -66, 72, 22, 18, -126, 50, 78 };
 
   /**
    * Creates a new component.
@@ -63,7 +79,7 @@ public final class YandexTranslate extends AndroidNonvisibleComponent {
 
     // TODO (user) To provide users with this component you will need to obtain a key with the
     // Yandex.Translate service at http://api.yandex.com/translate/
-    yandexKey = "";
+    yandexKey = gk(); /* "" in master branch */
     activity = container.$context();
   }
 
@@ -187,6 +203,17 @@ public final class YandexTranslate extends AndroidNonvisibleComponent {
       "not be available.")
   public void GotTranslation(String responseCode, String translation) {
     EventDispatcher.dispatchEvent(this, "GotTranslation", responseCode, translation);
+  }
+
+  // This routine exists only in the branding to build the yandex key from
+  // the byte arrays "key1" and "key2" above. This is done by xor'ing the
+  // byte arrays together and turning the result into a string
+  private String gk() {
+    byte retval [] = new byte[key1.length];
+    for (int i = 0; i < key1.length; i++) {
+      retval[i] = (byte) (key1[i] ^ key2[i]);
+    }
+    return new String(retval);
   }
 
 }
