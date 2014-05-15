@@ -31,7 +31,8 @@
     <url-pattern>/*</url-pattern>
   </filter-mapping>
 
-  <!-- Security constraints: require Google Account login for these urls -->
+
+  <!-- Security constraints: require login for these urls -->
   <security-constraint>
     <web-resource-collection>
       <url-pattern>/ode/*</url-pattern>
@@ -68,6 +69,17 @@
   </security-constraint>
 
   <!-- Servlets -->
+
+  <!-- Generate Login Page for OpenID -->
+
+  <servlet>
+    <servlet-name>LoginRequiredServlet</servlet-name>
+    <servlet-class>com.google.appinventor.server.LoginRequiredServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>LoginRequiredServlet</servlet-name>
+    <url-pattern>/_ah/login_required/*</url-pattern>
+  </servlet-mapping>
 
   <!-- Remote API -->
   <servlet>

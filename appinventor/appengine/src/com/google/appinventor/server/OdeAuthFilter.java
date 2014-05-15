@@ -85,6 +85,18 @@ public class OdeAuthFilter implements Filter {
       response.setStatus(HttpServletResponse.SC_PRECONDITION_FAILED);
       return;
     }
+
+    // If using OpenID, we *must* have an email address because that is how we
+    // find the UserData object. Note: There is a security risk here. A non-Google
+    // OpenID provider could provide a gmail address as an email, which would permit
+    // access to that person's projects. If we are paranoid, we could prohibit
+    // gmail (and related addresses) from any OpenID provider that is not Google.
+    String email = localUser.getUserEmail();
+    if (email.equals("")) {
+      response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+      return;
+    }
+
     try {
       if (useWhitelist.get() && !isUserWhitelisted()) {
         writeWhitelistErrorMessage(response);
