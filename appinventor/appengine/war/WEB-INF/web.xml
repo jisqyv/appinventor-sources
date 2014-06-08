@@ -33,6 +33,7 @@
 
 
   <!-- Security constraints: require login for these urls -->
+  <!-- auth-constraint removed for local login -->
   <security-constraint>
     <web-resource-collection>
       <url-pattern>/ode/*</url-pattern>
@@ -40,9 +41,6 @@
       <url-pattern>/index.html</url-pattern>
       <url-pattern>/Ya_tos_form.html</url-pattern>
     </web-resource-collection>
-    <auth-constraint>
-      <role-name>*</role-name>
-    </auth-constraint>
   </security-constraint>
 
   <!-- Security constraint: no security should be used for these urls -->
@@ -62,6 +60,7 @@
   <security-constraint>
     <web-resource-collection>
       <url-pattern>/appstats/*</url-pattern>
+      <url-pattern>/remote_api/*</url-pattern>
     </web-resource-collection>
     <auth-constraint>
       <role-name>admin</role-name>

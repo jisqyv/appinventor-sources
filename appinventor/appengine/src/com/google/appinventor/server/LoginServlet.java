@@ -21,6 +21,7 @@ import java.io.PrintWriter;
 import java.io.IOException;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.net.URLDecoder;
 import java.util.Map;
 import java.util.HashMap;
 
@@ -45,9 +46,13 @@ public class LoginServlet extends HttpServlet {
     resp.setContentType("text/html");
     PrintWriter out = resp.getWriter();
 
-    // Note: this could be moved to a static page, doesn't really need to be here
+    String error = (String) req.getSession().getAttribute("error");
     out.println("<html><head><title>Please Login</title></head><body>\n");
     out.println("<h1>Please Login</h1>\n");
+    if (error != null) {
+      req.getSession().removeAttribute("error");
+      out.println("<b>Invalid Login Attempt: " + error + "</b><br /><br />\n");
+    }
     out.println("<form method=POST action=\"" + req.getRequestURI() + "\">");
     out.println("<input type=text name=email value=\"\"><br />\n");
     out.println("<input type=password name=password value=\"\"><br />\n");
@@ -68,6 +73,16 @@ public class LoginServlet extends HttpServlet {
     HashMap<String, String> params = getQueryMap(queryString);
     String email = params.get("email");
     String password = params.get("password"); // We don't check it now
+    if (email != null)
+      email = URLDecoder.decode(email);
+    if (password != null)
+      password = URLDecoder.decode(password);
+    if (!password.equals("magic")) { // Kludge for now, static password for all
+      req.getSession().setAttribute("error", "Invalid Static Password");
+      resp.sendRedirect("/login/");
+      return;
+    }
+
     req.getSession().setAttribute("email", email);
 
     String uri = "/";
