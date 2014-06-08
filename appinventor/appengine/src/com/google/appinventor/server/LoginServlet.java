@@ -33,7 +33,7 @@ import com.google.appengine.api.users.UserService;
 import com.google.appengine.api.users.UserServiceFactory;
 
 @SuppressWarnings("unchecked")
-public class LoginRequiredServlet extends HttpServlet {
+public class LoginServlet extends HttpServlet {
 
   private static final UserService userService = UserServiceFactory.getUserService();
 
@@ -44,31 +44,15 @@ public class LoginRequiredServlet extends HttpServlet {
   protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     resp.setContentType("text/html");
     PrintWriter out = resp.getWriter();
-    String [] components = req.getRequestURI().split("/");
-    User apiUser = userService.getCurrentUser();
-    if (components[components.length-1].equals("check")) { // Verify we have an email field
-      if (apiUser.getEmail().equals("")) {           // Provider didn't give us an email
-        resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        out.println("OpenID Provider did not supply an e-mail address, which we require.");
-        return;
-      } else {                  // We are good, redirect to the real service
-        resp.sendRedirect("/"); // Off to Ode we go!
-      }
-    }
 
-    out.println("<html><head><title>Select Your OpenID Provider</title></head><body>");
-    out.println("<h1>Please Select Your OpenID Provider</h1>");
+    // Note: this could be moved to a static page, doesn't really need to be here
+    out.println("<html><head><title>Please Login</title></head><body>\n");
+    out.println("<h1>Please Login</h1>\n");
     out.println("<form method=POST action=\"" + req.getRequestURI() + "\">");
-    out.println("<select name=provider>");
-    out.println("<option value=\"yahoo.com\">YaHoo</option>");
-    out.println("<option value=\"https://www.google.com/accounts/o8/id\">Google</option>");
-    out.println("<option value=\"other\">Other -- Fill in URL below</option>");
-    out.println("</select><br /><br />");
-    out.println("If \"Other\" selected: <input type=text name=other value=\"\"><br/><br/>");
-    out.println("<input type=submit value=\"Login\">");
-    out.println("</form>");
-    out.println("</body></html>");
-//    out.println(userService.createLoginURL(/, null, "yahoo.com", null));
+    out.println("<input type=text name=email value=\"\"><br />\n");
+    out.println("<input type=password name=password value=\"\"><br />\n");
+    out.println("<input type=Submit value=\"Login\">\n");
+    out.println("</form>\n");
   }
 
   protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -82,19 +66,12 @@ public class LoginRequiredServlet extends HttpServlet {
     }
 
     HashMap<String, String> params = getQueryMap(queryString);
-    String provider = params.get("provider");
-    if (provider == null) {
-      out.println("no key");
-      return;
-    }
-    if (provider.equals("other")) {
-      provider = params.get("other");
-      if (provider == null) {
-        out.println("no key 2");
-        return;
-      }
-    }
-    String uri = userService.createLoginURL(req.getRequestURI() + "/check", null, provider, null);
+    String email = params.get("email");
+    String password = params.get("password"); // We don't check it now
+    req.getSession().setAttribute("email", email);
+
+    String uri = "/";
+//    String uri = userService.createLoginURL(req.getRequestURI() + "/check", null, provider, null);
     resp.sendRedirect(uri);
   }
 

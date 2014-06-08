@@ -69,18 +69,20 @@ public class OdeAuthFilter implements Filter {
     final HttpServletRequest httpRequest = (HttpServletRequest) request;
     final HttpServletResponse httpResponse = (HttpServletResponse) response;
 
-    // Use Google Accounts authentication
-    if (httpRequest.getUserPrincipal() == null) {
-      return;   // if no principal, block the request
+    // Use Local Authentication
+    String email = (String) httpRequest.getSession().getAttribute("email");
+    if (email == null) {        // Invalid Login
+      httpResponse.setStatus(HttpServletResponse.SC_PRECONDITION_FAILED);
+      return;
     }
 
-    doMyFilter(httpRequest, httpResponse, chain);
+    doMyFilter(email, httpRequest, httpResponse, chain);
   }
 
   @VisibleForTesting
-  void doMyFilter(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+  void doMyFilter(String email, HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws IOException, ServletException {
-    if (!setUser(request)) {
+    if (!setUser(email)) {
       // can't get the user info, so block further request processing
       response.setStatus(HttpServletResponse.SC_PRECONDITION_FAILED);
       return;
@@ -91,8 +93,8 @@ public class OdeAuthFilter implements Filter {
     // OpenID provider could provide a gmail address as an email, which would permit
     // access to that person's projects. If we are paranoid, we could prohibit
     // gmail (and related addresses) from any OpenID provider that is not Google.
-    String email = localUser.getUserEmail();
-    if (email.equals("")) {
+    String lemail = localUser.getUserEmail();
+    if (lemail.equals("")) {
       response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
       return;
     }
@@ -137,22 +139,15 @@ public class OdeAuthFilter implements Filter {
   }
 
   @VisibleForTesting
-  boolean setUser(HttpServletRequest request) {
-    com.google.appengine.api.users.User apiUser = userService.getCurrentUser();
-    if (apiUser != null) {
-      String userId = apiUser.getUserId();
-      String email = apiUser.getEmail();
-      email = idmap.get(email);	// Map the user.
-      User user = storageIo.getUser(userId, email);
-      user.setIsAdmin(userService.isUserAdmin());
-      if (!email.equals(user.getUserEmail())) {
-        user.setUserEmail(email);
-      }
-      localUser.set(user);
-      return true;
-    } else {
-      return false;
+  boolean setUser(String email) {
+    email = idmap.get(email);	// Map the user.
+    User user = storageIo.getUserFromEmail(email);
+//    user.setIsAdmin(userService.isUserAdmin());
+    if (!email.equals(user.getUserEmail())) {
+      user.setUserEmail(email);
     }
+    localUser.set(user);
+    return true;
   }
 
   /*

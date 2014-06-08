@@ -214,6 +214,18 @@ public class ObjectifyStorageIo implements  StorageIo {
     return user;
   }
 
+  // Get User from email address along.
+  @Override
+  public User getUserFromEmail(final String email) {
+    Objectify datastore = ObjectifyService.begin();
+    String newId = java.util.UUID.randomUUID().toString(); // TEMP HACK
+    UserData user = datastore.query(UserData.class).filter("email", email).get();
+    if (user == null) {
+      user = createUser(datastore, newId, email);
+    }
+    return new User(user.id, email, user.tosAccepted, false, user.sessionid);
+  }
+
   private UserData createUser(Objectify datastore, String userId, String email) {
     UserData userData = new UserData();
     userData.id = userId;
