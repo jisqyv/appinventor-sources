@@ -33,10 +33,14 @@ import com.google.appengine.api.users.User;
 import com.google.appengine.api.users.UserService;
 import com.google.appengine.api.users.UserServiceFactory;
 
+import com.google.appinventor.server.storage.StorageIo;
+import com.google.appinventor.server.storage.StorageIoInstanceHolder;
+import com.google.appinventor.server.storage.StoredData.PWData;
+
 @SuppressWarnings("unchecked")
 public class LoginServlet extends HttpServlet {
 
-  private static final UserService userService = UserServiceFactory.getUserService();
+  private final StorageIo storageIo = StorageIoInstanceHolder.INSTANCE;
 
   public void init(ServletConfig config) throws ServletException {
     super.init(config);
@@ -50,13 +54,20 @@ public class LoginServlet extends HttpServlet {
     String page = getPage(req);
     String error = (String) req.getSession().getAttribute("error");
 
-    if (page.equals("changepw")) {
+    if (page.equals("setpw")) {
+      String uid = getParam(req);
+      if (uid == null) {
+        fail(req, resp, "Invalid Set Password Link");
+        return;
+      }
+      PWData data = storageIo.findPWData(uid);
+      if (data == null) {
+        fail(req, resp, "Invalid Set Password Link");
+        return;
+      }
+      req.getSession().setAttribute("email", data.email); // This effectively logs us in!
       out.println("<html><head><title>Set Your Password</title></head><body>\n");
       out.println("<h1>Set Your Password</h1>\n");
-      if (error != null) {
-        req.getSession().removeAttribute("error");
-        out.println("<b>Invalid Login Attempt: " + error + "</b><br /><br />\n");
-      }
       out.println("<form method=POST action=\"" + req.getRequestURI() + "\">");
       out.println("<input type=password name=password value=\"\"><br />\n");
       out.println("<input type=Submit value=\"Set Password\">\n");
@@ -97,15 +108,13 @@ public class LoginServlet extends HttpServlet {
     if (password != null)
       password = URLDecoder.decode(password);
     if (!password.equals("magic")) { // Kludge for now, static password for all
-      req.getSession().setAttribute("error", "Invalid Static Password");
-      resp.sendRedirect("/login/");
+      fail(req, resp, "Invalid Static Password");
       return;
     }
 
     req.getSession().setAttribute("email", email);
 
     String uri = "/";
-//    String uri = userService.createLoginURL(req.getRequestURI() + "/check", null, provider, null);
     resp.sendRedirect(uri);
   }
 
@@ -126,9 +135,25 @@ public class LoginServlet extends HttpServlet {
     return map;
   }
 
+  // Note: Urls in this servlet are of the form /login/<param>/<page>
+  // The page identifier is *after* the parameter, if there is one.
+
   private String getPage(HttpServletRequest req) {
     String [] components = req.getRequestURI().split("/");
     return components[components.length-1];
   }
 
+  private String getParam(HttpServletRequest req) {
+    String [] components = req.getRequestURI().split("/");
+    if (components.length < 2)
+      return null;
+    return components[components.length-2];
+  }
+
+  private void fail(HttpServletRequest req, HttpServletResponse resp, String error) throws IOException {
+    req.getSession().setAttribute("error", error);
+    req.getSession().removeAttribute("email"); // Make sure we are not logged in
+    resp.sendRedirect("/login/");
+    return;
+  }
 }

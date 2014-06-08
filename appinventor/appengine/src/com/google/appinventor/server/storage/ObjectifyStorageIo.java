@@ -25,6 +25,7 @@ import com.google.appinventor.server.storage.StoredData.FileData;
 import com.google.appinventor.server.storage.StoredData.MotdData;
 import com.google.appinventor.server.storage.StoredData.NonceData;
 import com.google.appinventor.server.storage.StoredData.ProjectData;
+import com.google.appinventor.server.storage.StoredData.PWData;
 import com.google.appinventor.server.storage.StoredData.UserData;
 import com.google.appinventor.server.storage.StoredData.UserFileData;
 import com.google.appinventor.server.storage.StoredData.UserProjectData;
@@ -78,6 +79,7 @@ import java.util.logging.Logger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import java.util.Date;
+import java.util.UUID;
 
 import javax.annotation.Nullable;
 
@@ -150,6 +152,7 @@ public class ObjectifyStorageIo implements  StorageIo {
     ObjectifyService.register(FeedbackData.class);
     ObjectifyService.register(NonceData.class);
     ObjectifyService.register(CorruptionRecord.class);
+    ObjectifyService.register(PWData.class);
   }
 
   ObjectifyStorageIo() {
@@ -218,7 +221,7 @@ public class ObjectifyStorageIo implements  StorageIo {
   @Override
   public User getUserFromEmail(final String email) {
     Objectify datastore = ObjectifyService.begin();
-    String newId = java.util.UUID.randomUUID().toString(); // TEMP HACK
+    String newId = UUID.randomUUID().toString(); // TEMP HACK
     UserData user = datastore.query(UserData.class).filter("email", email).get();
     if (user == null) {
       user = createUser(datastore, newId, email);
@@ -1859,6 +1862,65 @@ public class ObjectifyStorageIo implements  StorageIo {
         LOG.log(Level.WARNING, "Exception during cleanupNonces", ex);
     }
 
+  }
+
+  @Override
+  public PWData createPWData(final String email) {
+    Objectify datastore = ObjectifyService.begin();
+    final PWData pwData = new PWData();
+    pwData.id = UUID.randomUUID().toString();
+    pwData.email = email;
+    pwData.timestamp = new Date();
+    try {
+      runJobWithRetries(new JobRetryHelper() {
+          @Override
+          public void run(Objectify datastore) {
+            datastore.put(pwData);
+          }
+        });
+    } catch (ObjectifyException e) {
+      throw CrashReport.createAndLogError(LOG, null, null, e);
+    }
+    return pwData;
+  }
+
+  @Override
+  public StoredData.PWData findPWData(final String uid) {
+    final Result<PWData> result = new Result<PWData>();
+    try {
+      runJobWithRetries(new JobRetryHelper() {
+          @Override
+          public void run(Objectify datastore) {
+            PWData pwData = datastore.find(pwdataKey(uid));
+            if (pwData != null) {
+              result.t = pwData;
+            }
+          }
+        });
+    } catch (ObjectifyException e) {
+      throw CrashReport.createAndLogError(LOG, null, null, e);
+    }
+    return result.t;
+  }
+
+  // Remove up to 10 expired PWData elements from the datastore
+  @Override
+  public void cleanuppwdata() {
+    Objectify datastore = ObjectifyService.begin();
+    // We do not use runJobWithRetries because if we fail here, we will be
+    // called again the next time someone attempts to set a password
+    // Note: we remove data after 24 hours.
+    try {
+      datastore.delete(datastore.query(PWData.class)
+        .filter("timestamp <", new Date((new Date()).getTime() - 3600*24*1000L))
+        .limit(10).fetchKeys());
+    } catch (Exception ex) {
+        LOG.log(Level.WARNING, "Exception during cleanupNonces", ex);
+    }
+  }
+
+  private Key<StoredData.PWData> pwdataKey(String uid) {
+    return new Key<StoredData.PWData>(PWData.class, uid);
   }
 
   // Create a name for a blob from a project id and file name. This is mostly

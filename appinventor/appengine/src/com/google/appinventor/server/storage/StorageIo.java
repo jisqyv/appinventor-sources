@@ -486,4 +486,8 @@ public interface StorageIo {
   // Cleanup expired nonces
   void cleanupNonces();
 
+  StoredData.PWData createPWData(String email);
+  StoredData.PWData findPWData(String uid);
+  void cleanuppwdata();
+
 }
