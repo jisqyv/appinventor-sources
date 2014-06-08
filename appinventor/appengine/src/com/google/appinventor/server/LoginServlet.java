@@ -46,7 +46,24 @@ public class LoginServlet extends HttpServlet {
     resp.setContentType("text/html");
     PrintWriter out = resp.getWriter();
 
+    String [] components = req.getRequestURI().split("/");
+    String page = getPage(req);
     String error = (String) req.getSession().getAttribute("error");
+
+    if (page.equals("changepw")) {
+      out.println("<html><head><title>Set Your Password</title></head><body>\n");
+      out.println("<h1>Set Your Password</h1>\n");
+      if (error != null) {
+        req.getSession().removeAttribute("error");
+        out.println("<b>Invalid Login Attempt: " + error + "</b><br /><br />\n");
+      }
+      out.println("<form method=POST action=\"" + req.getRequestURI() + "\">");
+      out.println("<input type=password name=password value=\"\"><br />\n");
+      out.println("<input type=Submit value=\"Set Password\">\n");
+      out.println("</form>\n");
+      return;
+    }
+
     out.println("<html><head><title>Please Login</title></head><body>\n");
     out.println("<h1>Please Login</h1>\n");
     if (error != null) {
@@ -54,8 +71,10 @@ public class LoginServlet extends HttpServlet {
       out.println("<b>Invalid Login Attempt: " + error + "</b><br /><br />\n");
     }
     out.println("<form method=POST action=\"" + req.getRequestURI() + "\">");
-    out.println("<input type=text name=email value=\"\"><br />\n");
-    out.println("<input type=password name=password value=\"\"><br />\n");
+    out.println("<table>\n");
+    out.println("<tr><td>Email Address</td><td><input type=text name=email value=\"\"></td></tr>\n");
+    out.println("<tr><td>Password</td><td><input type=password name=password value=\"\"></td></tr>\n");
+    out.println("</table>\n");
     out.println("<input type=Submit value=\"Login\">\n");
     out.println("</form>\n");
   }
@@ -105,6 +124,11 @@ public class LoginServlet extends HttpServlet {
         map.put(nvpair[0], nvpair[1]);
     }
     return map;
+  }
+
+  private String getPage(HttpServletRequest req) {
+    String [] components = req.getRequestURI().split("/");
+    return components[components.length-1];
   }
 
 }
