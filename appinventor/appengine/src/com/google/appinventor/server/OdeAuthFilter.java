@@ -72,9 +72,11 @@ public class OdeAuthFilter implements Filter {
     // Use Local Authentication
     String email = (String) httpRequest.getSession().getAttribute("email");
     if (email == null) {        // Invalid Login
+      LOG.info("email is null on login.");
       httpResponse.setStatus(HttpServletResponse.SC_PRECONDITION_FAILED);
       return;
     }
+    LOG.info("email is " + email + " on login.");
 
     doMyFilter(email, httpRequest, httpResponse, chain);
   }

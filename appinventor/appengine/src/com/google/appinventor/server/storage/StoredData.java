@@ -242,7 +242,7 @@ public class StoredData {
   // that is mailed out.
   @Unindexed
   public static final class PWData {
-    @Id String id;              // "Secret" URL part
+    @Id public String id;              // "Secret" URL part
     @Indexed public Date timestamp; // So we know when to expire this objects
     public String email;            // Email of account in question
   }

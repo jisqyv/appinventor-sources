@@ -24,6 +24,7 @@ import java.io.InputStreamReader;
 import java.net.URLDecoder;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.logging.Logger;
 
 import com.google.appengine.api.memcache.MemcacheService;
 import com.google.appengine.api.memcache.MemcacheServiceFactory;
@@ -41,6 +42,7 @@ import com.google.appinventor.server.storage.StoredData.PWData;
 public class LoginServlet extends HttpServlet {
 
   private final StorageIo storageIo = StorageIoInstanceHolder.INSTANCE;
+  private static final Logger LOG = Logger.getLogger(LoginServlet.class.getName());
 
   public void init(ServletConfig config) throws ServletException {
     super.init(config);
@@ -65,12 +67,30 @@ public class LoginServlet extends HttpServlet {
         fail(req, resp, "Invalid Set Password Link");
         return;
       }
+      LOG.info("setpw email = " + data.email);
       req.getSession().setAttribute("email", data.email); // This effectively logs us in!
       out.println("<html><head><title>Set Your Password</title></head><body>\n");
       out.println("<h1>Set Your Password</h1>\n");
       out.println("<form method=POST action=\"" + req.getRequestURI() + "\">");
       out.println("<input type=password name=password value=\"\"><br />\n");
       out.println("<input type=Submit value=\"Set Password\">\n");
+      out.println("</form>\n");
+      storageIo.cleanuppwdata();
+      return;
+    } else if (page.equals("linksent")) {
+      out.println("<html><head><title>Link Sent</title></head>\n");
+      out.println("<body>\n");
+      out.println("<h1>Link Sent</h1>\n");
+      out.println("<p>Check your e-mail for a link to login and set/change your password.</p>\n");
+      return;
+    } else if (page.equals("sendlink")) {
+      out.println("<head><title>Request Password Setup or Reset</title></head>\n");
+      out.println("<body>\n");
+      out.println("<h1>Request a Password Setup or Reset Link</h1>\n");
+      out.println("<p>You can setup your first password or change your password if you forgot it here.</p>\n");
+      out.println("<form method=POST action=\"" + req.getRequestURI() + "\">\n");
+      out.println("Enter your Email Address:&nbsp;<input type=text name=email value=\"\"><br />\n");
+      out.println("<input type=submit value=\"Send Link\">\n");
       out.println("</form>\n");
       return;
     }
@@ -79,7 +99,7 @@ public class LoginServlet extends HttpServlet {
     out.println("<h1>Please Login</h1>\n");
     if (error != null) {
       req.getSession().removeAttribute("error");
-      out.println("<b>Invalid Login Attempt: " + error + "</b><br /><br />\n");
+      out.println("<b>Error: " + error + "</b><br /><br />\n");
     }
     out.println("<form method=POST action=\"" + req.getRequestURI() + "\">");
     out.println("<table>\n");
@@ -88,6 +108,7 @@ public class LoginServlet extends HttpServlet {
     out.println("</table>\n");
     out.println("<input type=Submit value=\"Login\">\n");
     out.println("</form>\n");
+    out.println("<p><a href=\"/login/sendlink\">Click Here to Recover or Set your Password</a></p></body></html>\n");
   }
 
   protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -101,12 +122,28 @@ public class LoginServlet extends HttpServlet {
     }
 
     HashMap<String, String> params = getQueryMap(queryString);
+    String page = getPage(req);
+    if (page.equals("sendlink")) {
+      String email = params.get("email");
+      if (email == null) {
+        fail(req, resp, "No Email Address Provided");
+        return;
+      }
+      // Send email here, for now we put it in the error string and redirect
+      PWData pwData = storageIo.createPWData(email);
+      if (pwData == null) {
+        fail(req, resp, "Internal Error");
+        return;
+      }
+      String link = "/login/" + pwData.id + "/setpw";
+      req.getSession().setAttribute("error", link);
+      resp.sendRedirect("/");
+      storageIo.cleanuppwdata();
+      return;
+    }
+
     String email = params.get("email");
     String password = params.get("password"); // We don't check it now
-    if (email != null)
-      email = URLDecoder.decode(email);
-    if (password != null)
-      password = URLDecoder.decode(password);
     if (!password.equals("magic")) { // Kludge for now, static password for all
       fail(req, resp, "Invalid Static Password");
       return;
@@ -130,7 +167,7 @@ public class LoginServlet extends HttpServlet {
       if (nvpair.length <= 1) {
         map.put(nvpair[0], "");
       } else
-        map.put(nvpair[0], nvpair[1]);
+        map.put(nvpair[0], URLDecoder.decode(nvpair[1]));
     }
     return map;
   }
