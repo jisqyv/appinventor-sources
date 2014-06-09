@@ -1,6 +1,10 @@
 #!/usr/bin/python
 from bottle import run,route,app,request,response,template,default_app,Bottle,debug,abort
 from flup.server.fcgi import WSGIServer
+from email.utils import formatdate
+from email.parser import Parser
+import smtplib
+from email.charset import add_charset
 import pika
 
 from message_pb2 import Message
@@ -23,6 +27,8 @@ def store():
     message = Message()
     message.email = d['email']
     message.url = d['url']
+    if d.get('pass') != 'secret123':
+        return ''
     channel.basic_publish('', 'passmail', message.SerializeToString(),
                           pika.BasicProperties(content_type='text/plain',
                                                delivery_mode=1))
@@ -37,6 +43,8 @@ def options():
     return ''
 
 debug(True)
+
+
 
 ##run(host='127.0.0.1', port=8080)
 WSGIServer(app).run()
