@@ -27,6 +27,8 @@ public class User implements IsSerializable, UserInfoProvider, Serializable {
 
   private String sessionId;        // Used to ensure only one account active at a time
 
+  private String password;      // Hashed password (if using local login system)
+
   public final static String usercachekey = "f682688a-1065-4cda-8515-a8bd70200ac9"; // UUID
   // This UUID is prepended to any key lookup for User objects. Memcache is a common
   // key/value store for the entire application. By prepending a unique value, we ensure
@@ -81,6 +83,25 @@ public class User implements IsSerializable, UserInfoProvider, Serializable {
    */
   public void setUserEmail(String email) {
     this.email = email;
+  }
+
+  /**
+   * fetch the hashed password
+   *
+   * @return hashed password
+   */
+  public String getPassword() {
+    return password;
+  }
+
+
+  /**
+   * sets the hashed password.
+   *
+   * @param hashed password
+   */
+  public void setPassword(String hashedpassword) {
+    this.password = hashedpassword;
   }
 
   /**

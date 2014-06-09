@@ -46,6 +46,7 @@ public class StoredData {
     @Indexed public Date visited; // Used to figure out if a user is active. Timestamp when settings are stored.
 
     String sessionid;           // uuid of active session
+    String password;            // Hashed (PBKDF2 hashing) password
 
   }
 

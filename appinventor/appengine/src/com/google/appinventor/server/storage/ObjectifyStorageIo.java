@@ -202,6 +202,7 @@ public class ObjectifyStorageIo implements  StorageIo {
           user.setUserEmail(userData.email);
           user.setUserTosAccepted(userData.tosAccepted || !requireTos.get());
           user.setSessionId(userData.sessionid);
+          user.setPassword(userData.password);
         }
       });
     } catch (ObjectifyException e) {
@@ -226,7 +227,9 @@ public class ObjectifyStorageIo implements  StorageIo {
     if (user == null) {
       user = createUser(datastore, newId, email);
     }
-    return new User(user.id, email, user.tosAccepted, false, user.sessionid);
+    User retUser = new User(user.id, email, user.tosAccepted, false, user.sessionid);
+    retUser.setPassword(user.password);
+    return retUser;
   }
 
   private UserData createUser(Objectify datastore, String userId, String email) {

@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URLDecoder;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.logging.Logger;
@@ -30,13 +32,11 @@ import com.google.appengine.api.memcache.MemcacheService;
 import com.google.appengine.api.memcache.MemcacheServiceFactory;
 import com.google.appengine.api.memcache.Expiration;
 
-import com.google.appengine.api.users.User;
-import com.google.appengine.api.users.UserService;
-import com.google.appengine.api.users.UserServiceFactory;
-
+import com.google.appinventor.shared.rpc.user.User;
 import com.google.appinventor.server.storage.StorageIo;
 import com.google.appinventor.server.storage.StorageIoInstanceHolder;
 import com.google.appinventor.server.storage.StoredData.PWData;
+import com.google.appinventor.server.util.PasswordHash;
 
 @SuppressWarnings("unchecked")
 public class LoginServlet extends HttpServlet {
@@ -144,8 +144,23 @@ public class LoginServlet extends HttpServlet {
 
     String email = params.get("email");
     String password = params.get("password"); // We don't check it now
-    if (!password.equals("magic")) { // Kludge for now, static password for all
-      fail(req, resp, "Invalid Static Password");
+    User user = storageIo.getUserFromEmail(email);
+    boolean validLogin = false;
+
+    String hash = user.getPassword();
+    if (hash == null) {
+      fail(req, resp, "No Password Set for User");
+      return;
+    }
+
+    try {
+      validLogin = PasswordHash.validatePassword(password, hash);
+    } catch (NoSuchAlgorithmException e) {
+    } catch (InvalidKeySpecException e) {
+    }
+
+    if (!validLogin) {
+      fail(req, resp, "Invalid Password");
       return;
     }
 
