@@ -140,6 +140,32 @@ public class LoginServlet extends HttpServlet {
       resp.sendRedirect("/");
       storageIo.cleanuppwdata();
       return;
+    } else if (page.equals("setpw")) {
+      String email = (String) req.getSession().getAttribute("email");
+      String password = params.get("password");
+      if (email == null) {
+        fail(req, resp, "Invalid Set Password Link(2)");
+        return;
+      }
+      if (password == null) {
+        fail(req, resp, "No Password Provided");
+        return;
+      }
+      String hashedPassword;
+      try {
+        hashedPassword = PasswordHash.createHash(password);
+      } catch (NoSuchAlgorithmException e) {
+        fail(req, resp, "System Error hashing password");
+        return;
+      } catch (InvalidKeySpecException e) {
+        fail(req, resp, "System Error hashing password");
+        return;
+      }
+
+      User user = storageIo.getUserFromEmail(email);
+      storageIo.setUserPassword(user.getUserId(),  hashedPassword);
+      resp.sendRedirect("/");   // Logged in, go to service
+      return;
     }
 
     String email = params.get("email");

@@ -90,6 +90,14 @@ public interface StorageIo {
   void setUserSessionId(String userId, String sessionId);
 
   /**
+   * Sets the user's hashed password.
+   *
+   * @param userId user id
+   * @param hashed password
+   */
+  void setUserPassword(String userId, String password);
+
+  /**
    * Returns a string with the user's settings.
    *
    * @param userId user id

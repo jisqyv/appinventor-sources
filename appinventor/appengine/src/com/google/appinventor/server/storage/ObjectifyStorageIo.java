@@ -299,6 +299,26 @@ public class ObjectifyStorageIo implements  StorageIo {
   }
 
   @Override
+  public void setUserPassword(final String userId, final String password) {
+    String cachekey = User.usercachekey + "|" + userId;
+    try {
+      runJobWithRetries(new JobRetryHelper() {
+        @Override
+        public void run(Objectify datastore) {
+          UserData userData = datastore.find(userKey(userId));
+          if (userData != null) {
+            userData.password = password;
+            datastore.put(userData);
+          }
+        }
+      });
+    } catch (ObjectifyException e) {
+      throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId), e);
+    }
+    memcache.delete(cachekey);  // Flush cached copy because it changed
+  }
+
+  @Override
   public String loadSettings(final String userId) {
     final Result<String> settings = new Result<String>();
     try {
