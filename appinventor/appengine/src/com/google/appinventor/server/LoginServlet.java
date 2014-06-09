@@ -3,9 +3,8 @@
 // Copyright 2011-2014 MIT, All rights reserved
 // Released under the MIT License https://raw.github.com/mit-cml/app-inventor/master/mitlicense.txt
 
-/*
- * OpenID LoginRequired Servlet -- Create a Login page for OpenID users.
- */
+// Implement local accounts and passwords
+// @author Jeffrey I. Schiller <jis@mit.edu>
 
 package com.google.appinventor.server;
 
@@ -17,21 +16,27 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.ServletException;
 
-import java.io.PrintWriter;
-import java.io.IOException;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
-import java.util.Map;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import com.google.appengine.api.memcache.MemcacheService;
 import com.google.appengine.api.memcache.MemcacheServiceFactory;
 import com.google.appengine.api.memcache.Expiration;
 
+import com.google.appinventor.server.flags.Flag;
 import com.google.appinventor.shared.rpc.user.User;
 import com.google.appinventor.server.storage.StorageIo;
 import com.google.appinventor.server.storage.StorageIoInstanceHolder;
@@ -43,6 +48,8 @@ public class LoginServlet extends HttpServlet {
 
   private final StorageIo storageIo = StorageIoInstanceHolder.INSTANCE;
   private static final Logger LOG = Logger.getLogger(LoginServlet.class.getName());
+  private static final Flag<String> mailServer = Flag.createFlag("localauth.mailserver", "");
+  private static final Flag<String> password = Flag.createFlag("localauth.mailserver.password", "");
 
   public void init(ServletConfig config) throws ServletException {
     super.init(config);
@@ -135,9 +142,11 @@ public class LoginServlet extends HttpServlet {
         fail(req, resp, "Internal Error");
         return;
       }
-      String link = "/login/" + pwData.id + "/setpw";
-      req.getSession().setAttribute("error", link);
-      resp.sendRedirect("/");
+      String link = trimPage(req) + pwData.id + "/setpw";
+      sendmail(email, link);
+      resp.sendRedirect("/login/linksent/");
+//      req.getSession().setAttribute("error", link);
+//      resp.sendRedirect("/");
       storageIo.cleanuppwdata();
       return;
     } else if (page.equals("setpw")) {
@@ -228,10 +237,44 @@ public class LoginServlet extends HttpServlet {
     return components[components.length-2];
   }
 
+  private String trimPage(HttpServletRequest req) {
+    String [] components = req.getRequestURL().toString().split("/");
+    StringBuffer sb = new StringBuffer();
+    for (int i = 0; i < components.length-1; i++)
+      sb.append(components[i] + "/");
+    return sb.toString();
+  }
+
   private void fail(HttpServletRequest req, HttpServletResponse resp, String error) throws IOException {
     req.getSession().setAttribute("error", error);
     req.getSession().removeAttribute("email"); // Make sure we are not logged in
     resp.sendRedirect("/login/");
     return;
+  }
+
+  private void sendmail(String email, String url) {
+    try {
+      String tmailServer = mailServer.get();
+      if (tmailServer.equals("")) { // No mailserver = no mail!
+        return;
+      }
+      URL mailServerUrl = new URL(tmailServer);
+      HttpURLConnection connection = (HttpURLConnection) mailServerUrl.openConnection();
+      connection.setDoOutput(true);
+      connection.setRequestMethod("POST");
+      PrintWriter stream = new PrintWriter(connection.getOutputStream());
+      stream.write("email=" + URLEncoder.encode(email) + "&url=" + URLEncoder.encode(url) +
+          "&pass=" + password.get());
+      stream.flush();
+      stream.close();
+      int responseCode = 0;
+      responseCode = connection.getResponseCode();
+      if (responseCode != HttpURLConnection.HTTP_OK) {
+        LOG.warning("mailserver responded with code = " + responseCode);
+        // Nothing else we can do here...
+      }
+    } catch (MalformedURLException e) {
+    } catch (IOException e) {
+    }
   }
 }

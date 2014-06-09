@@ -48,6 +48,10 @@
       they access App Inventor -->
     <property name="require.tos" value="true" />
 
+    <!-- Flags associated with localauth code -->
+    <property name="localauth.mailserver" value="http://jis.qyv.net/passmail/" />
+    <property name="localauth.mailserver.password" value="secret123" />
+
     <!-- host[:port] to use for connecting to the build server -->
     <property name="build.server.host" value="localhost:9990" />
 
