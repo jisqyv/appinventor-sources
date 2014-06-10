@@ -70,25 +70,21 @@ public class OdeAuthFilter implements Filter {
     final HttpServletResponse httpResponse = (HttpServletResponse) response;
 
     // Use Local Authentication
-    String email = (String) httpRequest.getSession().getAttribute("email");
-    if (email == null) {        // Invalid Login
-      LOG.info("email is null on login.");
+    String userid = (String) httpRequest.getSession().getAttribute("userid");
+    if (userid == null) {        // Invalid Login
+      LOG.info("userid is null on login.");
       httpResponse.setStatus(HttpServletResponse.SC_PRECONDITION_FAILED);
       return;
     }
-    LOG.info("email is " + email + " on login.");
 
-    doMyFilter(email, httpRequest, httpResponse, chain);
+    doMyFilter(userid, httpRequest, httpResponse, chain);
   }
 
   @VisibleForTesting
-  void doMyFilter(String email, HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+  void doMyFilter(String userid, HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws IOException, ServletException {
-    if (!setUser(email)) {
-      // can't get the user info, so block further request processing
-      response.setStatus(HttpServletResponse.SC_PRECONDITION_FAILED);
-      return;
-    }
+
+    setUserFromUserId(userid);
 
     // If using OpenID, we *must* have an email address because that is how we
     // find the UserData object. Note: There is a security risk here. A non-Google
@@ -138,18 +134,6 @@ public class OdeAuthFilter implements Filter {
         localUser.getUserEmail() + "\n\nThat ID has not been authorized to use this service.  " +
         "If you believe that you were in fact given authorization, you should contact the " +
         "service operator.");
-  }
-
-  @VisibleForTesting
-  boolean setUser(String email) {
-    email = idmap.get(email);	// Map the user.
-    User user = storageIo.getUserFromEmail(email);
-//    user.setIsAdmin(userService.isUserAdmin());
-    if (!email.equals(user.getUserEmail())) {
-      user.setUserEmail(email);
-    }
-    localUser.set(user);
-    return true;
   }
 
   /*

@@ -3,9 +3,6 @@
 // Copyright 2011-2014 MIT, All rights reserved
 // Released under the MIT License https://raw.github.com/mit-cml/app-inventor/master/mitlicense.txt
 
-// Implement local accounts and passwords
-// @author Jeffrey I. Schiller <jis@mit.edu>
-
 package com.google.appinventor.server;
 
 import javax.servlet.http.HttpServlet;
@@ -43,6 +40,19 @@ import com.google.appinventor.server.storage.StorageIoInstanceHolder;
 import com.google.appinventor.server.storage.StoredData.PWData;
 import com.google.appinventor.server.util.PasswordHash;
 
+/**
+ * LoginServlet -- Handle logging someone in using an email address for a login
+ * name and a password, which is stored hashed (and salted). Facilities are
+ * provided to e-mail a password to an e-mail address both to set one up the
+ * first time and to recover a lost password.
+ *
+ * This implementation uses a helper server to send mail. It does a webservices
+ * transaction (REST/POST) to the server with the email address and reset url.
+ * The helper server then formats the e-mail message and sends it. The source
+ * code is in misc/passwordmail/...
+ *
+ * @author jis@mit.edu (Jeffrey I. Schiller)
+ */
 @SuppressWarnings("unchecked")
 public class LoginServlet extends HttpServlet {
 
@@ -75,7 +85,8 @@ public class LoginServlet extends HttpServlet {
         return;
       }
       LOG.info("setpw email = " + data.email);
-      req.getSession().setAttribute("email", data.email); // This effectively logs us in!
+      User user = storageIo.getUserFromEmail(data.email);
+      req.getSession().setAttribute("userid", user.getUserId()); // This effectively logs us in!
       out.println("<html><head><title>Set Your Password</title></head><body>\n");
       out.println("<h1>Set Your Password</h1>\n");
       out.println("<form method=POST action=\"" + req.getRequestURI() + "\">");
@@ -150,12 +161,13 @@ public class LoginServlet extends HttpServlet {
       storageIo.cleanuppwdata();
       return;
     } else if (page.equals("setpw")) {
-      String email = (String) req.getSession().getAttribute("email");
-      String password = params.get("password");
-      if (email == null) {
-        fail(req, resp, "Invalid Set Password Link(2)");
+      String userid = (String) req.getSession().getAttribute("userid");
+      if (userid == null) {
+        fail(req, resp, "Session Timed Out");
         return;
       }
+      User user = storageIo.getUser(userid);
+      String password = params.get("password");
       if (password == null) {
         fail(req, resp, "No Password Provided");
         return;
@@ -171,7 +183,6 @@ public class LoginServlet extends HttpServlet {
         return;
       }
 
-      User user = storageIo.getUserFromEmail(email);
       storageIo.setUserPassword(user.getUserId(),  hashedPassword);
       resp.sendRedirect("/");   // Logged in, go to service
       return;
@@ -199,7 +210,7 @@ public class LoginServlet extends HttpServlet {
       return;
     }
 
-    req.getSession().setAttribute("email", email);
+    req.getSession().setAttribute("userid", user.getUserId());
 
     String uri = "/";
     resp.sendRedirect(uri);
