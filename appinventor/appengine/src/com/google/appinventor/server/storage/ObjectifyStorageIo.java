@@ -220,9 +220,10 @@ public class ObjectifyStorageIo implements  StorageIo {
 
   // Get User from email address along.
   @Override
-  public User getUserFromEmail(final String email) {
+  public User getUserFromEmail(String inputemail) {
+    final String email = inputemail.toLowerCase(); // all stored email addr in lower case
     Objectify datastore = ObjectifyService.begin();
-    String newId = UUID.randomUUID().toString(); // TEMP HACK
+    String newId = UUID.randomUUID().toString();
     UserData user = datastore.query(UserData.class).filter("email", email).get();
     if (user == null) {
       user = createUser(datastore, newId, email);
@@ -232,7 +233,8 @@ public class ObjectifyStorageIo implements  StorageIo {
     return retUser;
   }
 
-  private UserData createUser(Objectify datastore, String userId, String email) {
+  private UserData createUser(Objectify datastore, String userId, String inputemail) {
+    String email = inputemail.toLowerCase();
     UserData userData = new UserData();
     userData.id = userId;
     userData.tosAccepted = false;
@@ -261,7 +263,8 @@ public class ObjectifyStorageIo implements  StorageIo {
   }
 
   @Override
-  public void setUserEmail(final String userId, final String email) {
+  public void setUserEmail(final String userId, String inputemail) {
+    final String email = inputemail.toLowerCase();
     try {
       runJobWithRetries(new JobRetryHelper() {
         @Override
@@ -1712,7 +1715,8 @@ public class ObjectifyStorageIo implements  StorageIo {
   }
 
   @Override
-  public String findUserByEmail(final String email) throws NoSuchElementException {
+  public String findUserByEmail(String inputemail) throws NoSuchElementException {
+    final String email = inputemail.toLowerCase();
     Objectify datastore = ObjectifyService.begin();
     // note: if there are multiple users with the same email we'll only
     // get the first one. we don't expect this to happen
