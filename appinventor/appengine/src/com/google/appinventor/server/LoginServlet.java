@@ -60,6 +60,8 @@ public class LoginServlet extends HttpServlet {
   private static final Logger LOG = Logger.getLogger(LoginServlet.class.getName());
   private static final Flag<String> mailServer = Flag.createFlag("localauth.mailserver", "");
   private static final Flag<String> password = Flag.createFlag("localauth.mailserver.password", "");
+  private static final Flag<boolean> useGoogle = Flag.createFlag("auth.usegoogle", true);
+  private static final Flag<boolean> useLocal = Flag.createFlag("auth.uselocal", false);
 
   public void init(ServletConfig config) throws ServletException {
     super.init(config);
@@ -72,6 +74,22 @@ public class LoginServlet extends HttpServlet {
     String [] components = req.getRequestURI().split("/");
     String page = getPage(req);
     String error = (String) req.getSession().getAttribute("error");
+
+    if (page.equals("google")) {
+    } else {
+      if (useLocal.get() == false) {
+        if (useGoogle.get() == false) {
+          out.println("<html><head><title>Error</title></head>\n");
+          out.println("<body><h1>App Inventor is Mis-Configured</h1>\n");
+          out.println("<p>This instance of App Inventor has no authentication mechanism configured.</p>\n");
+          out.println("</body>\n");
+          out.println("</html>\n");
+          return;
+        }
+        resp.sendRedirect("/login/google/");
+        return;
+      }
+    }
 
     if (page.equals("setpw")) {
       String uid = getParam(req);
