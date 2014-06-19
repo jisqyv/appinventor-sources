@@ -32,6 +32,8 @@ import java.util.logging.Logger;
 import com.google.appengine.api.memcache.MemcacheService;
 import com.google.appengine.api.memcache.MemcacheServiceFactory;
 import com.google.appengine.api.memcache.Expiration;
+import com.google.appengine.api.users.UserService;
+import com.google.appengine.api.users.UserServiceFactory;
 
 import com.google.appinventor.server.flags.Flag;
 import com.google.appinventor.shared.rpc.user.User;
@@ -60,8 +62,9 @@ public class LoginServlet extends HttpServlet {
   private static final Logger LOG = Logger.getLogger(LoginServlet.class.getName());
   private static final Flag<String> mailServer = Flag.createFlag("localauth.mailserver", "");
   private static final Flag<String> password = Flag.createFlag("localauth.mailserver.password", "");
-  private static final Flag<boolean> useGoogle = Flag.createFlag("auth.usegoogle", true);
-  private static final Flag<boolean> useLocal = Flag.createFlag("auth.uselocal", false);
+  private static final Flag<Boolean> useGoogle = Flag.createFlag("auth.usegoogle", true);
+  private static final Flag<Boolean> useLocal = Flag.createFlag("auth.uselocal", false);
+  private static final UserService userService = UserServiceFactory.getUserService();
 
   public void init(ServletConfig config) throws ServletException {
     super.init(config);
@@ -76,6 +79,17 @@ public class LoginServlet extends HttpServlet {
     String error = (String) req.getSession().getAttribute("error");
 
     if (page.equals("google")) {
+      // We get here after we have gone through the Google Login page
+      // This is arranged via a security-constraint setup in web.xml
+      com.google.appengine.api.users.User apiUser = userService.getCurrentUser();
+      if (apiUser == null) {  // Hmmm. I don't think this should happen
+        fail(req, resp, "Google Authentication Failed"); // Not sure what else to do
+        return;
+      }
+      String email = apiUser.getEmail();
+      User user = storageIo.getUserFromEmail(email);
+      req.getSession().setAttribute("userid", user.getUserId()); // This effectively logs us in!
+      resp.sendRedirect("/");
     } else {
       if (useLocal.get() == false) {
         if (useGoogle.get() == false) {
@@ -86,10 +100,12 @@ public class LoginServlet extends HttpServlet {
           out.println("</html>\n");
           return;
         }
-        resp.sendRedirect("/login/google/");
+        resp.sendRedirect("/login/google");
         return;
       }
     }
+
+    // If we get here, local accounts are supported
 
     if (page.equals("setpw")) {
       String uid = getParam(req);
@@ -144,7 +160,11 @@ public class LoginServlet extends HttpServlet {
     out.println("</table>\n");
     out.println("<input type=Submit value=\"Login\">\n");
     out.println("</form>\n");
-    out.println("<p><a href=\"/login/sendlink\">Click Here to Recover or Set your Password</a></p></body></html>\n");
+    out.println("<p><a href=\"/login/sendlink\">Click Here to Recover or Set your Password</a></p>\n");
+    if (useGoogle.get() == true) {
+      out.println("<p><a href=\"/login/google\">Click Here to use your Google Account to login</a></p>\n");
+    }
+    out.println("</body></html\n");
   }
 
   protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
