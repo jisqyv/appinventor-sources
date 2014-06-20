@@ -76,15 +76,20 @@ public class OdeAuthFilter implements Filter {
       httpResponse.setStatus(HttpServletResponse.SC_PRECONDITION_FAILED);
       return;
     }
+    boolean isAdmin = false;
+    Object oIsAdmin = httpRequest.getSession().getAttribute("isadmin");
+    if (oIsAdmin != null) {
+      isAdmin = (boolean) oIsAdmin;
+    }
 
-    doMyFilter(userid, httpRequest, httpResponse, chain);
+    doMyFilter(userid, isAdmin, httpRequest, httpResponse, chain);
   }
 
   @VisibleForTesting
-  void doMyFilter(String userid, HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+  void doMyFilter(String userid, boolean isAdmin, HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws IOException, ServletException {
 
-    setUserFromUserId(userid);
+    setUserFromUserId(userid, isAdmin);
 
     // If using OpenID, we *must* have an email address because that is how we
     // find the UserData object. Note: There is a security risk here. A non-Google
@@ -142,8 +147,12 @@ public class OdeAuthFilter implements Filter {
    * <p>This method is called from {@link WebStartFileServlet} with the userId
    * that was encrypted in the URL.
    */
-  void setUserFromUserId(String userId) {
+  void setUserFromUserId(String userId, boolean isAdmin) {
     User user = storageIo.getUser(userId);
+    if (!user.getIsAdmin() && isAdmin) {
+      user.setIsAdmin(true);    // If session says they are an admin (which is the case
+                                // if they are a Google Account with Developer access
+    }
     localUser.set(user);
   }
 

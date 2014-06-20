@@ -42,6 +42,7 @@ public class StoredData {
 
     // Has user accepted terms of service?
     boolean tosAccepted;
+    boolean isAdmin;            // Internal flag for local login administrators
 
     @Indexed public Date visited; // Used to figure out if a user is active. Timestamp when settings are stored.
 

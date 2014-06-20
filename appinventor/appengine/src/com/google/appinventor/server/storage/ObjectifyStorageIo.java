@@ -201,6 +201,7 @@ public class ObjectifyStorageIo implements  StorageIo {
           }
           user.setUserEmail(userData.email);
           user.setUserTosAccepted(userData.tosAccepted || !requireTos.get());
+          user.setIsAdmin(userData.isAdmin);
           user.setSessionId(userData.sessionid);
           user.setPassword(userData.password);
         }
