@@ -43,10 +43,6 @@ public class OdeAuthFilter implements Filter {
 
   private static final UserService userService = UserServiceFactory.getUserService();
 
-  // Note that if no whitelist exists, then no whitelist will be used.
-//  private static final Whitelist whitelist = new Whitelist();
-  private static final IdMap idmap = IdMap.getInstance();
-
   // Whether this server should use a whitelist to determine who can
   // access it. Value is specified in the <system-properties> section
   // of appengine-web.xml.
@@ -91,11 +87,8 @@ public class OdeAuthFilter implements Filter {
 
     setUserFromUserId(userid, isAdmin);
 
-    // If using OpenID, we *must* have an email address because that is how we
-    // find the UserData object. Note: There is a security risk here. A non-Google
-    // OpenID provider could provide a gmail address as an email, which would permit
-    // access to that person's projects. If we are paranoid, we could prohibit
-    // gmail (and related addresses) from any OpenID provider that is not Google.
+    // If using local login, we *must* have an email address because that is how we
+    // find the UserData object.
     String lemail = localUser.getUserEmail();
     if (lemail.equals("")) {
       response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

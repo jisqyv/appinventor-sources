@@ -222,12 +222,20 @@ public class ObjectifyStorageIo implements  StorageIo {
   // Get User from email address along.
   @Override
   public User getUserFromEmail(String inputemail) {
-    final String email = inputemail.toLowerCase(); // all stored email addr in lower case
+    String email = inputemail.toLowerCase(); // all stored email addr in lower case
+    LOG.info("getUserFromEmail: email = " + email + " inputemail = " + inputemail);
     Objectify datastore = ObjectifyService.begin();
     String newId = UUID.randomUUID().toString();
-    UserData user = datastore.query(UserData.class).filter("email", email).get();
+    // First try lookup using entered case (which will be the case for Google Accounts)
+    UserData user = datastore.query(UserData.class).filter("email", inputemail).get();
     if (user == null) {
-      user = createUser(datastore, newId, email);
+      LOG.info("getUserFromEmail: first attempt failed using " + inputemail);
+      // Now try lower case version
+      user = datastore.query(UserData.class).filter("email", email).get();
+      if (user == null) {       // Finally, create it (in lower case)
+        LOG.info("getUserFromEmail: second attempt failed using " + email);
+        user = createUser(datastore, newId, email);
+      }
     }
     User retUser = new User(user.id, email, user.tosAccepted, false, user.sessionid);
     retUser.setPassword(user.password);
@@ -1717,13 +1725,16 @@ public class ObjectifyStorageIo implements  StorageIo {
 
   @Override
   public String findUserByEmail(String inputemail) throws NoSuchElementException {
-    final String email = inputemail.toLowerCase();
+    String email = inputemail.toLowerCase();
     Objectify datastore = ObjectifyService.begin();
     // note: if there are multiple users with the same email we'll only
     // get the first one. we don't expect this to happen
-    UserData userData = datastore.query(UserData.class).filter("email", email).get();
-    if (userData == null) {
-      throw new NoSuchElementException("Couldn't find a user with email " + email);
+    UserData userData = datastore.query(UserData.class).filter("email", inputemail).get();
+    if (userData == null) {     // Try mixed case version. Old entries are mixed case
+      userData = datastore.query(UserData.class).filter("email", email).get();
+      if (userData == null) {
+        throw new NoSuchElementException("Couldn't find a user with email " + inputemail);
+      }
     }
     return userData.id;
   }
