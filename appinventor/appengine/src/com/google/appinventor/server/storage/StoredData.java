@@ -36,6 +36,7 @@ public class StoredData {
     @Id public String id;
 
     @Indexed public String email;
+    @Indexed public String emaillower;
 
     // User settings
     public String settings;

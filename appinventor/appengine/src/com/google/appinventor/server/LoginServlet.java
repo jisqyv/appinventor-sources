@@ -87,7 +87,8 @@ public class LoginServlet extends HttpServlet {
         return;
       }
       String email = apiUser.getEmail();
-      User user = storageIo.getUserFromEmail(email);
+      String userId = apiUser.getUserId();
+      User user = storageIo.getUser(userId, email);
       req.getSession().setAttribute("userid", user.getUserId()); // This effectively logs us in!
       if (userService.isUserAdmin()) {                           // If Google says you are an admin
         req.getSession().setAttribute("isadmin", true);          // Tell the session we are admin

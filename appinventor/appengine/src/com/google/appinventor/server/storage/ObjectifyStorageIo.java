@@ -194,11 +194,42 @@ public class ObjectifyStorageIo implements  StorageIo {
         @Override
         public void run(Objectify datastore) {
           UserData userData = datastore.find(userKey(userId));
-          if (userData == null) {
-            userData = createUser(datastore, userId, email);
+          boolean viaemail = false; // Which datastore copy did we find it with...
+          Objectify qDatastore = null;
+          if (userData == null) { // Attempt to find them by email
+            LOG.info("Did not find userId " + userId);
+            if (email != null) {
+              qDatastore = ObjectifyService.begin(); // Need an instance not in this transaction
+              userData = qDatastore.query(UserData.class).filter("email", email).get();
+              if (userData == null) { // Still null!
+                userData = qDatastore.query(UserData.class).filter("emaillower", email.toLowerCase()).get();
+              }
+              // Need to fix userId...
+              if (userData != null) {
+                LOG.info("Found based on email, userData.id = " + userData.id);
+                if (!userData.id.equals(userId)) {
+                  user.setUserId(userData.id);
+                  LOG.info("Set user.setUserId");
+                }
+                viaemail = true;
+              }
+            }
+            if (userData == null) { // No joy, create it.
+              userData = createUser(datastore, userId, email);
+            }
           } else if (email != null && !email.equals(userData.email)) {
             userData.email = email;
+            userData.emaillower = email.toLowerCase();
             datastore.put(userData);
+          }
+          // Add emaillower if it isn't already there
+          if (userData.emaillower == null) {
+            userData.emaillower = userData.email.toLowerCase();
+            if (viaemail) {
+              qDatastore.put(userData);
+            } else {
+              datastore.put(userData);
+            }
           }
           user.setUserEmail(userData.email);
           user.setUserTosAccepted(userData.tosAccepted || !requireTos.get());
@@ -222,19 +253,19 @@ public class ObjectifyStorageIo implements  StorageIo {
 
   // Get User from email address along.
   @Override
-  public User getUserFromEmail(String inputemail) {
-    String email = inputemail.toLowerCase(); // all stored email addr in lower case
-    LOG.info("getUserFromEmail: email = " + email + " inputemail = " + inputemail);
+  public User getUserFromEmail(String email) {
+    String emaillower = email.toLowerCase();
+    LOG.info("getUserFromEmail: email = " + email + " emaillower = " + emaillower);
     Objectify datastore = ObjectifyService.begin();
     String newId = UUID.randomUUID().toString();
     // First try lookup using entered case (which will be the case for Google Accounts)
-    UserData user = datastore.query(UserData.class).filter("email", inputemail).get();
+    UserData user = datastore.query(UserData.class).filter("email", email).get();
     if (user == null) {
-      LOG.info("getUserFromEmail: first attempt failed using " + inputemail);
+      LOG.info("getUserFromEmail: first attempt failed using " + email);
       // Now try lower case version
-      user = datastore.query(UserData.class).filter("email", email).get();
+      user = datastore.query(UserData.class).filter("emaillower", emaillower).get();
       if (user == null) {       // Finally, create it (in lower case)
-        LOG.info("getUserFromEmail: second attempt failed using " + email);
+        LOG.info("getUserFromEmail: second attempt failed using " + emaillower);
         user = createUser(datastore, newId, email);
       }
     }
@@ -243,13 +274,17 @@ public class ObjectifyStorageIo implements  StorageIo {
     return retUser;
   }
 
-  private UserData createUser(Objectify datastore, String userId, String inputemail) {
-    String email = inputemail.toLowerCase();
+  private UserData createUser(Objectify datastore, String userId, String email) {
+    String emaillower = null;
+    if (email != null) {
+      emaillower = email.toLowerCase();
+    }
     UserData userData = new UserData();
     userData.id = userId;
     userData.tosAccepted = false;
     userData.settings = "";
     userData.email = email == null ? "" : email;
+    userData.emaillower = email == null ? "" : emaillower;
     datastore.put(userData);
     return userData;
   }

@@ -68,6 +68,14 @@ public class User implements IsSerializable, UserInfoProvider, Serializable {
     return id;
   }
 
+  /*
+   * Sets the userId. This is needed in the case where the stored
+   * id in userData is different from what Google is now providing.
+   */
+  public void setUserId(String id) {
+    this.id = id;
+  }
+
   /**
    * Returns the user's email address.
    *
