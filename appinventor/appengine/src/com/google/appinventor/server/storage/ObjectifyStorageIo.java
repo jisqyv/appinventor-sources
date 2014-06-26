@@ -173,9 +173,10 @@ public class ObjectifyStorageIo implements  StorageIo {
   }
 
   /*
-   * Note that the User returned by this method will always have isAdmin set to
-   * false. We leave it to the caller to determine whether the user has admin
-   * priviledges.
+   * We return isAdmin if the UserData object has the flag set. However
+   * even if we return it as false. If the user is logging in with Google
+   * Credentials and the apiUser indicates they are an admin of the app,
+   * then isAdmin will be set by our caller.
    */
   @Override
   public User getUser(final String userId, final String email) {
