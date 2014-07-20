@@ -25,6 +25,7 @@ import com.google.appinventor.server.storage.StoredData.FileData;
 import com.google.appinventor.server.storage.StoredData.MotdData;
 import com.google.appinventor.server.storage.StoredData.NonceData;
 import com.google.appinventor.server.storage.StoredData.ProjectData;
+import com.google.appinventor.server.storage.StoredData.PWData;
 import com.google.appinventor.server.storage.StoredData.UserData;
 import com.google.appinventor.server.storage.StoredData.UserFileData;
 import com.google.appinventor.server.storage.StoredData.UserProjectData;
@@ -78,6 +79,7 @@ import java.util.logging.Logger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import java.util.Date;
+import java.util.UUID;
 
 import javax.annotation.Nullable;
 
@@ -150,6 +152,7 @@ public class ObjectifyStorageIo implements  StorageIo {
     ObjectifyService.register(FeedbackData.class);
     ObjectifyService.register(NonceData.class);
     ObjectifyService.register(CorruptionRecord.class);
+    ObjectifyService.register(PWData.class);
   }
 
   ObjectifyStorageIo() {
@@ -170,9 +173,10 @@ public class ObjectifyStorageIo implements  StorageIo {
   }
 
   /*
-   * Note that the User returned by this method will always have isAdmin set to
-   * false. We leave it to the caller to determine whether the user has admin
-   * priviledges.
+   * We return isAdmin if the UserData object has the flag set. However
+   * even if we return it as false. If the user is logging in with Google
+   * Credentials and the apiUser indicates they are an admin of the app,
+   * then isAdmin will be set by our caller.
    */
   @Override
   public User getUser(final String userId, final String email) {
@@ -190,15 +194,48 @@ public class ObjectifyStorageIo implements  StorageIo {
         @Override
         public void run(Objectify datastore) {
           UserData userData = datastore.find(userKey(userId));
-          if (userData == null) {
-            userData = createUser(datastore, userId, email);
+          boolean viaemail = false; // Which datastore copy did we find it with...
+          Objectify qDatastore = null;
+          if (userData == null) { // Attempt to find them by email
+            LOG.info("Did not find userId " + userId);
+            if (email != null) {
+              qDatastore = ObjectifyService.begin(); // Need an instance not in this transaction
+              userData = qDatastore.query(UserData.class).filter("email", email).get();
+              if (userData == null) { // Still null!
+                userData = qDatastore.query(UserData.class).filter("emaillower", email.toLowerCase()).get();
+              }
+              // Need to fix userId...
+              if (userData != null) {
+                LOG.info("Found based on email, userData.id = " + userData.id);
+                if (!userData.id.equals(userId)) {
+                  user.setUserId(userData.id);
+                  LOG.info("Set user.setUserId");
+                }
+                viaemail = true;
+              }
+            }
+            if (userData == null) { // No joy, create it.
+              userData = createUser(datastore, userId, email);
+            }
           } else if (email != null && !email.equals(userData.email)) {
             userData.email = email;
+            userData.emaillower = email.toLowerCase();
             datastore.put(userData);
+          }
+          // Add emaillower if it isn't already there
+          if (userData.emaillower == null) {
+            userData.emaillower = userData.email.toLowerCase();
+            if (viaemail) {
+              qDatastore.put(userData);
+            } else {
+              datastore.put(userData);
+            }
           }
           user.setUserEmail(userData.email);
           user.setUserTosAccepted(userData.tosAccepted || !requireTos.get());
+          user.setIsAdmin(userData.isAdmin);
           user.setSessionId(userData.sessionid);
+          user.setPassword(userData.password);
         }
       });
     } catch (ObjectifyException e) {
@@ -214,12 +251,40 @@ public class ObjectifyStorageIo implements  StorageIo {
     return user;
   }
 
+  // Get User from email address along.
+  @Override
+  public User getUserFromEmail(String email) {
+    String emaillower = email.toLowerCase();
+    LOG.info("getUserFromEmail: email = " + email + " emaillower = " + emaillower);
+    Objectify datastore = ObjectifyService.begin();
+    String newId = UUID.randomUUID().toString();
+    // First try lookup using entered case (which will be the case for Google Accounts)
+    UserData user = datastore.query(UserData.class).filter("email", email).get();
+    if (user == null) {
+      LOG.info("getUserFromEmail: first attempt failed using " + email);
+      // Now try lower case version
+      user = datastore.query(UserData.class).filter("emaillower", emaillower).get();
+      if (user == null) {       // Finally, create it (in lower case)
+        LOG.info("getUserFromEmail: second attempt failed using " + emaillower);
+        user = createUser(datastore, newId, email);
+      }
+    }
+    User retUser = new User(user.id, email, user.tosAccepted, false, user.sessionid);
+    retUser.setPassword(user.password);
+    return retUser;
+  }
+
   private UserData createUser(Objectify datastore, String userId, String email) {
+    String emaillower = null;
+    if (email != null) {
+      emaillower = email.toLowerCase();
+    }
     UserData userData = new UserData();
     userData.id = userId;
     userData.tosAccepted = false;
     userData.settings = "";
     userData.email = email == null ? "" : email;
+    userData.emaillower = email == null ? "" : emaillower;
     datastore.put(userData);
     return userData;
   }
@@ -243,7 +308,8 @@ public class ObjectifyStorageIo implements  StorageIo {
   }
 
   @Override
-  public void setUserEmail(final String userId, final String email) {
+  public void setUserEmail(final String userId, String inputemail) {
+    final String email = inputemail.toLowerCase();
     try {
       runJobWithRetries(new JobRetryHelper() {
         @Override
@@ -270,6 +336,26 @@ public class ObjectifyStorageIo implements  StorageIo {
           UserData userData = datastore.find(userKey(userId));
           if (userData != null) {
             userData.sessionid = sessionId;
+            datastore.put(userData);
+          }
+        }
+      });
+    } catch (ObjectifyException e) {
+      throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId), e);
+    }
+    memcache.delete(cachekey);  // Flush cached copy because it changed
+  }
+
+  @Override
+  public void setUserPassword(final String userId, final String password) {
+    String cachekey = User.usercachekey + "|" + userId;
+    try {
+      runJobWithRetries(new JobRetryHelper() {
+        @Override
+        public void run(Objectify datastore) {
+          UserData userData = datastore.find(userKey(userId));
+          if (userData != null) {
+            userData.password = password;
             datastore.put(userData);
           }
         }
@@ -1674,13 +1760,17 @@ public class ObjectifyStorageIo implements  StorageIo {
   }
 
   @Override
-  public String findUserByEmail(final String email) throws NoSuchElementException {
+  public String findUserByEmail(String inputemail) throws NoSuchElementException {
+    String email = inputemail.toLowerCase();
     Objectify datastore = ObjectifyService.begin();
     // note: if there are multiple users with the same email we'll only
     // get the first one. we don't expect this to happen
-    UserData userData = datastore.query(UserData.class).filter("email", email).get();
-    if (userData == null) {
-      throw new NoSuchElementException("Couldn't find a user with email " + email);
+    UserData userData = datastore.query(UserData.class).filter("email", inputemail).get();
+    if (userData == null) {     // Try mixed case version. Old entries are mixed case
+      userData = datastore.query(UserData.class).filter("email", email).get();
+      if (userData == null) {
+        throw new NoSuchElementException("Couldn't find a user with email " + inputemail);
+      }
     }
     return userData.id;
   }
@@ -1847,6 +1937,65 @@ public class ObjectifyStorageIo implements  StorageIo {
         LOG.log(Level.WARNING, "Exception during cleanupNonces", ex);
     }
 
+  }
+
+  @Override
+  public PWData createPWData(final String email) {
+    Objectify datastore = ObjectifyService.begin();
+    final PWData pwData = new PWData();
+    pwData.id = UUID.randomUUID().toString();
+    pwData.email = email;
+    pwData.timestamp = new Date();
+    try {
+      runJobWithRetries(new JobRetryHelper() {
+          @Override
+          public void run(Objectify datastore) {
+            datastore.put(pwData);
+          }
+        });
+    } catch (ObjectifyException e) {
+      throw CrashReport.createAndLogError(LOG, null, null, e);
+    }
+    return pwData;
+  }
+
+  @Override
+  public StoredData.PWData findPWData(final String uid) {
+    final Result<PWData> result = new Result<PWData>();
+    try {
+      runJobWithRetries(new JobRetryHelper() {
+          @Override
+          public void run(Objectify datastore) {
+            PWData pwData = datastore.find(pwdataKey(uid));
+            if (pwData != null) {
+              result.t = pwData;
+            }
+          }
+        });
+    } catch (ObjectifyException e) {
+      throw CrashReport.createAndLogError(LOG, null, null, e);
+    }
+    return result.t;
+  }
+
+  // Remove up to 10 expired PWData elements from the datastore
+  @Override
+  public void cleanuppwdata() {
+    Objectify datastore = ObjectifyService.begin();
+    // We do not use runJobWithRetries because if we fail here, we will be
+    // called again the next time someone attempts to set a password
+    // Note: we remove data after 24 hours.
+    try {
+      datastore.delete(datastore.query(PWData.class)
+        .filter("timestamp <", new Date((new Date()).getTime() - 3600*24*1000L))
+        .limit(10).fetchKeys());
+    } catch (Exception ex) {
+        LOG.log(Level.WARNING, "Exception during cleanupNonces", ex);
+    }
+  }
+
+  private Key<StoredData.PWData> pwdataKey(String uid) {
+    return new Key<StoredData.PWData>(PWData.class, uid);
   }
 
   // Create a name for a blob from a project id and file name. This is mostly

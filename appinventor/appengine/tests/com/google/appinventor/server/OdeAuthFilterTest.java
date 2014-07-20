@@ -5,7 +5,9 @@
 package com.google.appinventor.server;
 
 import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
 
+import com.google.appinventor.shared.rpc.user.User;
 import com.google.appinventor.common.testutils.TestUtils;
 
 import static junit.framework.Assert.*;
@@ -46,6 +48,9 @@ public class OdeAuthFilterTest {
     localUserMock = PowerMock.createMock(LocalUser.class);
     PowerMock.mockStatic(LocalUser.class);
     expect(LocalUser.getInstance()).andReturn(localUserMock).anyTimes();
+    localUserMock.set(new User("1", "NonSuch", false, false, null));
+    expectLastCall().times(1);
+    expect(localUserMock.getUserEmail()).andReturn("NonSuch").times(1);
     mockFilterChain = PowerMock.createNiceMock(FilterChain.class);
     mockServletRequest = PowerMock.createNiceMock(HttpServletRequest.class);
     mockServletResponse = PowerMock.createNiceMock(HttpServletResponse.class);
@@ -74,7 +79,7 @@ public class OdeAuthFilterTest {
 
     OdeAuthFilter myAuthFilter = new OdeAuthFilter() {
       @Override
-      boolean setUser(HttpServletRequest req) { return true; }
+      void setUserFromUserId(String userId, boolean isAdmin) { localUserMock.set(new User("1", "NonSuch", false, false, null)); return;}
       @Override
       void removeUser() {}
       @Override
@@ -84,7 +89,7 @@ public class OdeAuthFilterTest {
       }
     };
 
-    myAuthFilter.doMyFilter(mockServletRequest, mockServletResponse, mockFilterChain);
+    myAuthFilter.doMyFilter("NonSuch", false, mockServletRequest, mockServletResponse, mockFilterChain);
 
     // isUserWhitelisted should not have been called.
     assertEquals(0, isUserWhitelistedCounter.get());
@@ -110,7 +115,7 @@ public class OdeAuthFilterTest {
 
     OdeAuthFilter myAuthFilter = new OdeAuthFilter() {
       @Override
-      boolean setUser(HttpServletRequest req) { return true; }
+      void setUserFromUserId(String userId, boolean isAdmin) { localUserMock.set(new User("1", "NonSuch", false, false, null)); return;}
       @Override
       void removeUser() {}
       @Override
@@ -124,7 +129,7 @@ public class OdeAuthFilterTest {
       }
     };
 
-    myAuthFilter.doMyFilter(mockServletRequest, mockServletResponse, mockFilterChain);
+    myAuthFilter.doMyFilter("NonSuch", false, mockServletRequest, mockServletResponse, mockFilterChain);
 
     // isUserWhitelisted should have been called once.
     assertEquals(1, isUserWhitelistedCounter.get());

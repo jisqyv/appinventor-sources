@@ -58,6 +58,16 @@ public interface StorageIo {
   User getUser(String userId, String email);
 
   /**
+   * Returns user data given user email address. If the user data for the given email
+   * doesn't already exist in the storage, it should be created. email
+   * is the email address currently associated with this user.
+   *
+   * @param user email address
+   * @return user data
+   */
+  User getUserFromEmail(String email);
+
+  /**
    * Sets the stored email address for user with id userId
    *
    */
@@ -78,6 +88,14 @@ public interface StorageIo {
    * @param sessionId the session id (uuid) value
    */
   void setUserSessionId(String userId, String sessionId);
+
+  /**
+   * Sets the user's hashed password.
+   *
+   * @param userId user id
+   * @param hashed password
+   */
+  void setUserPassword(String userId, String password);
 
   /**
    * Returns a string with the user's settings.
@@ -475,5 +493,9 @@ public interface StorageIo {
 
   // Cleanup expired nonces
   void cleanupNonces();
+
+  StoredData.PWData createPWData(String email);
+  StoredData.PWData findPWData(String uid);
+  void cleanuppwdata();
 
 }
