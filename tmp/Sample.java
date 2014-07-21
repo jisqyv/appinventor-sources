@@ -2,6 +2,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.PreparedStatement;
 import java.sql.Statement;
 
 public class Sample
@@ -23,7 +24,9 @@ public class Sample
       statement.executeUpdate("create table person (id integer, name string)");
       statement.executeUpdate("insert into person values(1, 'leo')");
       statement.executeUpdate("insert into person values(2, 'yui')");
-      ResultSet rs = statement.executeQuery("select * from person");
+      PreparedStatement prep = connection.prepareStatement("select * from person where name like ?");
+      prep.setString(1, "%");
+      ResultSet rs = prep.executeQuery();
       while(rs.next())
       {
         // read the result set
