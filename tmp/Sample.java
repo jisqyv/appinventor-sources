@@ -21,9 +21,12 @@ public class Sample
       statement.setQueryTimeout(30);  // set timeout to 30 sec.
 
       statement.executeUpdate("drop table if exists person");
+      connection.setAutoCommit(false);
       statement.executeUpdate("create table person (id integer, name string)");
-      statement.executeUpdate("insert into person values(1, 'leo')");
-      statement.executeUpdate("insert into person values(2, 'yui')");
+      System.out.println("About to Insert Leo");
+      System.out.println(statement.executeUpdate("insert into person values(1, 'leo')"));
+      System.out.println("About to Insert Yui");
+      System.out.println(statement.executeUpdate("insert into person values(2, 'yui')"));
       PreparedStatement prep = connection.prepareStatement("select * from person where name like ?");
       prep.setString(1, "%");
       ResultSet rs = prep.executeQuery();
@@ -33,6 +36,7 @@ public class Sample
         System.out.println("name = " + rs.getString("name"));
         System.out.println("id = " + rs.getInt("id"));
       }
+      connection.commit();
     }
     catch(SQLException e)
     {
