@@ -96,10 +96,13 @@ public class LocalStorageIo implements  StorageIo {
 
   LocalStorageIo() {
     // Load the SQLite3 Driver Classes
-    driverClass = Class.forName("org.sqlite.JDBC");
-    if (storageRoot.get().equals("")) {
-      // Blow Up, we cannot go on!!!
-      throw new Exception("Invalid Storage Root");
+    try {
+      driverClass = Class.forName("org.sqlite.JDBC");
+      if (storageRoot.get().equals("")) {
+        throw new Exception("Invalid Storage Root");
+      }
+    } catch (Exception e) {
+      throw CrashReport.createAndLogError(LOG, null, null, e);
     }
     checkSetup();
   }
@@ -109,7 +112,7 @@ public class LocalStorageIo implements  StorageIo {
    *
    */
   private void checkSetup() {
-    Connection conn;
+    Connection conn = null;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
       conn.setAutoCommit(false);
@@ -145,8 +148,11 @@ public class LocalStorageIo implements  StorageIo {
       }
     } finally {
       if (conn != null) {
-        conn.rollback();
-        conn.close();
+        try {
+          conn.rollback();
+          conn.close();
+        } catch (Exception e) {
+        }
       }
     }
   }
@@ -168,7 +174,7 @@ public class LocalStorageIo implements  StorageIo {
   }
 
   public User getUser(String userId, String email, boolean create) {
-    Connection conn;
+    Connection conn = null;
     ResultSet rs;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
@@ -200,12 +206,13 @@ public class LocalStorageIo implements  StorageIo {
       }
     } catch (SQLException e) {
       throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId), e);
-    } catch (IOException e) {
-      throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId), e);
     } finally {
       if (conn != null) {
-        conn.rollback();
-        conn.close();
+        try {
+          conn.rollback();
+          conn.close();
+        } catch (Exception e) {
+        }
       }
     }
   }
@@ -213,7 +220,7 @@ public class LocalStorageIo implements  StorageIo {
   /*
    * Note: We are passed in the SQL Connection to the User Database.
    */
-  private User createUser(String email, Connection conn) {
+  private User createUser(String email, Connection conn) throws SQLException {
     String newId = UUID.randomUUID().toString();
     conn.setAutoCommit(false);
     PreparedStatement prep = conn.prepareStatement("insert into users (uid, email, emaillower, visited," +
@@ -234,7 +241,7 @@ public class LocalStorageIo implements  StorageIo {
     // private project directory.
     File projectPath = new File(storageRoot.get() + "/" + newId);
     projectPath.mkdir();
-    Connection projectDb;
+    Connection projectDb = null;
     try {
       projectDb = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + newId + "/projects.sqlite");
       Statement statement = projectDb.createStatement();
@@ -259,7 +266,7 @@ public class LocalStorageIo implements  StorageIo {
 
   @Override
   public void setTosAccepted(String userId) {
-    Connection conn;
+    Connection conn = null;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
       PreparedStatement prep = conn.prepareStatement("update users set tosaccepted = 't' where uuid = ?");
@@ -269,14 +276,17 @@ public class LocalStorageIo implements  StorageIo {
       throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId), e);
     } finally {
       if (conn != null) {
-        conn.close();
+        try {
+          conn.close();
+        } catch (Exception e) {
+        }
       }
     }
   }
 
   @Override
   public void setUserEmail(String userId, String email) {
-    Connection conn;
+    Connection conn = null;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
       PreparedStatement prep = conn.prepareStatement("update users set email = ?, emaillower = ? where uuid = ?");
@@ -288,14 +298,17 @@ public class LocalStorageIo implements  StorageIo {
       throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId), e);
     } finally {
       if (conn != null) {
-        conn.close();
+        try {
+          conn.close();
+        } catch (Exception e) {
+        }
       }
     }
   }
 
   @Override
   public void setUserSessionId(final String userId, final String sessionId) {
-    Connection conn;
+    Connection conn = null;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
       PreparedStatement prep = conn.prepareStatement("update users set sesssionid = ? where uuid = ?");
@@ -306,14 +319,17 @@ public class LocalStorageIo implements  StorageIo {
       throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId), e);
     } finally {
       if (conn != null) {
-        conn.close();
+        try {
+          conn.close();
+        } catch (Exception e) {
+        }
       }
     }
   }
 
   @Override
   public void setUserPassword(String userId, String password) {
-    Connection conn;
+    Connection conn = null;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
       PreparedStatement prep = conn.prepareStatement("update users set password = ? where uuid = ?");
@@ -324,14 +340,17 @@ public class LocalStorageIo implements  StorageIo {
       throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId), e);
     } finally {
       if (conn != null) {
-        conn.close();
+        try {
+          conn.close();
+        } catch (Exception e) {
+        }
       }
     }
   }
 
   @Override
   public String loadSettings(String userId) {
-    Connection conn;
+    Connection conn = null;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
       PreparedStatement prep = conn.prepareStatement("select settings from users where uuid = ?");
@@ -346,14 +365,17 @@ public class LocalStorageIo implements  StorageIo {
       throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId), e);
     } finally {
       if (conn != null) {
-        conn.close();
+        try {
+          conn.close();
+        } catch (Exception e) {
+        }
       }
     }
   }
 
   @Override
   public void storeSettings(final String userId, final String settings) {
-    Connection conn;
+    Connection conn = null;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
       PreparedStatement prep = conn.prepareStatement("update users set settings = ? where uuid = ?");
@@ -364,7 +386,10 @@ public class LocalStorageIo implements  StorageIo {
       throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId), e);
     } finally {
       if (conn != null) {
-        conn.close();
+        try {
+          conn.close();
+        } catch (Exception e) {
+        }
       }
     }
   }
@@ -372,8 +397,8 @@ public class LocalStorageIo implements  StorageIo {
   @Override
   public long createProject(String userId, Project project,
       String projectSettings) {
-    long projectId;
-    Connection conn;
+    long projectId = 0;
+    Connection conn = null;
     try {
       java.sql.Date now = new java.sql.Date(System.currentTimeMillis());
       // Get connection to the user's projects database
@@ -415,6 +440,7 @@ public class LocalStorageIo implements  StorageIo {
     } catch (IOException e) {
       throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId), e);
     }
+    return projectId;
   }
 
   /*
@@ -422,7 +448,7 @@ public class LocalStorageIo implements  StorageIo {
    */
   private void createRawFile(String userId, long projectId, String fileName, byte[] content)
     throws IOException {
-    FileOutputStream out;
+    FileOutputStream out = null;
     try {
       String pathName = storageRoot.get() + "/" + userId + "/" + projectId + "/" + fileName;
       out = new FileOutputStream(pathName);
@@ -452,12 +478,15 @@ public class LocalStorageIo implements  StorageIo {
    */
   @Override
   public void deleteProject(String userId, long projectId) {
-    Connection conn;
+    Connection conn = null;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
       PreparedStatement prep = conn.prepareStatement("update projects set delete = 1 where rowid = ?");
       prep.setLong(1, projectId);
       prep.execute();
+    } catch (SQLException e) {
+      throw CrashReport.createAndLogError(LOG, null,
+        collectUserProjectErrorInfo(userId, projectId), e);
     } finally {
       if (conn != null) {
         try {
@@ -471,7 +500,7 @@ public class LocalStorageIo implements  StorageIo {
   @Override
   public List<Long> getProjects(final String userId) {
     List<Long> projects = new ArrayList<Long>();
-    Connection conn;
+    Connection conn = null;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
       Statement st = conn.createStatement();
@@ -494,7 +523,7 @@ public class LocalStorageIo implements  StorageIo {
 
   @Override
   public String loadProjectSettings(String userId, long projectId) {
-    Connection conn;
+    Connection conn = null;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
       PreparedStatement prep = conn.prepareStatement("select settings from projects where rowid = ?");
@@ -523,7 +552,7 @@ public class LocalStorageIo implements  StorageIo {
   @Override
   public void storeProjectSettings(String userId, long projectId,
       String settings) {
-    Connection conn;
+    Connection conn = null;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
       PreparedStatement prep = conn.prepareStatement("update projects set settings = ? where rowid = ?");
@@ -552,7 +581,7 @@ public class LocalStorageIo implements  StorageIo {
 
   @Override
   public UserProject getUserProject(String userId, long projectId) {
-    Connection conn;
+    Connection conn = null;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
       PreparedStatement prep = conn.prepareStatement("select * from projects where rowid = ?");
@@ -580,7 +609,7 @@ public class LocalStorageIo implements  StorageIo {
   }
 
   private String getProjectStrings(String userId, long projectId, String field) {
-    Connection conn;
+    Connection conn = null;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
       PreparedStatement prep = conn.prepareStatement("select * from projects where rowid = ?");
@@ -605,7 +634,7 @@ public class LocalStorageIo implements  StorageIo {
   }
 
   private long getProjectDates(String userId, long projectId, String field) {
-    Connection conn;
+    Connection conn = null;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
       PreparedStatement prep = conn.prepareStatement("select * from projects where rowid = ?");
@@ -672,7 +701,7 @@ public class LocalStorageIo implements  StorageIo {
   @Override
   public void uploadRawUserFile(String userId, String fileName,
       final byte[] content) {
-    FileOutputStream out;
+    FileOutputStream out = null;
     if (!fileName.equals("android.keystore")) {
       throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId, fileName),
           new RuntimeException("Only android keystores are supported"));
@@ -714,7 +743,7 @@ public class LocalStorageIo implements  StorageIo {
       throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId, fileName),
           new RuntimeException("Only android keystores are supported"));
     File keystore = new File(storageRoot.get() + "/" + userId + "/android.keystore");
-    FileInputStream in;
+    FileInputStream in = null;
     byte [] result;
     try {
       if (!keystore.exists()) {
@@ -866,7 +895,7 @@ public class LocalStorageIo implements  StorageIo {
 
   private void updateProjectModDate(String userId, long projectId) {
     java.sql.Date modDate = new java.sql.Date(System.currentTimeMillis());
-    Connection conn;
+    Connection conn = null;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
       PreparedStatement prep = conn.prepareStatement("update projects set modified = ? where rowid = ?");
@@ -907,7 +936,7 @@ public class LocalStorageIo implements  StorageIo {
           if (!theFile.renameTo(renamedFile)) {
             throw CrashReport.createAndLogError(LOG, null,
                 collectProjectErrorInfo(userId, projectId, fileName),
-                new RunTimeException("File Rename for Backup Failed"));
+                new RuntimeException("File Rename for Backup Failed"));
           }
         }
       }
@@ -923,14 +952,9 @@ public class LocalStorageIo implements  StorageIo {
 
   @Override
   public long deleteFile(final String userId, final long projectId, final String fileName) {
-    try {
-      File theFile = new File(storageRoot.get() + "/" + userId + "/" + projectId + "/" + fileName);
-      if (theFile.delete())
-        updateProjectModDate(userId, projectId);
-    } catch (IOException e) {
-      throw CrashReport.createAndLogError(LOG, null,
-          collectProjectErrorInfo(userId, projectId, fileName), e);
-    }
+    File theFile = new File(storageRoot.get() + "/" + userId + "/" + projectId + "/" + fileName);
+    if (theFile.delete())
+      updateProjectModDate(userId, projectId);
     return System.currentTimeMillis();
   }
 
@@ -955,13 +979,14 @@ public class LocalStorageIo implements  StorageIo {
 
   @Override
   public byte[] downloadRawFile(final String userId, final long projectId, final String fileName) {
-    FileInputStream in;
+    FileInputStream in = null;
+    byte [] result;
     try {
       File theFile = new File(storageRoot.get() + "/" + userId + "/" + projectId + "/" + fileName);
       if (!theFile.exists()) {
         return null;
       }
-      int fileLength = theFile.length();
+      int fileLength = (int)theFile.length();
       result = new byte[fileLength];
       in = new FileInputStream(theFile);
       int dataToRead = fileLength;
@@ -1020,7 +1045,7 @@ public class LocalStorageIo implements  StorageIo {
       out.closeEntry();
       fileCount++;
     }
-    if (includeAndroidKeyStore) {
+    if (includeAndroidKeystore) {
       byte [] data = downloadRawUserFile(userId, "android.keystore");
       if (data != null) {
         out.putNextEntry(new ZipEntry("android.keystore"));
@@ -1035,13 +1060,14 @@ public class LocalStorageIo implements  StorageIo {
     }
     out.close();
 
+    String projectName = getProjectName(userId, projectId);
     if (zipName == null) {
-      zipName = getProjectName(userId, projectId) + ".aia";
+      zipName = projectName + ".aia";
     }
 
     ProjectSourceZip projectSourceZip =
-        new ProjectSourceZip(zipName, zipFile.toByteArray(), fileCount.t);
-    projectSourceZip.setMetadata(projectName.t);
+        new ProjectSourceZip(zipName, zipFile.toByteArray(), fileCount);
+    projectSourceZip.setMetadata(projectName);
     return projectSourceZip;
   }
 
@@ -1063,6 +1089,7 @@ public class LocalStorageIo implements  StorageIo {
   @Override
   public String findIpAddressByKey(final String key) {
     // Not Implemented Yet
+    return "";
   }
 
   @Override
@@ -1088,7 +1115,7 @@ public class LocalStorageIo implements  StorageIo {
 
   @Override
   public void storeNonce(final String nonceValue, final String userId, final long projectId) {
-    Connection conn;
+    Connection conn = null;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
       PreparedStatement prep = conn.prepareStatement("insert into nonce (nonce, userid, projectid, timestamp)" +
@@ -1113,7 +1140,7 @@ public class LocalStorageIo implements  StorageIo {
 
   @Override
   public Nonce getNoncebyValue(String nonceValue) {
-    Connection conn;
+    Connection conn = null;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
       PreparedStatement prep = conn.prepareStatement("select * from nonce where nonce = ?");
@@ -1121,15 +1148,15 @@ public class LocalStorageIo implements  StorageIo {
       ResultSet rs = prep.executeQuery();
       if (rs.next()) {
         return (new Nonce(rs.getString("nonce"),
-                              rs.getLong("userid"),
-                              rs.getDate("timestamp").getTime()));
+            rs.getString("userid"),
+            rs.getLong("projectid"),
+            new java.util.Date(rs.getDate("timestamp").getTime())));
       } else {
         return null;
       }
     }
     catch (SQLException e) {
-      throw CrashReport.createAndLogError(LOG, null,
-          collectUserProjectErrorInfo(userId, projectId), e);
+      throw CrashReport.createAndLogError(LOG, null, null, e);
     } finally {
       if (conn != null) {
         try {
@@ -1146,7 +1173,7 @@ public class LocalStorageIo implements  StorageIo {
 
   @Override
   public void cleanupNonces() {
-    Connection conn;
+    Connection conn = null;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
       PreparedStatement prep = conn.prepareStatement("delete from nonce where timestamp < ?");
@@ -1166,7 +1193,7 @@ public class LocalStorageIo implements  StorageIo {
 
   @Override
   public PWData createPWData(final String email) {
-    Connection conn;
+    Connection conn = null;
     try {
       long ts = System.currentTimeMillis();
       conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
@@ -1177,7 +1204,7 @@ public class LocalStorageIo implements  StorageIo {
       prep.setString(2, email);
       prep.setDate(3, new java.sql.Date(ts));
       prep.executeUpdate();
-      pwData = new PWData();
+      PWData pwData = new PWData();
       pwData.id = uuid;
       pwData.email = email;
       pwData.timestamp = new Date(ts);
@@ -1196,7 +1223,7 @@ public class LocalStorageIo implements  StorageIo {
 
   @Override
   public PWData findPWData(final String uid) {
-    Connection conn;
+    Connection conn = null;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
       String uuid = UUID.randomUUID().toString();
@@ -1204,10 +1231,10 @@ public class LocalStorageIo implements  StorageIo {
       prep.setString(1, uuid);
       ResultSet rs = prep.executeQuery();
       if (rs.next()) {
-        pwData = new PWData();
+        PWData pwData = new PWData();
         pwData.id = uuid;
         pwData.email = rs.getString("email");
-        pwData.timestamp = rs.getDate("timestamp").getTime();
+        pwData.timestamp = new java.util.Date(rs.getDate("timestamp").getTime());
         return pwData;
       } else {
         return null;
@@ -1227,7 +1254,7 @@ public class LocalStorageIo implements  StorageIo {
   // Remove expired PWData elements from the datastore
   @Override
   public void cleanuppwdata() {
-    Connection conn;
+    Connection conn = null;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
       long ts = System.currentTimeMillis() - 3600*1000; // An Hour Ago
