@@ -43,6 +43,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.sql.Connection;
@@ -133,6 +134,9 @@ public class LocalStorageIo implements  StorageIo {
         statement.executeUpdate("create table nonce (nonce string, userid string, projectid int, timestamp timestamp)");
         statement.executeUpdate("create index noncenonce on nonce(nonce)");
         statement.executeUpdate("create index noncedate on nonce(timestamp)");
+        statement.executeUpdate("create table pwdata (uuid string, email string timestamp timestamp)");
+//        statement.executeUpdate("create index pwdatauuid on pwdata(uuid)");
+//        statement.executeUpdate("create index pwdataemail on pwdata(email)");
         statement.close();
         conn.commit();
       } catch (SQLException ee) {
@@ -168,11 +172,12 @@ public class LocalStorageIo implements  StorageIo {
     ResultSet rs;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
+      PreparedStatement prep;
       if (userId != null) {
-        PreparedStatement prep = conn.prepareStatement("select * from users where uuid = ?");
+        prep = conn.prepareStatement("select * from users where uuid = ?");
         prep.setString(1, userId);
       } else { // Use email address for lookup
-        PreparedStatement prep = conn.prepareStatement("select * from users where emaillower = ?");
+        prep = conn.prepareStatement("select * from users where emaillower = ?");
         prep.setString(1, email.toLowerCase());
       }
       rs = prep.executeQuery();
@@ -232,7 +237,7 @@ public class LocalStorageIo implements  StorageIo {
     Connection projectDb;
     try {
       projectDb = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + newId + "/projects.sqlite");
-      statement = projectDb.createStatement();
+      Statement statement = projectDb.createStatement();
       // Note: the projectId is the rowid which is auto-created
       statement.executeUpdate("create table projects (name string, settings string, created date, modified date, history string, deleted boolean)");
       statement.close();
@@ -367,8 +372,8 @@ public class LocalStorageIo implements  StorageIo {
   @Override
   public long createProject(String userId, Project project,
       String projectSettings) {
-    int projectId;
-
+    long projectId;
+    Connection conn;
     try {
       java.sql.Date now = new java.sql.Date(System.currentTimeMillis());
       // Get connection to the user's projects database
@@ -383,9 +388,9 @@ public class LocalStorageIo implements  StorageIo {
       prep.setString(3, project.getProjectHistory());
       prep.executeUpdate();
       Statement st = conn.createStatement();
-      ResultSet rs = st.executeQuery("select max(rowid) from projects");
+      ResultSet rs = st.executeQuery("select max(rowid) as max from projects");
       if (rs.next()) {
-        projectId = rs.getString(1); // max(rowid) is the rowid of the row we just inserted
+        projectId = rs.getLong("max"); // max(rowid) is the rowid of the row we just inserted
       }
       conn.commit();            // Commit it now. If things blow out below we may
                                 // wind up with a half created project so we will
@@ -451,7 +456,7 @@ public class LocalStorageIo implements  StorageIo {
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
       PreparedStatement prep = conn.prepareStatement("update projects set delete = 1 where rowid = ?");
-      prep.setLong(projectId);
+      prep.setLong(1, projectId);
       prep.execute();
     } finally {
       if (conn != null) {
@@ -492,7 +497,7 @@ public class LocalStorageIo implements  StorageIo {
     Connection conn;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
-      PreparedStatement prep = conn.prepareConnection("select settings from projects where rowid = ?");
+      PreparedStatement prep = conn.prepareStatement("select settings from projects where rowid = ?");
       prep.setLong(1, projectId);
       ResultSet rs = prep.executeQuery();
       if (rs.next()) {
@@ -521,7 +526,7 @@ public class LocalStorageIo implements  StorageIo {
     Connection conn;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
-      PreparedStatement prep = conn.prepareConnection("update projects set settings = ? where rowid = ?");
+      PreparedStatement prep = conn.prepareStatement("update projects set settings = ? where rowid = ?");
       prep.setString(1, settings);
       prep.setLong(2, projectId);
       prep.executeUpdate();
@@ -550,14 +555,14 @@ public class LocalStorageIo implements  StorageIo {
     Connection conn;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
-      PreparedStatement prep = conn.prepareConnection("select * from projects where rowid = ?");
+      PreparedStatement prep = conn.prepareStatement("select * from projects where rowid = ?");
       prep.setLong(1, projectId);
       ResultSet rs = prep.executeQuery();
       if (rs.next()) {
         return new UserProject(projectId, rs.getString("name"),
-            YoungAndroidProjectNode.YOUNG_ANDROID_PROJECT_TYPE,
-            rs.getDate("created"),
-            rs.getDate("modified"));
+          YoungAndroidProjectNode.YOUNG_ANDROID_PROJECT_TYPE,
+          rs.getDate("created").getTime(),
+          rs.getDate("modified").getTime());
       } else {
         return null;
       }
@@ -578,7 +583,7 @@ public class LocalStorageIo implements  StorageIo {
     Connection conn;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
-      PreparedStatement prep = conn.prepareConnection("select * from projects where rowid = ?");
+      PreparedStatement prep = conn.prepareStatement("select * from projects where rowid = ?");
       prep.setLong(1, projectId);
       ResultSet rs = prep.executeQuery();
       if (rs.next()) {
@@ -603,13 +608,13 @@ public class LocalStorageIo implements  StorageIo {
     Connection conn;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
-      PreparedStatement prep = conn.prepareConnection("select * from projects where rowid = ?");
+      PreparedStatement prep = conn.prepareStatement("select * from projects where rowid = ?");
       prep.setLong(1, projectId);
       ResultSet rs = prep.executeQuery();
       if (rs.next()) {
         return rs.getDate(field).getTime();
       } else {
-        return null;
+        return 0;
       }
     } catch (SQLException e) {
       throw CrashReport.createAndLogError(LOG, null,
@@ -715,7 +720,7 @@ public class LocalStorageIo implements  StorageIo {
       if (!keystore.exists()) {
         return null;
       }
-      int fileLength = keystore.length();
+      int fileLength = (int)keystore.length();
       result = new byte[fileLength];
       in = new FileInputStream(keystore);
       int dataToRead = fileLength;
@@ -772,7 +777,7 @@ public class LocalStorageIo implements  StorageIo {
   }
 
   private void removeFilesFromProject(String userId, long projectId, String... fileNames) {
-    for (String fileName : filesNames) {
+    for (String fileName : fileNames) {
       try {
         File zFile = new File(storageRoot.get() + "/" + userId + "/" + projectId + "/" + fileName);
         zFile.delete();
@@ -815,7 +820,7 @@ public class LocalStorageIo implements  StorageIo {
 
   @Override
   public List<String> getProjectSourceFiles(final String userId, final long projectId) {
-    List<String> result = new List<String>();
+    List<String> result = new ArrayList<String>();
     try {
       getProjectFiles(userId, projectId, "", true, result);
       return result;
@@ -827,7 +832,7 @@ public class LocalStorageIo implements  StorageIo {
 
   @Override
   public List<String> getProjectOutputFiles(final String userId, final long projectId) {
-    List<String> result = new List<String>();
+    List<String> result = new ArrayList<String>();
     try {
       getProjectFiles(userId, projectId, "", false, result);
       return result;
@@ -1161,56 +1166,83 @@ public class LocalStorageIo implements  StorageIo {
 
   @Override
   public PWData createPWData(final String email) {
-    Objectify datastore = ObjectifyService.begin();
-    final PWData pwData = new PWData();
-    pwData.id = UUID.randomUUID().toString();
-    pwData.email = email;
-    pwData.timestamp = new Date();
+    Connection conn;
     try {
-      runJobWithRetries(new JobRetryHelper() {
-          @Override
-          public void run(Objectify datastore) {
-            datastore.put(pwData);
-          }
-        });
-    } catch (ObjectifyException e) {
+      long ts = System.currentTimeMillis();
+      conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
+      String uuid = UUID.randomUUID().toString();
+      PreparedStatement prep = conn.prepareStatement("insert into pwdata (uuid, email, timestamp) " +
+        "values (?, ?, ?)");
+      prep.setString(1, uuid);
+      prep.setString(2, email);
+      prep.setDate(3, new java.sql.Date(ts));
+      prep.executeUpdate();
+      pwData = new PWData();
+      pwData.id = uuid;
+      pwData.email = email;
+      pwData.timestamp = new Date(ts);
+      return pwData;
+    } catch (SQLException e) {
       throw CrashReport.createAndLogError(LOG, null, null, e);
+    } finally {
+      if (conn != null) {
+        try {
+          conn.close();
+        } catch (Exception e) {
+        }
+      }
     }
-    return pwData;
   }
 
   @Override
-  public StoredData.PWData findPWData(final String uid) {
-    final Result<PWData> result = new Result<PWData>();
+  public PWData findPWData(final String uid) {
+    Connection conn;
     try {
-      runJobWithRetries(new JobRetryHelper() {
-          @Override
-          public void run(Objectify datastore) {
-            PWData pwData = datastore.find(pwdataKey(uid));
-            if (pwData != null) {
-              result.t = pwData;
-            }
-          }
-        });
-    } catch (ObjectifyException e) {
+      conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
+      String uuid = UUID.randomUUID().toString();
+      PreparedStatement prep = conn.prepareStatement("select * from pwdata where uuid = ?");
+      prep.setString(1, uuid);
+      ResultSet rs = prep.executeQuery();
+      if (rs.next()) {
+        pwData = new PWData();
+        pwData.id = uuid;
+        pwData.email = rs.getString("email");
+        pwData.timestamp = rs.getDate("timestamp").getTime();
+        return pwData;
+      } else {
+        return null;
+      }
+    } catch (SQLException e) {
       throw CrashReport.createAndLogError(LOG, null, null, e);
+    } finally {
+      if (conn != null) {
+        try {
+          conn.close();
+        } catch (Exception e) {
+        }
+      }
     }
-    return result.t;
   }
 
-  // Remove up to 10 expired PWData elements from the datastore
+  // Remove expired PWData elements from the datastore
   @Override
   public void cleanuppwdata() {
-    Objectify datastore = ObjectifyService.begin();
-    // We do not use runJobWithRetries because if we fail here, we will be
-    // called again the next time someone attempts to set a password
-    // Note: we remove data after 24 hours.
+    Connection conn;
     try {
-      datastore.delete(datastore.query(PWData.class)
-        .filter("timestamp <", new Date((new Date()).getTime() - 3600*24*1000L))
-        .limit(10).fetchKeys());
-    } catch (Exception ex) {
-        LOG.log(Level.WARNING, "Exception during cleanupNonces", ex);
+      conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
+      long ts = System.currentTimeMillis() - 3600*1000; // An Hour Ago
+      PreparedStatement prep = conn.prepareStatement("delete from pwdata where timestamp < ?");
+      prep.setDate(1, new java.sql.Date(ts));
+      prep.executeUpdate();
+    } catch (SQLException e) {
+      throw CrashReport.createAndLogError(LOG, null, null, e);
+    } finally {
+      if (conn != null) {
+        try {
+          conn.close();
+        } catch (Exception e) {
+        }
+      }
     }
   }
 
