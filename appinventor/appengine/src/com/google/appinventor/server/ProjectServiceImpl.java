@@ -6,6 +6,7 @@
 package com.google.appinventor.server;
 
 import com.google.appinventor.common.version.AppInventorFeatures;
+import com.google.appinventor.server.flags.Flag;
 import com.google.appinventor.server.project.CommonProjectService;
 import com.google.appinventor.server.project.youngandroid.YoungAndroidProjectService;
 import com.google.appinventor.server.storage.StorageIo;
@@ -51,6 +52,8 @@ public class ProjectServiceImpl extends OdeRemoteServiceServlet implements Proje
 
   private final transient StorageIo storageIo = StorageIoInstanceHolder.INSTANCE;
 
+  private final Flag<String> rootPath = Flag.createFlag("root.path", "");
+
   // RPC implementation for YoungAndroid projects
   private final transient YoungAndroidProjectService youngAndroidProject =
       new YoungAndroidProjectService(storageIo);
@@ -83,8 +86,9 @@ public class ProjectServiceImpl extends OdeRemoteServiceServlet implements Proje
   @Override
   public UserProject newProjectFromTemplate(String projectName, String pathToZip) {
 
-    //Window.alert("newProjectFromTemplate " + host + pathToZip);
-    //   System.out.println("newProjectFromTemplate = " +  host + pathToZip);
+    // Need to alter the pathToZip to take into account local server root
+    pathToZip = rootPath.get() + pathToZip;
+
     UserProject userProject = null;
     try {
       FileInputStream fis = new FileInputStream(pathToZip);
@@ -147,8 +151,16 @@ public class ProjectServiceImpl extends OdeRemoteServiceServlet implements Proje
   @Override
   public String retrieveTemplateData(String pathToTemplatesDir) {
     String json = "[";
+
+    // We have to "fix" the path to the templates dir. This
+    // really should not be coming from the client and we should
+    // refactor this code to remove the argument and provide the
+    // template path in this (server side) code.
+    pathToTemplatesDir = rootPath.get() + pathToTemplatesDir;
+
     File templatesRepository = new File(pathToTemplatesDir);
     File templateFolder[] = templatesRepository.listFiles();
+
     for (File file: templateFolder) {
       String templateName = file.getName();
       if (file.isDirectory()) {  // Should be a template folder
