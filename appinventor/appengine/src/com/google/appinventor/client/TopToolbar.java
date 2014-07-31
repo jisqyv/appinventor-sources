@@ -27,7 +27,6 @@ import com.google.appinventor.client.widgets.DropDownButton.DropDownItem;
 import com.google.appinventor.client.wizards.DownloadUserSourceWizard;
 import com.google.appinventor.client.wizards.KeystoreUploadWizard;
 import com.google.appinventor.client.wizards.ProjectUploadWizard;
-import com.google.appinventor.client.wizards.TemplateUploadWizard;
 import com.google.appinventor.client.wizards.youngandroid.NewYoungAndroidProjectWizard;
 import com.google.appinventor.common.version.AppInventorFeatures;
 import com.google.appinventor.common.version.GitBuildId;
@@ -99,7 +98,6 @@ public class TopToolbar extends Composite {
   private static final String WIDGET_NAME_FORUMS = "Forums";
   private static final String WIDGET_NAME_FEEDBACK = "ReportIssue";
   private static final String WIDGET_NAME_IMPORTPROJECT = "ImportProject";
-  private static final String WIDGET_NAME_IMPORTTEMPLATE = "ImportTemplate";
   private static final String WIDGET_NAME_EXPORTALLPROJECTS = "ExportAllProjects";
   private static final String WIDGET_NAME_EXPORTPROJECT = "ExportProject";
 
@@ -136,8 +134,6 @@ public class TopToolbar extends Composite {
         new NewAction()));
     fileItems.add(new DropDownItem(WIDGET_NAME_IMPORTPROJECT, MESSAGES.importProjectButton(),
         new ImportProjectAction()));
-    fileItems.add(new DropDownItem(WIDGET_NAME_IMPORTTEMPLATE, MESSAGES.importTemplateButton(),
-        new ImportTemplateAction()));
     fileItems.add(new DropDownItem(WIDGET_NAME_DELETE, MESSAGES.deleteMenuItemButton(),
         new DeleteAction()));
     fileItems.add(null);
@@ -432,13 +428,6 @@ public class TopToolbar extends Composite {
     @Override
     public void execute() {
       new ProjectUploadWizard().center();
-    }
-  }
-
-  private static class ImportTemplateAction implements Command {
-    @Override
-    public void execute() {
-      new TemplateUploadWizard().center();
     }
   }
 
