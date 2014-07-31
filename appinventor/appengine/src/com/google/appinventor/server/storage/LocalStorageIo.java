@@ -370,8 +370,11 @@ public class LocalStorageIo implements  StorageIo {
       prep.setString(1, userId);
       ResultSet rs = prep.executeQuery();
       if (rs.next()) {
-        return rs.getString("settings");
+        String settings = rs.getString("settings");
+        LOG.log(Level.INFO, "loadSettings: returning " + settings);
+        return settings;
       } else {
+        LOG.log(Level.INFO, "LoadSettings returning empty.");
         return "";
       }
     } catch (SQLException e) {
@@ -425,7 +428,7 @@ public class LocalStorageIo implements  StorageIo {
       prep.setString(2, projectSettings);
       prep.setDate(3, now);
       prep.setDate(4, now);
-      prep.setString(3, project.getProjectHistory());
+      prep.setString(5, project.getProjectHistory());
       prep.executeUpdate();
       Statement st = conn.createStatement();
       ResultSet rs = st.executeQuery("select max(rowid) as max from projects");
