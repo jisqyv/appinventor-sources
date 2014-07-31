@@ -62,12 +62,8 @@ public final class FileExporterImpl implements FileExporter {
                                                  boolean includeAndroidKeystore,
                                                  @Nullable String zipName) throws IOException {
     // Download project source files as a zip.
-    if (storageIo instanceof ObjectifyStorageIo) {
-      return ((ObjectifyStorageIo)storageIo).exportProjectSourceZip(userId, projectId,
-          includeProjectHistory, includeAndroidKeystore, zipName);
-    } else {
-      throw new IllegalArgumentException("Objectify only");
-    }
+    return storageIo.exportProjectSourceZip(userId, projectId,
+        includeProjectHistory, includeAndroidKeystore, zipName);
   }
 
   @Override
