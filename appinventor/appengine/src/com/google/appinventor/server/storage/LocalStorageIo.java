@@ -774,6 +774,7 @@ public class LocalStorageIo implements  StorageIo {
   @Override
   public byte[] downloadRawUserFile(final String userId, final String fileName) {
     // Only support android.keystore
+    LOG.log(Level.INFO, "downloadRawUserFile: fileName = " + fileName);
     if (!fileName.equals("android.keystore"))
       throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId, fileName),
           new RuntimeException("Only android keystores are supported"));
@@ -1079,18 +1080,20 @@ public class LocalStorageIo implements  StorageIo {
     ZipOutputStream out = new ZipOutputStream(zipFile);
     List<String> sources = getProjectSourceFiles(userId, projectId);
     for (String fileName : sources) {
-      byte [] data = downloadRawUserFile(userId, fileName);
+      byte [] data = downloadRawFile(userId, projectId, fileName);
       out.putNextEntry(new ZipEntry(fileName));
       out.write(data, 0, data.length);
       fileCount++;
     }
     if (includeProjectHistory) {
       String history = getProjectHistory(userId, projectId);
-      byte [] data = history.getBytes(StorageUtil.DEFAULT_CHARSET);
-      out.putNextEntry(new ZipEntry(FileExporter.REMIX_INFORMATION_FILE_PATH));
-      out.write(data, 0, data.length);
-      out.closeEntry();
-      fileCount++;
+      if (history != null) {
+        byte [] data = history.getBytes(StorageUtil.DEFAULT_CHARSET);
+        out.putNextEntry(new ZipEntry(FileExporter.REMIX_INFORMATION_FILE_PATH));
+        out.write(data, 0, data.length);
+        out.closeEntry();
+        fileCount++;
+      }
     }
     if (includeAndroidKeystore) {
       byte [] data = downloadRawUserFile(userId, "android.keystore");
