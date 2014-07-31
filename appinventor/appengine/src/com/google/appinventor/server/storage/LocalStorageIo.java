@@ -391,6 +391,7 @@ public class LocalStorageIo implements  StorageIo {
 
   @Override
   public void storeSettings(final String userId, final String settings) {
+    LOG.log(Level.INFO, "storeSettings: userId = " + userId + " settings = " + settings);
     Connection conn = null;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
@@ -870,22 +871,30 @@ public class LocalStorageIo implements  StorageIo {
       if (file.isFile()) {
         if (isSource) {
           if (!file.getName().endsWith(".apk") && !file.getName().endsWith(".out"))
-            result.add(prefix + file.getName());
+            result.add(prefix + "/" + file.getName());
         } else {
           if (file.getName().endsWith(".apk") || file.getName().endsWith(".out"))
-            result.add(prefix + file.getName());
+            result.add(prefix + "/" + file.getName());
         }
       } else {
-        getProjectFiles(userId, projectId, prefix + "/" + file.getName(), isSource, result);
+        if (prefix.equals("")) {
+          getProjectFiles(userId, projectId, file.getName(), isSource, result);
+        } else {
+          getProjectFiles(userId, projectId, prefix + "/" + file.getName(), isSource, result);
+        }
       }
     }
   }
 
   @Override
   public List<String> getProjectSourceFiles(final String userId, final long projectId) {
+    LOG.log(Level.INFO, "getProjectSourceFiles: userId = " + userId + " projectId = " + projectId);
     List<String> result = new ArrayList<String>();
     try {
       getProjectFiles(userId, projectId, "", true, result);
+      for (String zFile : result) {
+        LOG.log(Level.INFO, "getProjectSourceFiles: File = " + zFile);
+      }
       return result;
     } catch (IOException e) {
       throw CrashReport.createAndLogError(LOG, null,
@@ -1000,7 +1009,9 @@ public class LocalStorageIo implements  StorageIo {
   public String downloadFile(final String userId, final long projectId, final String fileName,
       final String encoding) {
     try {
-      return new String(downloadRawFile(userId, projectId, fileName), encoding);
+      String retval = new String(downloadRawFile(userId, projectId, fileName), encoding);
+      LOG.log(Level.INFO, "downloadFile: filesName = " + fileName + " contents = " + retval);
+      return retval;
     } catch (UnsupportedEncodingException e) {
       throw CrashReport.createAndLogError(LOG, null, "Unsupported file content encoding, "
           + collectProjectErrorInfo(userId, projectId, fileName), e);
@@ -1014,6 +1025,7 @@ public class LocalStorageIo implements  StorageIo {
 
   @Override
   public byte[] downloadRawFile(final String userId, final long projectId, final String fileName) {
+    LOG.log(Level.INFO, "downloadRawFile: fileName = " + fileName);
     FileInputStream in = null;
     byte [] result;
     try {
