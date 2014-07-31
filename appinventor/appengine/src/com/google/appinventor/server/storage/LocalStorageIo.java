@@ -137,7 +137,7 @@ public class LocalStorageIo implements  StorageIo {
         statement.executeUpdate("create table nonce (nonce string, userid string, projectid int, timestamp timestamp)");
         statement.executeUpdate("create index noncenonce on nonce(nonce)");
         statement.executeUpdate("create index noncedate on nonce(timestamp)");
-        statement.executeUpdate("create table pwdata (uuid string, email string timestamp timestamp)");
+        statement.executeUpdate("create table pwdata (uuid string, email string, timestamp timestamp)");
 //        statement.executeUpdate("create index pwdatauuid on pwdata(uuid)");
 //        statement.executeUpdate("create index pwdataemail on pwdata(email)");
         statement.close();
