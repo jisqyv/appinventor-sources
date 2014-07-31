@@ -75,9 +75,8 @@ import javax.annotation.Nullable;
  */
 public class LocalStorageIo implements  StorageIo {
   static final Flag<Boolean> requireTos = Flag.createFlag("require.tos", false);
-  //  static final Flag<String> storageRoot = Flag.createFlag("storage.location", "");
-  static final String STORAGE_ROOT = "/var/tmp/STORE";
-  static final String USER_DATABASE = STORAGE_ROOT + "/users.sqlite";
+  static final Flag<String> storageRoot = Flag.createFlag("storage.root", "");
+  static final String USER_DATABASE = storageRoot.get() + "/users.sqlite";
 
   private static final Logger LOG = Logger.getLogger(LocalStorageIo.class.getName());
 
@@ -99,7 +98,7 @@ public class LocalStorageIo implements  StorageIo {
     // Load the SQLite3 Driver Classes
     try {
       driverClass = Class.forName("org.sqlite.JDBC");
-      if (STORAGE_ROOT.equals("")) {
+      if (storageRoot.get().equals("")) {
         throw new Exception("Invalid Storage Root");
       }
     } catch (Exception e) {
@@ -240,11 +239,11 @@ public class LocalStorageIo implements  StorageIo {
     prep.executeUpdate();
     // User is created in the database. Now create the user's
     // private project directory.
-    File projectPath = new File(STORAGE_ROOT + "/" + newId);
+    File projectPath = new File(storageRoot.get() + "/" + newId);
     projectPath.mkdir();
     Connection projectDb = null;
     try {
-      projectDb = DriverManager.getConnection("jdbc:sqlite:" + STORAGE_ROOT + "/" + newId + "/projects.sqlite");
+      projectDb = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + newId + "/projects.sqlite");
       Statement statement = projectDb.createStatement();
       // Note: the projectId is the rowid which is auto-created
       statement.executeUpdate("create table projects (name string, settings string, created date, modified date, history string, deleted boolean)");
@@ -403,7 +402,7 @@ public class LocalStorageIo implements  StorageIo {
     try {
       java.sql.Date now = new java.sql.Date(System.currentTimeMillis());
       // Get connection to the user's projects database
-      conn = DriverManager.getConnection("jdbc:sqlite:" + STORAGE_ROOT + "/" + userId + "/projects.sqlite");
+      conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
       conn.setAutoCommit(false);
       PreparedStatement prep = conn.prepareStatement("insert into projects (name, settings, created, modified, history, deleted) " +
         "values (?, ?, ?, ?, ?, 0)");
@@ -451,7 +450,7 @@ public class LocalStorageIo implements  StorageIo {
     throws IOException {
     FileOutputStream out = null;
     try {
-      String pathName = STORAGE_ROOT + "/" + userId + "/" + projectId + "/" + fileName;
+      String pathName = storageRoot.get() + "/" + userId + "/" + projectId + "/" + fileName;
       out = new FileOutputStream(pathName);
       out.write(content);
       out.close();
@@ -481,7 +480,7 @@ public class LocalStorageIo implements  StorageIo {
   public void deleteProject(String userId, long projectId) {
     Connection conn = null;
     try {
-      conn = DriverManager.getConnection("jdbc:sqlite:" + STORAGE_ROOT + "/" + userId + "/projects.sqlite");
+      conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
       PreparedStatement prep = conn.prepareStatement("update projects set delete = 1 where rowid = ?");
       prep.setLong(1, projectId);
       prep.execute();
@@ -503,7 +502,7 @@ public class LocalStorageIo implements  StorageIo {
     List<Long> projects = new ArrayList<Long>();
     Connection conn = null;
     try {
-      conn = DriverManager.getConnection("jdbc:sqlite:" + STORAGE_ROOT + "/" + userId + "/projects.sqlite");
+      conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
       Statement st = conn.createStatement();
       ResultSet rs = st.executeQuery("select rowid,* from projects where delete = 0");
       while (rs.next()) {
@@ -526,7 +525,7 @@ public class LocalStorageIo implements  StorageIo {
   public String loadProjectSettings(String userId, long projectId) {
     Connection conn = null;
     try {
-      conn = DriverManager.getConnection("jdbc:sqlite:" + STORAGE_ROOT + "/" + userId + "/projects.sqlite");
+      conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
       PreparedStatement prep = conn.prepareStatement("select settings from projects where rowid = ?");
       prep.setLong(1, projectId);
       ResultSet rs = prep.executeQuery();
@@ -555,7 +554,7 @@ public class LocalStorageIo implements  StorageIo {
       String settings) {
     Connection conn = null;
     try {
-      conn = DriverManager.getConnection("jdbc:sqlite:" + STORAGE_ROOT + "/" + userId + "/projects.sqlite");
+      conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
       PreparedStatement prep = conn.prepareStatement("update projects set settings = ? where rowid = ?");
       prep.setString(1, settings);
       prep.setLong(2, projectId);
@@ -584,7 +583,7 @@ public class LocalStorageIo implements  StorageIo {
   public UserProject getUserProject(String userId, long projectId) {
     Connection conn = null;
     try {
-      conn = DriverManager.getConnection("jdbc:sqlite:" + STORAGE_ROOT + "/" + userId + "/projects.sqlite");
+      conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
       PreparedStatement prep = conn.prepareStatement("select * from projects where rowid = ?");
       prep.setLong(1, projectId);
       ResultSet rs = prep.executeQuery();
@@ -612,7 +611,7 @@ public class LocalStorageIo implements  StorageIo {
   private String getProjectStrings(String userId, long projectId, String field) {
     Connection conn = null;
     try {
-      conn = DriverManager.getConnection("jdbc:sqlite:" + STORAGE_ROOT + "/" + userId + "/projects.sqlite");
+      conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
       PreparedStatement prep = conn.prepareStatement("select * from projects where rowid = ?");
       prep.setLong(1, projectId);
       ResultSet rs = prep.executeQuery();
@@ -637,7 +636,7 @@ public class LocalStorageIo implements  StorageIo {
   private long getProjectDates(String userId, long projectId, String field) {
     Connection conn = null;
     try {
-      conn = DriverManager.getConnection("jdbc:sqlite:" + STORAGE_ROOT + "/" + userId + "/projects.sqlite");
+      conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
       PreparedStatement prep = conn.prepareStatement("select * from projects where rowid = ?");
       prep.setLong(1, projectId);
       ResultSet rs = prep.executeQuery();
@@ -682,7 +681,7 @@ public class LocalStorageIo implements  StorageIo {
   @Override
   public List<String> getUserFiles(final String userId) {
     final List<String> fileList = new ArrayList<String>();
-    File userDir = new File(STORAGE_ROOT + "/" + userId);
+    File userDir = new File(storageRoot.get() + "/" + userId);
     for (String fileName : userDir.list()) {
       if (fileName.equals("android.keystore")) { // We only support android.keystore for now
         fileList.add(fileName);
@@ -708,7 +707,7 @@ public class LocalStorageIo implements  StorageIo {
           new RuntimeException("Only android keystores are supported"));
     }
     try {
-      File keystore = new File(STORAGE_ROOT + "/" + userId + "/android.keystore");
+      File keystore = new File(storageRoot.get() + "/" + userId + "/android.keystore");
       out = new FileOutputStream(keystore);
       out.write(content);
       out.close();
@@ -743,7 +742,7 @@ public class LocalStorageIo implements  StorageIo {
     if (!fileName.equals("android.keystore"))
       throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId, fileName),
           new RuntimeException("Only android keystores are supported"));
-    File keystore = new File(STORAGE_ROOT + "/" + userId + "/android.keystore");
+    File keystore = new File(storageRoot.get() + "/" + userId + "/android.keystore");
     FileInputStream in = null;
     byte [] result;
     try {
@@ -781,7 +780,7 @@ public class LocalStorageIo implements  StorageIo {
     if (!fileName.equals("android.keystore"))
       throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId, fileName),
           new RuntimeException("Only android keystores are supported"));
-    File keystore = new File(STORAGE_ROOT + "/" + userId + "/android.keystore");
+    File keystore = new File(storageRoot.get() + "/" + userId + "/android.keystore");
     try {
       keystore.delete();
     } catch (Exception e) {
@@ -809,7 +808,7 @@ public class LocalStorageIo implements  StorageIo {
   private void removeFilesFromProject(String userId, long projectId, String... fileNames) {
     for (String fileName : fileNames) {
       try {
-        File zFile = new File(STORAGE_ROOT + "/" + userId + "/" + projectId + "/" + fileName);
+        File zFile = new File(storageRoot.get() + "/" + userId + "/" + projectId + "/" + fileName);
         zFile.delete();
       } catch (Exception e) {
         // XXX
@@ -832,7 +831,7 @@ public class LocalStorageIo implements  StorageIo {
   // Walk the project's file tree looking for files
   private void getProjectFiles(String userId, long projectId, String prefix, boolean isSource, List<String> result)
     throws IOException {
-    File top = new File(STORAGE_ROOT + "/" + userId + "/" + projectId + "/" + prefix);
+    File top = new File(storageRoot.get() + "/" + userId + "/" + projectId + "/" + prefix);
     for (File file : top.listFiles()) {
       if (file.isFile()) {
         if (isSource) {
@@ -898,7 +897,7 @@ public class LocalStorageIo implements  StorageIo {
     java.sql.Date modDate = new java.sql.Date(System.currentTimeMillis());
     Connection conn = null;
     try {
-      conn = DriverManager.getConnection("jdbc:sqlite:" + STORAGE_ROOT + "/" + userId + "/projects.sqlite");
+      conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
       PreparedStatement prep = conn.prepareStatement("update projects set modified = ? where rowid = ?");
       prep.setDate(1, modDate);
       prep.setLong(2, projectId);
@@ -928,11 +927,11 @@ public class LocalStorageIo implements  StorageIo {
     try {
       if ((content.length < 120) && (fileName.endsWith(".bky")) && !force)
         throw new BlocksTruncatedException();
-      File theFile = new File(STORAGE_ROOT + "/" + userId + "/" + projectId + "/" + fileName);
+      File theFile = new File(storageRoot.get() + "/" + userId + "/" + projectId + "/" + fileName);
       if (theFile.exists() && considerBackup) {   // check to see if we should back it up
         if ((theFile.lastModified() + TWENTYFOURHOURS) < System.currentTimeMillis()) {
           // Yes backup, which in this case means we rename the file
-          File renamedFile = new File(STORAGE_ROOT + "/" + userId + "/" + projectId + "/" + fileName +
+          File renamedFile = new File(storageRoot.get() + "/" + userId + "/" + projectId + "/" + fileName +
                                       "." + formattedTime() + ".backup");
           if (!theFile.renameTo(renamedFile)) {
             throw CrashReport.createAndLogError(LOG, null,
@@ -953,7 +952,7 @@ public class LocalStorageIo implements  StorageIo {
 
   @Override
   public long deleteFile(final String userId, final long projectId, final String fileName) {
-    File theFile = new File(STORAGE_ROOT + "/" + userId + "/" + projectId + "/" + fileName);
+    File theFile = new File(storageRoot.get() + "/" + userId + "/" + projectId + "/" + fileName);
     if (theFile.delete())
       updateProjectModDate(userId, projectId);
     return System.currentTimeMillis();
@@ -983,7 +982,7 @@ public class LocalStorageIo implements  StorageIo {
     FileInputStream in = null;
     byte [] result;
     try {
-      File theFile = new File(STORAGE_ROOT + "/" + userId + "/" + projectId + "/" + fileName);
+      File theFile = new File(storageRoot.get() + "/" + userId + "/" + projectId + "/" + fileName);
       if (!theFile.exists()) {
         return null;
       }
