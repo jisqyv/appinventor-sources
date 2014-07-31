@@ -24,4 +24,8 @@
     <Arg>storage.root</Arg>
     <Arg>/var/tmp/STORE</Arg>
   </Call>
+  <Call class="java.lang.System" name="setProperty">
+    <Arg>motd.check.interval.secs</Arg>
+    <Arg>0</Arg>
+  </Call>
 </Configure>
