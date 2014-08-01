@@ -4,6 +4,12 @@
 <Configure class="org.eclipse.jetty.webapp.WebAppContext">
   <Set name="contextPath">/</Set>
   <Set name="war"><SystemProperty name="appinventor.root"/>/appinventor/appengine/build/war</Set>
+
+  <Call name="setInitParameter">
+    <Arg>org.eclipse.jetty.servlet.MaxAge</Arg>
+    <Arg>-1</Arg>
+  </Call>
+
   <Call class="java.lang.System" name="setProperty">
     <Arg>auth.usegoogle</Arg>
     <Arg>false</Arg>
@@ -32,4 +38,17 @@
     <Arg>root.path</Arg>
     <Arg><SystemProperty name="appinventor.root"/>/appinventor/appengine/build/war/</Arg>
   </Call>
+
+ <Get name="sessionHandler">
+     <Set name="sessionManager">
+         <New class="org.eclipse.jetty.server.session.HashSessionManager">
+           <Set name="sessionCookie">AppInventorId</Set>
+           <Set name="lazyLoad">true</Set>
+           <Set name="storeDirectory"><SystemProperty name="storage.root"/>/SESSIONS</Set>
+           <Set name="scavengePeriod">600</Set>
+           <Set name="savePeriod">300</Set>
+         </New>
+     </Set>
+  </Get>
+
 </Configure>
