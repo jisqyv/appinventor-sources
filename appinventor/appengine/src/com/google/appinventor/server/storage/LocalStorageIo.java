@@ -371,10 +371,10 @@ public class LocalStorageIo implements  StorageIo {
       ResultSet rs = prep.executeQuery();
       if (rs.next()) {
         String settings = rs.getString("settings");
-        LOG.log(Level.INFO, "loadSettings: returning " + settings);
+//        LOG.log(Level.INFO, "loadSettings: returning " + settings);
         return settings;
       } else {
-        LOG.log(Level.INFO, "LoadSettings returning empty.");
+//        LOG.log(Level.INFO, "LoadSettings returning empty.");
         return "";
       }
     } catch (SQLException e) {
@@ -391,7 +391,7 @@ public class LocalStorageIo implements  StorageIo {
 
   @Override
   public void storeSettings(final String userId, final String settings) {
-    LOG.log(Level.INFO, "storeSettings: userId = " + userId + " settings = " + settings);
+//    LOG.log(Level.INFO, "storeSettings: userId = " + userId + " settings = " + settings);
     Connection conn = null;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
@@ -1011,7 +1011,7 @@ public class LocalStorageIo implements  StorageIo {
       final String encoding) {
     try {
       String retval = new String(downloadRawFile(userId, projectId, fileName), encoding);
-      LOG.log(Level.INFO, "downloadFile: filesName = " + fileName + " contents = " + retval);
+//      LOG.log(Level.INFO, "downloadFile: filesName = " + fileName + " contents = " + retval);
       return retval;
     } catch (UnsupportedEncodingException e) {
       throw CrashReport.createAndLogError(LOG, null, "Unsupported file content encoding, "
