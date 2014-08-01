@@ -9,8 +9,11 @@ import com.google.appinventor.shared.rpc.BlocksTruncatedException;
 import com.google.appinventor.shared.rpc.InvalidSessionException;
 import com.google.appinventor.shared.rpc.project.ChecksumedFileException;
 import com.google.appinventor.client.output.OdeLog;
+import com.google.gwt.http.client.Response;
 import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.gwt.user.client.rpc.IncompatibleRemoteServiceException;
+import com.google.gwt.user.client.rpc.StatusCodeException;
+import com.google.gwt.user.client.Window;
 
 /**
  * Provides common functionality for asynchronous callbacks from the ODE
@@ -66,6 +69,15 @@ public abstract class OdeAsyncCallback<T> implements AsyncCallback<T> {
       ErrorReporter.reportError("Caught BlocksTruncatedException");
       return;
     }
+    if (caught instanceof StatusCodeException) {
+      StatusCodeException e = (StatusCodeException) caught;
+      int statusCode = e.getStatusCode();
+      if (statusCode == Response.SC_PRECONDITION_FAILED) { // Session Timeout...
+        Window.Location.replace("/login/");
+        return;                 // Not reached
+      }
+    }
+
     String errorMessage =
         (failureMessage == null) ? caught.getMessage() : failureMessage;
     ErrorReporter.reportError(errorMessage);
