@@ -51,4 +51,6 @@
      </Set>
   </Get>
 
+  <Set name="overrideDescriptor"><SystemProperty name="appinventor.root" default="."/>/jettybase/appinventor-override-web.xml</Set>
+
 </Configure>
