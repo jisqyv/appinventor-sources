@@ -395,10 +395,11 @@ public class LocalStorageIo implements  StorageIo {
     Connection conn = null;
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
-      PreparedStatement prep = conn.prepareStatement("update users set settings = ? where uuid = ?");
+      PreparedStatement prep = conn.prepareStatement("update users set settings = ?, visited = ? where uuid = ?");
       prep.setQueryTimeout(30);
       prep.setString(1, settings);
-      prep.setString(2, userId);
+      prep.setDate(2, new java.sql.Date(System.currentTimeMillis()));
+      prep.setString(3, userId);
       prep.executeUpdate();
     } catch (SQLException e) {
       throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId), e);
