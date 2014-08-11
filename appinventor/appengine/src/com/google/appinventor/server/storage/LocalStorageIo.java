@@ -140,6 +140,7 @@ public class LocalStorageIo implements  StorageIo {
         statement.executeUpdate("create index noncenonce on nonce(nonce)");
         statement.executeUpdate("create index noncedate on nonce(timestamp)");
         statement.executeUpdate("create table pwdata (uuid string, email string, timestamp timestamp)");
+        statement.executeUpdate("create table rendezvous (ipaddr string, key string)");
 //        statement.executeUpdate("create index pwdatauuid on pwdata(uuid)");
 //        statement.executeUpdate("create index pwdataemail on pwdata(email)");
         statement.close();
@@ -1175,13 +1176,72 @@ public class LocalStorageIo implements  StorageIo {
 
   @Override
   public String findIpAddressByKey(final String key) {
-    // Not Implemented Yet
-    return "";
+    Connection conn = null;
+    try {
+      long ts = System.currentTimeMillis();
+      conn = userConn.get();
+      if (conn == null) {
+        conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
+        userConn.set(conn);
+      }
+      PreparedStatement prep = conn.prepareStatement("select ipaddr from rendezvous where key = ?");
+      prep.setString(1, key);
+      ResultSet rs = prep.executeQuery();
+      if (rs.next()) {
+        String ipaddr = rs.getString("ipaddr");
+        prep.close();
+        return ipaddr;
+      } else {
+        prep.close();
+        return null;
+      }
+    } catch (SQLException e) {
+      // Something went wrong, we'll flush this connection as a result...
+      userConn.remove();
+      try {
+        conn.close();
+      } catch (Exception z) {
+      }
+      conn = null;
+      throw CrashReport.createAndLogError(LOG, null, null, e);
+    }
   }
 
   @Override
   public void storeIpAddressByKey(final String key, final String ipAddress) {
-    // Not Implemented Yet
+    Connection conn = null;
+    try {
+      long ts = System.currentTimeMillis();
+      conn = userConn.get();
+      if (conn == null) {
+        conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
+        userConn.set(conn);
+      }
+      conn.setAutoCommit(false);
+      PreparedStatement prep = conn.prepareStatement("delete from rendezvous where key = ?");
+      prep.setString(1, key);
+      prep.executeUpdate();
+      prep.close();
+      prep = conn.prepareStatement("insert into rendezvous (key, ipaddr) values (?, ?)");
+      prep.setString(1, key);
+      prep.setString(2, ipAddress);
+      prep.executeUpdate();
+      conn.commit();
+      conn.setAutoCommit(true);
+    } catch (SQLException e) {
+      // Something went wrong, we'll flush this connection as a result...
+      userConn.remove();
+      try {
+        try {
+          conn.rollback();
+        } catch (SQLException z) {
+        }
+        conn.close();
+      } catch (Exception z) {
+      }
+      conn = null;
+      throw CrashReport.createAndLogError(LOG, null, null, e);
+    }
   }
 
   @Override
