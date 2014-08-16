@@ -140,7 +140,8 @@ public class LocalStorageIo implements  StorageIo {
         statement.executeUpdate("create index noncenonce on nonce(nonce)");
         statement.executeUpdate("create index noncedate on nonce(timestamp)");
         statement.executeUpdate("create table pwdata (uuid string, email string, timestamp timestamp)");
-        statement.executeUpdate("create table rendezvous (ipaddr string, key string)");
+        statement.executeUpdate("create table rendezvous (ipaddr string, key string, timestamp timestamp)");
+        statement.executeUpdate("create unique index rendkey on rendezvous (key)");
 //        statement.executeUpdate("create index pwdatauuid on pwdata(uuid)");
 //        statement.executeUpdate("create index pwdataemail on pwdata(email)");
         statement.close();
@@ -1217,25 +1218,21 @@ public class LocalStorageIo implements  StorageIo {
         conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
         userConn.set(conn);
       }
-      conn.setAutoCommit(false);
-      PreparedStatement prep = conn.prepareStatement("delete from rendezvous where key = ?");
-      prep.setString(1, key);
-      prep.executeUpdate();
-      prep.close();
-      prep = conn.prepareStatement("insert into rendezvous (key, ipaddr) values (?, ?)");
+      PreparedStatement prep = conn.prepareStatement("insert or replace into rendezvous (key, ipaddr, timestamp) " +
+        "values (?, ?, ?)");
       prep.setString(1, key);
       prep.setString(2, ipAddress);
+      prep.setDate(3, new java.sql.Date(ts));
       prep.executeUpdate();
-      conn.commit();
-      conn.setAutoCommit(true);
+      prep.close();
+      prep = conn.prepareStatement("delete from rendezvous where timestamp < ?");
+      prep.setDate(1, new java.sql.Date(ts-(1000*3600))); // Older then an hour
+      prep.executeUpdate();
+      prep.close();
     } catch (SQLException e) {
       // Something went wrong, we'll flush this connection as a result...
       userConn.remove();
       try {
-        try {
-          conn.rollback();
-        } catch (SQLException z) {
-        }
         conn.close();
       } catch (Exception z) {
       }
