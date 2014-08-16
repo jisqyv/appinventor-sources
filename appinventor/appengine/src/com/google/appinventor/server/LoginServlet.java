@@ -236,7 +236,7 @@ public class LoginServlet extends HttpServlet {
     boolean validLogin = false;
 
     String hash = user.getPassword();
-    if (hash == null) {
+    if ((hash == null) || hash.equals("")) {
       fail(req, resp, "No Password Set for User");
       return;
     }
