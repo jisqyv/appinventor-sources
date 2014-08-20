@@ -24,6 +24,8 @@ import com.google.appinventor.shared.rpc.project.ProjectService;
 import com.google.appinventor.shared.rpc.project.UserProject;
 import com.google.appinventor.shared.rpc.project.youngandroid.YoungAndroidProjectNode;
 import com.google.appinventor.shared.util.Base64Util;
+import com.google.appinventor.server.encryption.EncryptionStrategy;
+import com.google.appinventor.server.encryption.Encryptor;
 import com.google.common.collect.Lists;
 
 import java.io.BufferedReader;
@@ -57,10 +59,9 @@ public class ProjectServiceImpl extends OdeRemoteServiceServlet implements Proje
       new YoungAndroidProjectService(storageIo);
 
   @Override public void init() {
-    Flag<String> rootPath = Flag.createFlag("root.path", "");
-    String rootpath = getServletContext().getRealPath("/") + "/";
-    rootPath.set(rootpath);
-    LOG.log(Level.INFO, "rootpath set to " + rootPath.get());
+    Encryptor encryptor = EncryptionStrategy.WRITE;
+    encryptor.setKeyPath(getServletContext().getRealPath("keystore"));
+    LOG.log(Level.INFO, "Settings encryptor keystore path.");
   }
 
   /**
