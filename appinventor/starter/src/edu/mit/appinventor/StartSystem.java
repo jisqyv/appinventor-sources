@@ -8,7 +8,18 @@ public class StartSystem {
       File execDir = new File(new File(StartSystem.class.getProtectionDomain().getCodeSource().getLocation().getPath()).getParent());
       Process s = null;
       Process build = null;
-      ProcessBuilder server = new ProcessBuilder("java", "-jar", "jetty-runner.jar", "--port", "8888", "appinventor.xml");
+      String port = "8888";
+
+      if (argv.length < 1) {
+          System.err.println("Usage: java -jar starter.jar <path-to-root-storage> [port]");
+          System.exit(1);
+      }
+
+      if (argv.length == 2) {   // We have a port argument
+          port = argv[1];
+      }
+
+      ProcessBuilder server = new ProcessBuilder("java", ("-Dstorage.root=" + argv[0]), "-jar", "jetty-runner.jar", "--port", port, "appinventor.xml");
       server.inheritIO();
       server.directory(execDir);
 

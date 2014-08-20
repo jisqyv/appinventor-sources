@@ -3,7 +3,8 @@
 
 <Configure class="org.eclipse.jetty.webapp.WebAppContext">
   <Set name="contextPath">/</Set>
-  <Set name="war"><SystemProperty name="appinventor.root"/>/appinventor/appengine/build/war</Set>
+  <Set name="war">appinventor.war</Set>
+<!--  <Set name="war"><SystemProperty name="appinventor.root"/>/appinventor/appengine/build/war</Set> -->
 
   <Call name="setInitParameter">
     <Arg>org.eclipse.jetty.servlet.MaxAge</Arg>
@@ -25,10 +26,6 @@
   <Call class="java.lang.System" name="setProperty">
     <Arg>localauth.mailserver.password</Arg>
     <Arg>secret123</Arg>
-  </Call>
-  <Call class="java.lang.System" name="setProperty">
-    <Arg>storage.root</Arg>
-    <Arg>/var/tmp/STORE</Arg>
   </Call>
   <Call class="java.lang.System" name="setProperty">
     <Arg>motd.check.interval.secs</Arg>
