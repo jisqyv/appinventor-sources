@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+
+<project name="starter" default="all">
+  <description>
+    Starter Program for Packaged App Inventor Server.
+    This code starts the main server and the build server.
+  </description>
+
+  <import file="../build-common.xml" />
+
+  <property name="starter.pkg" value="edu/mit/appinventor" />
+
+  <target name="all"
+          depends="init">
+    <javac destdir="${class.dir}"
+           sourcepath=""
+           srcdir="${src.dir}"
+           includeantruntime="false">
+      <include name="${starter.pkg}/*.java" />
+    </javac>
+
+    <manifest file="${build.dir}/manifest.mf">
+      <attribute name="Main-class" value="edu.mit.appinventor.StartSystem"/>
+    </manifest>
+
+    <jar destfile="${build.dir}/starter.jar"
+         manifest="${build.dir}/manifest.mf">
+      <fileset dir="${class.dir}"/>
+    </jar>
+  </target>
+
+</project>
