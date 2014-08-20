@@ -34,10 +34,6 @@
     <Arg>motd.check.interval.secs</Arg>
     <Arg>0</Arg>
   </Call>
-  <Call class="java.lang.System" name="setProperty">
-    <Arg>root.path</Arg>
-    <Arg><SystemProperty name="appinventor.root"/>/appinventor/appengine/build/war/</Arg>
-  </Call>
 
  <Get name="sessionHandler">
      <Set name="sessionManager">
