@@ -8,6 +8,7 @@
 
   <import file="../build-common.xml" />
 
+  <property name="locallib.dir" location="${appinventor.dir}/starter/lib" />
   <property name="starter.pkg" value="edu/mit/appinventor" />
 
   <target name="all"
@@ -19,6 +20,9 @@
            debuglevel="lines,vars,source"
            includeantruntime="false">
       <include name="${starter.pkg}/*.java" />
+      <classpath>
+        <pathelement location="${locallib.dir}/ini4j-0.5.2.jar" />
+      </classpath>
     </javac>
 
     <manifest file="${build.dir}/manifest.mf">
@@ -28,6 +32,7 @@
     <jar destfile="${build.dir}/starter.jar"
          manifest="${build.dir}/manifest.mf">
       <fileset dir="${class.dir}"/>
+      <zipgroupfileset dir="${locallib.dir}" includes="*.jar" />
     </jar>
   </target>
 

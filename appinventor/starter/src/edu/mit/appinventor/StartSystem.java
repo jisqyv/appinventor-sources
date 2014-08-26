@@ -1,25 +1,37 @@
 package edu.mit.appinventor;
 
+import org.ini4j.Wini;
+
 import java.io.File;
 import java.io.IOException;
 
 public class StartSystem {
+
+    private static String storage = null;
+
     public static void main(String [] argv) {
       File execDir = new File(new File(StartSystem.class.getProtectionDomain().getCodeSource().getLocation().getPath()).getParent());
       Process s = null;
       Process build = null;
       String port = "8888";
 
+      try {
+          Wini parser = new Wini(new File("appinventor.ini"));
+          storage = parser.get("main", "storage");
+      } catch (IOException e) {
+          // Probably don't have ini file, non fatal
+      }
+
       if (argv.length < 1) {
-          System.err.println("Usage: java -jar starter.jar <path-to-root-storage> [port]");
-          System.exit(1);
+          if (storage == null) {
+              System.err.println("Usage: java -jar starter.jar <path-to-root-storage>");
+              System.exit(1);
+          }
+      } else {
+          storage = argv[0];    // Command line overrides
       }
 
-      if (argv.length == 2) {   // We have a port argument
-          port = argv[1];
-      }
-
-      ProcessBuilder server = new ProcessBuilder("java", ("-Dstorage.root=" + argv[0]), "-jar", "jetty-runner.jar", "--port", port, "appinventor.xml");
+      ProcessBuilder server = new ProcessBuilder("java", ("-Dstorage.root=" + storage), "-jar", "jetty-runner.jar", "--port", port, "appinventor.xml");
       server.inheritIO();
       server.directory(execDir);
 
