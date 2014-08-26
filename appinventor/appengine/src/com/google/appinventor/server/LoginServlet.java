@@ -29,12 +29,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Logger;
 
-import com.google.appengine.api.memcache.MemcacheService;
-import com.google.appengine.api.memcache.MemcacheServiceFactory;
-import com.google.appengine.api.memcache.Expiration;
-import com.google.appengine.api.users.UserService;
-import com.google.appengine.api.users.UserServiceFactory;
-
 import com.google.appinventor.server.flags.Flag;
 import com.google.appinventor.shared.rpc.user.User;
 import com.google.appinventor.server.storage.StorageIo;
@@ -64,7 +58,6 @@ public class LoginServlet extends HttpServlet {
   private static final Flag<String> password = Flag.createFlag("localauth.mailserver.password", "");
   private static final Flag<Boolean> useGoogle = Flag.createFlag("auth.usegoogle", true);
   private static final Flag<Boolean> useLocal = Flag.createFlag("auth.uselocal", false);
-  private static final UserService userService = UserServiceFactory.getUserService();
 
   public void init(ServletConfig config) throws ServletException {
     super.init(config);
@@ -78,35 +71,13 @@ public class LoginServlet extends HttpServlet {
     String page = getPage(req);
     String error = (String) req.getSession().getAttribute("error");
 
-    if (page.equals("google")) {
-      // We get here after we have gone through the Google Login page
-      // This is arranged via a security-constraint setup in web.xml
-      com.google.appengine.api.users.User apiUser = userService.getCurrentUser();
-      if (apiUser == null) {  // Hmmm. I don't think this should happen
-        fail(req, resp, "Google Authentication Failed"); // Not sure what else to do
-        return;
-      }
-      String email = apiUser.getEmail();
-      String userId = apiUser.getUserId();
-      User user = storageIo.getUser(userId, email);
-      req.getSession().setAttribute("userid", user.getUserId()); // This effectively logs us in!
-      if (userService.isUserAdmin()) {                           // If Google says you are an admin
-        req.getSession().setAttribute("isadmin", true);          // Tell the session we are admin
-      }
-      resp.sendRedirect("/");
-    } else {
-      if (useLocal.get() == false) {
-        if (useGoogle.get() == false) {
-          out.println("<html><head><title>Error</title></head>\n");
-          out.println("<body><h1>App Inventor is Mis-Configured</h1>\n");
-          out.println("<p>This instance of App Inventor has no authentication mechanism configured.</p>\n");
-          out.println("</body>\n");
-          out.println("</html>\n");
-          return;
-        }
-        resp.sendRedirect("/login/google");
-        return;
-      }
+    if (useLocal.get() == false) {
+      out.println("<html><head><title>Error</title></head>\n");
+      out.println("<body><h1>App Inventor is Mis-Configured</h1>\n");
+      out.println("<p>This instance of App Inventor has no authentication mechanism configured.</p>\n");
+      out.println("</body>\n");
+      out.println("</html>\n");
+      return;
     }
 
     // If we get here, local accounts are supported
@@ -165,9 +136,6 @@ public class LoginServlet extends HttpServlet {
     out.println("<input type=Submit value=\"Login\">\n");
     out.println("</form>\n");
     out.println("<p><a href=\"/login/sendlink\">Click Here to Recover or Set your Password</a></p>\n");
-    if (useGoogle.get() == true) {
-      out.println("<p><a href=\"/login/google\">Click Here to use your Google Account to login</a></p>\n");
-    }
     out.println("</body></html\n");
   }
 

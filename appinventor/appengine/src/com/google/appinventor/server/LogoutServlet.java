@@ -5,8 +5,6 @@
 
 package com.google.appinventor.server;
 
-import com.google.appengine.api.users.UserServiceFactory;
-
 import java.io.IOException;
 
 import javax.servlet.http.HttpServletRequest;

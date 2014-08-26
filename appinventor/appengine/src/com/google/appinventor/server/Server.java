@@ -5,7 +5,6 @@
 
 package com.google.appinventor.server;
 
-import com.google.appengine.api.utils.SystemProperty;
 import com.google.appinventor.shared.rpc.ServerLayout;
 
 import javax.servlet.http.HttpServletRequest;
@@ -34,7 +33,7 @@ public class Server {
    * @return  true if this server instance is running on app engine production
    */
   public static boolean isProductionServer() {
-    return SystemProperty.environment.value() == SystemProperty.Environment.Value.Production;
+    return true;                // Stand Alone Version is always production
   }
 
   /**

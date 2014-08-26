@@ -8,8 +8,6 @@ package com.google.appinventor.server;
 import com.google.appinventor.common.version.GitBuildId;
 import com.google.appinventor.server.util.BuildData;
 
-import com.google.appengine.api.utils.SystemProperty;
-
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -70,15 +68,6 @@ public final class CrashReport {
   private static String extraExtraInfo(HttpServletRequest req) {
     StringBuilder s = new StringBuilder();
 
-    // If the app is running on App Engine...
-    if (Server.isProductionServer()) {
-      // the version ID of the runtime environment
-      String version = SystemProperty.version.get();
-      s.append("runtime.version").append("=").append(version).append("\n");
-      // the application major version number + deploy timestamp
-      version = SystemProperty.applicationVersion.get();
-      s.append("application.version").append("=").append(version).append("\n");
-    }
     s.append("build.version").append("=").append(buildData).append("\n");
     s.append("git.build.version").append("=").append(GitBuildId.getVersion()).append("\n");
     if (req != null) {

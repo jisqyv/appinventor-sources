@@ -5,7 +5,8 @@
      Author: kerr@google.com (Debby Wallach)
      Author: lizlooney@google.com (Liz Looney)
 
-     App Inventor appengine app
+     Stand Alone Version!
+     The Target is named "appengine" because of historical context
      ====================================================================== -->
 
 <project name="appengine" default="all">
@@ -34,7 +35,6 @@
   <import file="../build-common.xml" />
 
   <property name="gwt.sdk" location="${lib.dir}/gwt/2.5.1" />
-  <property name="appengine.sdk" location="${lib.dir}/appengine/appengine-java-sdk-1.7.6" />
 
   <property name="build.war.dir" location="${local.build.dir}/war" />
 
@@ -134,9 +134,6 @@
     <!-- SQLite Libraries -->
     <copy todir="${build.war.dir}/WEB-INF/lib" file="${lib.dir}/sqlite-jdbc/sqlite-jdbc-3.7.15-M1.jar" />
     <!-- Add any additional server libs that need to be copied -->
-    <copy todir="${build.war.dir}/WEB-INF/lib" flatten="true">
-      <fileset dir="${appengine.sdk}/lib/user" includes="**/*.jar"/>
-    </copy>
   </target>
 
   <!-- =====================================================================

@@ -5,8 +5,6 @@
 
 package com.google.appinventor.server;
 
-import com.google.appengine.api.users.UserService;
-import com.google.appengine.api.users.UserServiceFactory;
 import com.google.appinventor.server.flags.Flag;
 import com.google.appinventor.server.storage.StorageIo;
 import com.google.appinventor.server.storage.StorageIoInstanceHolder;
@@ -40,8 +38,6 @@ public class OdeAuthFilter implements Filter {
   private static final Logger LOG = Logger.getLogger(OdeAuthFilter.class.getName());
 
   private final StorageIo storageIo = StorageIoInstanceHolder.INSTANCE;
-
-  private static final UserService userService = UserServiceFactory.getUserService();
 
   // Whether this server should use a whitelist to determine who can
   // access it. Value is specified in the <system-properties> section
