@@ -5,6 +5,12 @@
 
 package com.google.appinventor.server;
 
+import javax.mail.Message;
+import javax.mail.MessagingException;
+import javax.mail.Session;
+import javax.mail.Transport;
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeMessage;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -25,8 +31,10 @@ import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 import java.util.logging.Logger;
 
 import com.google.appinventor.server.flags.Flag;
@@ -35,6 +43,8 @@ import com.google.appinventor.server.storage.StorageIo;
 import com.google.appinventor.server.storage.StorageIoInstanceHolder;
 import com.google.appinventor.server.storage.StoredData.PWData;
 import com.google.appinventor.server.util.PasswordHash;
+
+import com.sun.mail.smtp.SMTPTransport;
 
 /**
  * LoginServlet -- Handle logging someone in using an email address for a login
@@ -274,6 +284,15 @@ public class LoginServlet extends HttpServlet {
   }
 
   private void sendmail(String email, String url) {
+    Properties props = System.getProperties();
+    if (props.get("mail.smtp.host") == null) { // Use webserver approach
+      sendmailByWebService(email, url);
+    } else {
+      sendmailDirect(email, url);
+    }
+  }
+
+  private void sendmailByWebService(String email, String url) {
     try {
       String tmailServer = mailServer.get();
       if (tmailServer.equals("")) { // No mailserver = no mail!
@@ -298,4 +317,59 @@ public class LoginServlet extends HttpServlet {
     } catch (IOException e) {
     }
   }
+
+  /*
+   * Use SMTP Directly to send mail. This can only work in the stand
+   * alone version of the server because App Engine blocks SMTP. So we
+   * use the web service approach. We could also use the App Engine
+   * supplied API for sending mail. However that would have the mail
+   * originate from Google, which is not desirable at the
+   * moment. [jis]
+   */
+  private void sendmailDirect(String email, String url) {
+    Properties props = new Properties();
+    String mailhost = System.getProperty("mail.smtp.host");
+    props.put("mail.smtp.host", mailhost);
+    props.put("mail.smtp.class", "com.sun.mail.smtp.SMTPTransport");
+    String user = System.getProperty("mail.smtp.user");
+    String password = System.getProperty("mail.smtp.password");
+    if (password != null) {
+      props.put("mail.smtp.auth", "true");
+    }
+    String startTls = System.getProperty("mail.smtp.starttls.enable");
+    if ((startTls != null) && (startTls.equals("true"))) {
+      props.put("mail.smtp.starttls.enable", "true");
+      props.put("mail.smtp.ssl.trust", "*");
+      LOG.info("enabled starttls");
+    }
+    String port = System.getProperty("mail.smtp.port");
+    if (port != null) {
+      props.put("mail.smtp.port", port);
+    }
+    Session session = Session.getInstance(props, null);
+    session.setDebug(true);
+    try {
+      MimeMessage msg = new MimeMessage(session);
+      msg.setFrom(new InternetAddress("no-reply@" + mailhost));
+      msg.setRecipients(Message.RecipientType.TO, email);
+      msg.setSentDate(new Date());
+      msg.setSubject("Password Reset for you MIT App Inventor Account");
+      msg.setText("You have requested a new password for your MIT App Inventor Account.\n" +
+        "Use the link below to set (or reset) your password. After you click on\n" +
+        "this link you will be asked to provide a new password. Once you do that\n" + 
+        "you will be logged in to App Inventor.\n\n" + 
+        "    Your Link is: " + url + "\n\n");
+      if (password != null) {
+        SMTPTransport.send(msg, user, password);
+      } else {
+        SMTPTransport.send(msg);
+      }
+    } catch (MessagingException e) {
+      System.out.println("\n--Exception sending mail to " + email);
+      e.printStackTrace();
+      System.out.println();
+    }
+
+  }
+
 }

@@ -5,6 +5,9 @@ import org.ini4j.Wini;
 import java.io.File;
 import java.io.IOException;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class StartSystem {
 
     private static String storage = null;
@@ -14,10 +17,32 @@ public class StartSystem {
       Process s = null;
       Process build = null;
       String port = "8888";
+      String mailhost = null;
+      String mailuser = null;
+      String mailpassword = null;
+      boolean useStartTls = false;
+
+      List<String> pArgs = new ArrayList<String>();
+      pArgs.add("java");
 
       try {
           Wini parser = new Wini(new File("appinventor.ini"));
           storage = parser.get("main", "storage");
+          mailhost = parser.get("mail", "host");
+          mailuser = parser.get("mail", "user");
+          mailpassword = parser.get("mail", "password");
+          String stls = parser.get("mail", "starttls");
+          if ((stls != null) && (stls.equals("true"))) {
+              pArgs.add("-Dmail.smtp.starttls.enable=true");
+          }
+          String smtpport = parser.get("mail", "port");
+          if (port != null) {
+              pArgs.add("-Dmail.smtp.port=" + smtpport);
+          }
+          String keystore = parser.get("mail", "keystore");
+          if (keystore != null) {
+              pArgs.add("-Djavax.net.ssl.trustStore=" + keystore);
+          }
       } catch (IOException e) {
           // Probably don't have ini file, non fatal
       }
@@ -31,7 +56,24 @@ public class StartSystem {
           storage = argv[0];    // Command line overrides
       }
 
-      ProcessBuilder server = new ProcessBuilder("java", ("-Dstorage.root=" + storage), "-jar", "jetty-runner.jar", "--port", port, "appinventor.xml");
+      pArgs.add("-Dstorage.root=" + storage);
+
+      if (mailhost != null) {
+          pArgs.add("-Dmail.smtp.host=" + mailhost);
+      }
+      if (mailuser != null) {
+          pArgs.add("-Dmail.smtp.user=" + mailuser);
+      }
+      if (mailpassword != null) {
+          pArgs.add("-Dmail.smtp.password=" + mailpassword);
+      }
+      pArgs.add("-jar");
+      pArgs.add("jetty-runner.jar");
+      pArgs.add("--port");
+      pArgs.add(port);
+      pArgs.add("appinventor.xml");
+
+      ProcessBuilder server = new ProcessBuilder(pArgs);
       server.inheritIO();
       server.directory(execDir);
 
