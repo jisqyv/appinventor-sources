@@ -35,6 +35,9 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
+
 import java.util.logging.Logger;
 
 import com.google.appinventor.server.flags.Flag;
@@ -68,6 +71,7 @@ public class LoginServlet extends HttpServlet {
   private static final Flag<String> password = Flag.createFlag("localauth.mailserver.password", "");
   private static final Flag<Boolean> useGoogle = Flag.createFlag("auth.usegoogle", true);
   private static final Flag<Boolean> useLocal = Flag.createFlag("auth.uselocal", false);
+  private static final ExecutorService executorService = Executors.newCachedThreadPool();
 
   public void init(ServletConfig config) throws ServletException {
     super.init(config);
@@ -326,50 +330,54 @@ public class LoginServlet extends HttpServlet {
    * originate from Google, which is not desirable at the
    * moment. [jis]
    */
-  private void sendmailDirect(String email, String url) {
-    Properties props = new Properties();
-    String mailhost = System.getProperty("mail.smtp.host");
-    props.put("mail.smtp.host", mailhost);
-    props.put("mail.smtp.class", "com.sun.mail.smtp.SMTPTransport");
-    String user = System.getProperty("mail.smtp.user");
-    String password = System.getProperty("mail.smtp.password");
-    if (password != null) {
-      props.put("mail.smtp.auth", "true");
-    }
-    String startTls = System.getProperty("mail.smtp.starttls.enable");
-    if ((startTls != null) && (startTls.equals("true"))) {
-      props.put("mail.smtp.starttls.enable", "true");
-      props.put("mail.smtp.ssl.trust", "*");
-      LOG.info("enabled starttls");
-    }
-    String port = System.getProperty("mail.smtp.port");
-    if (port != null) {
-      props.put("mail.smtp.port", port);
-    }
-    Session session = Session.getInstance(props, null);
-    session.setDebug(true);
-    try {
-      MimeMessage msg = new MimeMessage(session);
-      msg.setFrom(new InternetAddress("no-reply@" + mailhost));
-      msg.setRecipients(Message.RecipientType.TO, email);
-      msg.setSentDate(new Date());
-      msg.setSubject("Password Reset for you MIT App Inventor Account");
-      msg.setText("You have requested a new password for your MIT App Inventor Account.\n" +
-        "Use the link below to set (or reset) your password. After you click on\n" +
-        "this link you will be asked to provide a new password. Once you do that\n" + 
-        "you will be logged in to App Inventor.\n\n" + 
-        "    Your Link is: " + url + "\n\n");
-      if (password != null) {
-        SMTPTransport.send(msg, user, password);
-      } else {
-        SMTPTransport.send(msg);
-      }
-    } catch (MessagingException e) {
-      System.out.println("\n--Exception sending mail to " + email);
-      e.printStackTrace();
-      System.out.println();
-    }
-
+  private void sendmailDirect(final String email, final String url) {
+    executorService.submit(new Runnable() {
+        @Override
+        public void run() {
+          Properties props = new Properties();
+          String mailhost = System.getProperty("mail.smtp.host");
+          props.put("mail.smtp.host", mailhost);
+          props.put("mail.smtp.class", "com.sun.mail.smtp.SMTPTransport");
+          String user = System.getProperty("mail.smtp.user");
+          String password = System.getProperty("mail.smtp.password");
+          if (password != null) {
+            props.put("mail.smtp.auth", "true");
+          }
+          String startTls = System.getProperty("mail.smtp.starttls.enable");
+          if ((startTls != null) && (startTls.equals("true"))) {
+            props.put("mail.smtp.starttls.enable", "true");
+            props.put("mail.smtp.ssl.trust", "*");
+            LOG.info("enabled starttls");
+          }
+          String port = System.getProperty("mail.smtp.port");
+          if (port != null) {
+            props.put("mail.smtp.port", port);
+          }
+          Session session = Session.getInstance(props, null);
+          session.setDebug(true);
+          try {
+            MimeMessage msg = new MimeMessage(session);
+            msg.setFrom(new InternetAddress("no-reply@" + mailhost));
+            msg.setRecipients(Message.RecipientType.TO, email);
+            msg.setSentDate(new Date());
+            msg.setSubject("Password Reset for you MIT App Inventor Account");
+            msg.setText("You have requested a new password for your MIT App Inventor Account.\n" +
+              "Use the link below to set (or reset) your password. After you click on\n" +
+              "this link you will be asked to provide a new password. Once you do that\n" + 
+              "you will be logged in to App Inventor.\n\n" + 
+              "    Your Link is: " + url + "\n\n");
+            if (password != null) {
+              SMTPTransport.send(msg, user, password);
+            } else {
+              SMTPTransport.send(msg);
+            }
+          } catch (MessagingException e) {
+            System.out.println("\n--Exception sending mail to " + email);
+            e.printStackTrace();
+            System.out.println();
+          }
+        }
+      });
   }
 
 }
