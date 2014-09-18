@@ -27,6 +27,7 @@ def store():
     message = Message()
     message.email = d['email']
     message.url = d['url']
+    message.locale = d.get('locale', 'en')
     if d.get('pass') != 'secret123':
         return ''
     channel.basic_publish('', 'passmail', message.SerializeToString(),
