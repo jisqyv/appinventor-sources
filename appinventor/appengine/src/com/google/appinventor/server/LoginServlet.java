@@ -176,7 +176,7 @@ public class LoginServlet extends HttpServlet {
       req.getSession().removeAttribute("error");
       out.println("<b>" + bundle.getString("error") + ": " + error + "</b><br /><br />\n");
     }
-    out.println("<button onClick=\"window.location.href='/login?locale=zh_CN';true;\">繁体中文</button>&nbsp;");
+    out.println("<button onClick=\"window.location.href='/login?locale=zh_CN';true;\">简体中文</button>&nbsp;");
     out.println("<button onClick=\"window.location.href='/login?locale=en';true;\">English</button>");
     out.println("<form method=POST action=\"" + req.getRequestURI() + "\">");
     out.println("<table>\n");
@@ -239,7 +239,7 @@ public class LoginServlet extends HttpServlet {
       }
       User user = storageIo.getUser(userid);
       String password = params.get("password");
-      if (password == null) {
+      if (password == null || password.equals("")) {
         fail(req, resp, bundle.getString("nopassword"));
         return;
       }
