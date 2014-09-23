@@ -5,8 +5,6 @@
 
 package com.google.appinventor.server.project.youngandroid;
 
-import com.google.appengine.api.utils.SystemProperty;
-import com.google.apphosting.api.ApiProxy;
 import com.google.appinventor.common.utils.StringUtils;
 import com.google.appinventor.common.version.GitBuildId;
 import com.google.appinventor.components.common.YaVersion;
@@ -597,18 +595,6 @@ public final class YoungAndroidProjectService extends CommonProjectService {
       // In particular, we often see RequestTooLargeException (if the zip is too
       // big) and ApiProxyException. There may be others.
       Throwable wrappedException = e;
-      if (e instanceof ApiProxy.RequestTooLargeException && zipFile != null) {
-        int zipFileLength = zipFile.getContent().length;
-        if (zipFileLength >= (5 * 1024 * 1024) /* 5 MB */) {
-          String lengthMbs = format((zipFileLength * 1.0)/(1024*1024));
-          wrappedException = new IllegalArgumentException(
-              "Sorry, can't package projects larger than 5MB."
-              + " Yours is " + lengthMbs + "MB.", e);
-        } else {
-          wrappedException = new IllegalArgumentException(
-              "Sorry, project was too large to package (" + zipFileLength + " bytes)");
-        }
-      }
       CrashReport.createAndLogError(LOG, null,
           buildErrorMsg("RuntimeException", buildServerUrl, userId, projectId), wrappedException);
       return new RpcResult(false, "", wrappedException.getMessage());
@@ -643,14 +629,8 @@ public final class YoungAndroidProjectService extends CommonProjectService {
   }
 
   private String getCurrentHost() {
-    if (Server.isProductionServer()) {
-      String applicationVersionId = SystemProperty.applicationVersion.get();
-      String applicationId = SystemProperty.applicationId.get();
-      return applicationVersionId + "." + applicationId + ".appspot.com";
-    } else {
-      // TODO(user): Figure out how to make this more generic
-      return "localhost:8888";
-    }
+    // TODO(user): Figure out how to make this more generic
+    return "localhost:8888";
   }
 
   /*

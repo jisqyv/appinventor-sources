@@ -8,18 +8,7 @@ package com.google.appinventor.server.storage;
 import com.google.appinventor.server.CrashReport;
 import com.google.appinventor.server.FileExporter;
 import com.google.appinventor.server.flags.Flag;
-import com.google.appinventor.server.storage.StoredData.CorruptionRecord;
-import com.google.appinventor.server.storage.StoredData.FeedbackData;
-import com.google.appinventor.server.storage.StoredData.FileData;
-import com.google.appinventor.server.storage.StoredData.MotdData;
-import com.google.appinventor.server.storage.StoredData.NonceData;
-import com.google.appinventor.server.storage.StoredData.ProjectData;
 import com.google.appinventor.server.storage.StoredData.PWData;
-import com.google.appinventor.server.storage.StoredData.UserData;
-import com.google.appinventor.server.storage.StoredData.UserFileData;
-import com.google.appinventor.server.storage.StoredData.UserProjectData;
-import com.google.appinventor.server.storage.StoredData.RendezvousData;
-import com.google.appinventor.server.storage.StoredData.WhiteListData;
 import com.google.appinventor.shared.rpc.BlocksTruncatedException;
 import com.google.appinventor.shared.rpc.Motd;
 import com.google.appinventor.shared.rpc.Nonce;
@@ -140,6 +129,8 @@ public class LocalStorageIo implements  StorageIo {
         statement.executeUpdate("create index noncenonce on nonce(nonce)");
         statement.executeUpdate("create index noncedate on nonce(timestamp)");
         statement.executeUpdate("create table pwdata (uuid string, email string, timestamp timestamp)");
+        statement.executeUpdate("create table rendezvous (ipaddr string, key string, timestamp timestamp)");
+        statement.executeUpdate("create unique index rendkey on rendezvous (key)");
 //        statement.executeUpdate("create index pwdatauuid on pwdata(uuid)");
 //        statement.executeUpdate("create index pwdataemail on pwdata(email)");
         statement.close();
@@ -1175,13 +1166,68 @@ public class LocalStorageIo implements  StorageIo {
 
   @Override
   public String findIpAddressByKey(final String key) {
-    // Not Implemented Yet
-    return "";
+    Connection conn = null;
+    try {
+      long ts = System.currentTimeMillis();
+      conn = userConn.get();
+      if (conn == null) {
+        conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
+        userConn.set(conn);
+      }
+      PreparedStatement prep = conn.prepareStatement("select ipaddr from rendezvous where key = ?");
+      prep.setString(1, key);
+      ResultSet rs = prep.executeQuery();
+      if (rs.next()) {
+        String ipaddr = rs.getString("ipaddr");
+        prep.close();
+        return ipaddr;
+      } else {
+        prep.close();
+        return null;
+      }
+    } catch (SQLException e) {
+      // Something went wrong, we'll flush this connection as a result...
+      userConn.remove();
+      try {
+        conn.close();
+      } catch (Exception z) {
+      }
+      conn = null;
+      throw CrashReport.createAndLogError(LOG, null, null, e);
+    }
   }
 
   @Override
   public void storeIpAddressByKey(final String key, final String ipAddress) {
-    // Not Implemented Yet
+    Connection conn = null;
+    try {
+      long ts = System.currentTimeMillis();
+      conn = userConn.get();
+      if (conn == null) {
+        conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
+        userConn.set(conn);
+      }
+      PreparedStatement prep = conn.prepareStatement("insert or replace into rendezvous (key, ipaddr, timestamp) " +
+        "values (?, ?, ?)");
+      prep.setString(1, key);
+      prep.setString(2, ipAddress);
+      prep.setDate(3, new java.sql.Date(ts));
+      prep.executeUpdate();
+      prep.close();
+      prep = conn.prepareStatement("delete from rendezvous where timestamp < ?");
+      prep.setDate(1, new java.sql.Date(ts-(1000*3600))); // Older then an hour
+      prep.executeUpdate();
+      prep.close();
+    } catch (SQLException e) {
+      // Something went wrong, we'll flush this connection as a result...
+      userConn.remove();
+      try {
+        conn.close();
+      } catch (Exception z) {
+      }
+      conn = null;
+      throw CrashReport.createAndLogError(LOG, null, null, e);
+    }
   }
 
   @Override

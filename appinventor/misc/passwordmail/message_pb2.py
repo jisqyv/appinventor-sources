@@ -13,7 +13,7 @@ from google.protobuf import descriptor_pb2
 DESCRIPTOR = _descriptor.FileDescriptor(
   name='message.proto',
   package='',
-  serialized_pb='\n\rmessage.proto\"%\n\x07Message\x12\r\n\x05\x65mail\x18\x01 \x02(\t\x12\x0b\n\x03url\x18\x02 \x01(\t')
+  serialized_pb='\n\rmessage.proto\"5\n\x07Message\x12\r\n\x05\x65mail\x18\x01 \x02(\t\x12\x0b\n\x03url\x18\x02 \x01(\t\x12\x0e\n\x06locale\x18\x03 \x01(\t')
 
 
 
@@ -39,6 +39,13 @@ _MESSAGE = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
+    _descriptor.FieldDescriptor(
+      name='locale', full_name='Message.locale', index=2,
+      number=3, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=unicode("", "utf-8"),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
   ],
   extensions=[
   ],
@@ -49,7 +56,7 @@ _MESSAGE = _descriptor.Descriptor(
   is_extendable=False,
   extension_ranges=[],
   serialized_start=17,
-  serialized_end=54,
+  serialized_end=70,
 )
 
 DESCRIPTOR.message_types_by_name['Message'] = _MESSAGE

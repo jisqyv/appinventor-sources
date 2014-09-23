@@ -1,0 +1,47 @@
+<?xml version="1.0"  encoding="ISO-8859-1"?>
+<!DOCTYPE Configure PUBLIC "-//Jetty//Configure//EN" "http://www.eclipse.org/jetty/configure_9_0.dtd">
+
+<Configure class="org.eclipse.jetty.webapp.WebAppContext">
+  <Set name="contextPath">/</Set>
+  <Set name="war">appinventor.war</Set>
+<!--  <Set name="war"><SystemProperty name="appinventor.root"/>/appinventor/appengine/build/war</Set> -->
+
+  <Call name="setInitParameter">
+    <Arg>org.eclipse.jetty.servlet.MaxAge</Arg>
+    <Arg>-1</Arg>
+  </Call>
+
+  <Call class="java.lang.System" name="setProperty">
+    <Arg>auth.usegoogle</Arg>
+    <Arg>false</Arg>
+  </Call>
+  <Call class="java.lang.System" name="setProperty">
+    <Arg>auth.uselocal</Arg>
+    <Arg>true</Arg>
+  </Call>
+  <Call class="java.lang.System" name="setProperty">
+    <Arg>localauth.mailserver</Arg>
+    <Arg>https://osiris.mit.edu/passmail/</Arg>
+  </Call>
+  <Call class="java.lang.System" name="setProperty">
+    <Arg>localauth.mailserver.password</Arg>
+    <Arg>secret123</Arg>
+  </Call>
+  <Call class="java.lang.System" name="setProperty">
+    <Arg>motd.check.interval.secs</Arg>
+    <Arg>0</Arg>
+  </Call>
+
+ <Get name="sessionHandler">
+     <Set name="sessionManager">
+         <New class="org.eclipse.jetty.server.session.HashSessionManager">
+           <Set name="sessionCookie">AppInventorId</Set>
+           <Set name="lazyLoad">true</Set>
+           <Set name="storeDirectory"><SystemProperty name="storage.root"/>/SESSIONS</Set>
+           <Set name="scavengePeriod">600</Set>
+           <Set name="savePeriod">300</Set>
+         </New>
+     </Set>
+  </Get>
+
+</Configure>

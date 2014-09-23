@@ -24,6 +24,8 @@ import com.google.appinventor.shared.rpc.project.ProjectService;
 import com.google.appinventor.shared.rpc.project.UserProject;
 import com.google.appinventor.shared.rpc.project.youngandroid.YoungAndroidProjectNode;
 import com.google.appinventor.shared.util.Base64Util;
+import com.google.appinventor.server.encryption.EncryptionStrategy;
+import com.google.appinventor.server.encryption.Encryptor;
 import com.google.common.collect.Lists;
 
 import java.io.BufferedReader;
@@ -52,11 +54,15 @@ public class ProjectServiceImpl extends OdeRemoteServiceServlet implements Proje
 
   private final transient StorageIo storageIo = StorageIoInstanceHolder.INSTANCE;
 
-  private final Flag<String> rootPath = Flag.createFlag("root.path", "");
-
   // RPC implementation for YoungAndroid projects
   private final transient YoungAndroidProjectService youngAndroidProject =
       new YoungAndroidProjectService(storageIo);
+
+  @Override public void init() {
+    Encryptor encryptor = EncryptionStrategy.WRITE;
+    encryptor.setKeyPath(getServletContext().getRealPath("keystore"));
+    LOG.log(Level.INFO, "Settings encryptor keystore path.");
+  }
 
   /**
    * Creates a new project.
@@ -87,7 +93,7 @@ public class ProjectServiceImpl extends OdeRemoteServiceServlet implements Proje
   public UserProject newProjectFromTemplate(String projectName, String pathToZip) {
 
     // Need to alter the pathToZip to take into account local server root
-    pathToZip = rootPath.get() + pathToZip;
+    pathToZip = getServletContext().getRealPath(pathToZip);
 
     UserProject userProject = null;
     try {
@@ -156,7 +162,8 @@ public class ProjectServiceImpl extends OdeRemoteServiceServlet implements Proje
     // really should not be coming from the client and we should
     // refactor this code to remove the argument and provide the
     // template path in this (server side) code.
-    pathToTemplatesDir = rootPath.get() + pathToTemplatesDir;
+
+    pathToTemplatesDir = getServletContext().getRealPath(pathToTemplatesDir);
 
     File templatesRepository = new File(pathToTemplatesDir);
     File templateFolder[] = templatesRepository.listFiles();
@@ -485,6 +492,7 @@ public class ProjectServiceImpl extends OdeRemoteServiceServlet implements Proje
   @Override
   public RpcResult build(long projectId, String nonce, String target) {
     // Dispatch
+
     final String userId = userInfoProvider.getUserId();
     return getProjectRpcImpl(userId, projectId).build(
       userInfoProvider.getUser(), projectId, nonce, target);

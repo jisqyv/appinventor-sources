@@ -5,7 +5,8 @@
      Author: kerr@google.com (Debby Wallach)
      Author: lizlooney@google.com (Liz Looney)
 
-     App Inventor appengine app
+     Stand Alone Version!
+     The Target is named "appengine" because of historical context
      ====================================================================== -->
 
 <project name="appengine" default="all">
@@ -34,7 +35,6 @@
   <import file="../build-common.xml" />
 
   <property name="gwt.sdk" location="${lib.dir}/gwt/2.5.1" />
-  <property name="appengine.sdk" location="${lib.dir}/appengine/appengine-java-sdk-1.7.6" />
 
   <property name="build.war.dir" location="${local.build.dir}/war" />
 
@@ -131,10 +131,9 @@
     <copy todir="${build.war.dir}/WEB-INF/lib" file="${gwt.sdk}/gwt-servlet-deps.jar" />
     <!-- SQLite Libraries -->
     <copy todir="${build.war.dir}/WEB-INF/lib" file="${lib.dir}/sqlite-jdbc/sqlite-jdbc-3.7.15-M1.jar" />
+    <!-- Java Mail -->
+    <copy todir="${build.war.dir}/WEB-INF/lib" file="${lib.dir}/javamail/javax.mail.jar" />
     <!-- Add any additional server libs that need to be copied -->
-    <copy todir="${build.war.dir}/WEB-INF/lib" flatten="true">
-      <fileset dir="${appengine.sdk}/lib/user" includes="**/*.jar"/>
-    </copy>
   </target>
 
   <!-- =====================================================================
@@ -151,7 +150,9 @@
           depends="init,WarLibs,AiSharedLib">
     <property name="AiServerLib-class.dir" location="${class.dir}/AiServerLib" />
     <mkdir dir="${AiServerLib-class.dir}" />
-
+    <copy todir="${AiServerLib-class.dir}/${appinventor.pkg}/server">
+      <fileset dir="src/${appinventor.pkg}/server/" includes="*.properties" />
+    </copy>
     <ai.javac destdir="${AiServerLib-class.dir}" >
       <include name="${appinventor.pkg}/server/**/*.java" />
       <classpath>
@@ -312,6 +313,7 @@
         <pathelement location="${build.dir}/common/CommonUtils.jar" />
         <pathelement location="${build.dir}/common/CommonVersion.jar" />
         <pathelement location="${build.dir}/components/CommonConstants.jar" />
+        <pathelement location="${build.dir}/components/CommonConstants-gwt.jar" />
         <!-- external libs -->
         <pathelement location="${lib.dir}/guava/guava-14.0.1.jar" /> 
         <pathelement location="${lib.dir}/gwt_dragdrop/gwt-dnd-3.2.3.jar" />
@@ -372,6 +374,8 @@
         <pathelement location="${gwt.sdk}/validation-api-1.0.0.GA-sources.jar" />
         <!-- SQLite3 (not strictly needed here) -->
         <pathelement location="${lib.dir}/sqlite-jdbc/sqlite-jdbc-3.7.15-M1.jar" />
+        <!-- Java Mail -->
+        <pathelement location="${lib.dir}/javamail/javax.mail.jar" />
       </classpath>
       <jvmarg value="-Xss2M"/>  <!-- increase if you see a StackOverflowError -->
       <jvmarg value="-Xmx1G"/>
