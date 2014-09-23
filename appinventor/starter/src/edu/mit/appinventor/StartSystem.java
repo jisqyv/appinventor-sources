@@ -6,9 +6,12 @@ import java.io.File;
 import java.io.IOException;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 public class StartSystem {
+
+    private static final long expiration = 1418230800000L;  // December 10, 2014 at Noon EST
 
     private static String storage = null;
 
@@ -21,6 +24,14 @@ public class StartSystem {
       String mailuser = null;
       String mailpassword = null;
       boolean useStartTls = false;
+
+      // Expiration Check
+      if (System.currentTimeMillis() > expiration) {
+          System.err.println("This copy of the Local App Inventor Server has expired, please get an updated version");
+          System.exit(1);
+      } else {
+          System.err.println("This copy of MIT App Inventor expires on: " + new java.util.Date(expiration));
+      }
 
       List<String> pArgs = new ArrayList<String>();
       pArgs.add("java");
