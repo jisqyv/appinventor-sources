@@ -261,6 +261,9 @@ public final class YoungAndroidFormUpgrader {
       } else if (componentType.equals("ListPicker")) {
         srcCompVersion = upgradeListPickerProperties(componentProperties, srcCompVersion);
 
+      } else if (componentType.equals("ListView")) {
+        srcCompVersion = upgradeListViewProperties(componentProperties, srcCompVersion);
+
       } else if (componentType.equals("LocationSensor")) {
         srcCompVersion = upgradeLocationSensorProperties(componentProperties, srcCompVersion);
 
@@ -854,6 +857,15 @@ public final class YoungAndroidFormUpgrader {
     return srcCompVersion;
   }
 
+  private static int upgradeListViewProperties(Map<String, JSONValue> componentProperties,
+      int srcCompVersion) {
+    if (srcCompVersion < 2) {
+      // Added the Elements getter
+      srcCompVersion = 2;
+    }
+    return srcCompVersion;
+  }
+
   private static int upgradeLocationSensorProperties(Map<String, JSONValue> componentProperties,
       int srcCompVersion) {
     if (srcCompVersion < 2) {
@@ -1050,6 +1062,11 @@ public final class YoungAndroidFormUpgrader {
       // The designer property TwitPic_API_Key was added
       // No properties need to be modified to upgrade to version 3.
       srcCompVersion = 3;
+    }
+    if (srcCompVersion < 4) {
+      // The designer property TwitPic_API_Key and functions are hidden and deprecated.
+      // No properties need to be modified to upgrade to version 4.
+      srcCompVersion = 4;
     }
     return srcCompVersion;
   }

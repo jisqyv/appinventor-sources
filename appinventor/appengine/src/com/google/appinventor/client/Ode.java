@@ -5,6 +5,8 @@
 
 package com.google.appinventor.client;
 
+import java.util.Random;
+
 import com.google.appinventor.client.boxes.AssetListBox;
 import com.google.appinventor.client.boxes.BlockSelectorBox;
 import com.google.appinventor.client.boxes.MessagesOutputBox;
@@ -34,8 +36,8 @@ import com.google.appinventor.client.widgets.boxes.Box;
 import com.google.appinventor.client.widgets.boxes.ColumnLayout;
 import com.google.appinventor.client.widgets.boxes.ColumnLayout.Column;
 import com.google.appinventor.client.widgets.boxes.WorkAreaPanel;
-import com.google.appinventor.client.wizards.TemplateUploadWizard;
 import com.google.appinventor.client.wizards.NewProjectWizard.NewProjectCommand;
+import com.google.appinventor.client.wizards.TemplateUploadWizard;
 import com.google.appinventor.common.version.AppInventorFeatures;
 import com.google.appinventor.components.common.YaVersion;
 import com.google.appinventor.shared.rpc.GetMotdService;
@@ -78,8 +80,8 @@ import com.google.gwt.user.client.ui.ClickListener;
 import com.google.gwt.user.client.ui.DeckPanel;
 import com.google.gwt.user.client.ui.DialogBox;
 import com.google.gwt.user.client.ui.DockPanel;
-import com.google.gwt.user.client.ui.Grid;
 import com.google.gwt.user.client.ui.FlowPanel;
+import com.google.gwt.user.client.ui.Grid;
 import com.google.gwt.user.client.ui.HTML;
 import com.google.gwt.user.client.ui.HasHorizontalAlignment;
 import com.google.gwt.user.client.ui.HasVerticalAlignment;
@@ -91,8 +93,6 @@ import com.google.gwt.user.client.ui.RootPanel;
 import com.google.gwt.user.client.ui.SimplePanel;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
-
-import java.util.Random;
 
 /**
  * Main entry point for Ode. Defines the startup UI elements in
@@ -533,7 +533,12 @@ public class Ode implements EntryPoint {
               Window.open("/" + ServerLayout.YA_TOS_FORM, "_self", null);
               return;
             case Response.SC_PRECONDITION_FAILED:
-              Window.Location.replace("/login/");
+              String locale = Window.Location.getParameter("locale");
+              if (locale == null || locale.equals("")) {
+                Window.Location.replace("/login/");
+              } else {
+                Window.Location.replace("/login/?locale=" + locale);
+              }
               return;           // likely not reached
           }
         }

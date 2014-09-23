@@ -39,6 +39,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 
 import java.util.logging.Logger;
+import java.util.Locale;
+import java.util.ResourceBundle;
 
 import com.google.appinventor.server.flags.Flag;
 import com.google.appinventor.shared.rpc.user.User;
@@ -78,12 +80,28 @@ public class LoginServlet extends HttpServlet {
   }
 
   protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-    resp.setContentType("text/html");
+    resp.setContentType("text/html; charset=utf-8");
     PrintWriter out = resp.getWriter();
 
     String [] components = req.getRequestURI().split("/");
+    LOG.info("requestURI = " + req.getRequestURI());
     String page = getPage(req);
     String error = (String) req.getSession().getAttribute("error");
+    String locale = (String) req.getSession().getAttribute("locale");
+    if (locale == null) {       // Default to English
+      locale = "en";
+    }
+    String queryString = req.getQueryString();
+    HashMap<String, String> params = getQueryMap(queryString);
+    String pLocale = params.get("locale");
+    if (pLocale != null) {
+      if (!pLocale.equals(locale)) { // Hmmm, changed the locale did we...
+        locale = pLocale;
+        req.getSession().setAttribute("locale", locale);
+      }
+    }
+    LOG.info("locale = " + locale + " bundle: " + new Locale(locale));
+    ResourceBundle bundle = ResourceBundle.getBundle("com/google/appinventor/server/loginmessages", new Locale(locale));
 
     if (useLocal.get() == false) {
       out.println("<html><head><title>Error</title></head>\n");
@@ -110,46 +128,49 @@ public class LoginServlet extends HttpServlet {
       LOG.info("setpw email = " + data.email);
       User user = storageIo.getUserFromEmail(data.email);
       req.getSession().setAttribute("userid", user.getUserId()); // This effectively logs us in!
-      out.println("<html><head><title>Set Your Password</title></head><body>\n");
-      out.println("<h1>Set Your Password</h1>\n");
+      out.println("<html><head><title>Set Your Password</title>\n");
+      out.println("</head>\n<body>\n");
+      out.println("<h1>" + bundle.getString("setyourpassword") + "</h1>\n");
       out.println("<form method=POST action=\"" + req.getRequestURI() + "\">");
       out.println("<input type=password name=password value=\"\"><br />\n");
-      out.println("<input type=Submit value=\"Set Password\">\n");
+      out.println("<input type=Submit value=\"" + bundle.getString("setpassword") + "\">\n");
       out.println("</form>\n");
       storageIo.cleanuppwdata();
       return;
     } else if (page.equals("linksent")) {
-      out.println("<html><head><title>Link Sent</title></head>\n");
+      out.println("<html><head><title>" + bundle.getString("linksent") + "</title></head>\n");
       out.println("<body>\n");
-      out.println("<h1>Link Sent</h1>\n");
-      out.println("<p>Check your e-mail for a link to login and set/change your password.</p>\n");
+      out.println("<h1>" + bundle.getString("linksent") + "</h1>\n");
+      out.println("<p>" + bundle.getString("checkemail") + "</p>\n");
       return;
     } else if (page.equals("sendlink")) {
-      out.println("<head><title>Request Password Setup or Reset</title></head>\n");
+      out.println("<head><title>" + bundle.getString("requestreset") + "</title></head>\n");
       out.println("<body>\n");
-      out.println("<h1>Request a Password Setup or Reset Link</h1>\n");
-      out.println("<p>You can setup your first password or change your password if you forgot it here.</p>\n");
+      out.println("<h1>" + bundle.getString("requestlink") + "</h1>\n");
+      out.println("<p>" + bundle.getString("requestinstructions") + "</p>\n");
       out.println("<form method=POST action=\"" + req.getRequestURI() + "\">\n");
-      out.println("Enter your Email Address:&nbsp;<input type=text name=email value=\"\"><br />\n");
-      out.println("<input type=submit value=\"Send Link\">\n");
+      out.println(bundle.getString("enteremailaddress") + ":&nbsp;<input type=text name=email value=\"\"><br />\n");
+      out.println("<input type=submit value=\"" + bundle.getString("sendlink") + "\">\n");
       out.println("</form>\n");
       return;
     }
 
-    out.println("<html><head><title>Please Login</title></head><body>\n");
-    out.println("<h1>Please Login</h1>\n");
+    out.println("<html><head><title>" + bundle.getString("pleaselogin") + "</title></head><body>\n");
+    out.println("<h1>" + bundle.getString("pleaselogin") + "</h1>\n");
     if (error != null) {
       req.getSession().removeAttribute("error");
-      out.println("<b>Error: " + error + "</b><br /><br />\n");
+      out.println("<b>" + bundle.getString("error") + ": " + error + "</b><br /><br />\n");
     }
+    out.println("<button onClick=\"window.location.href='/login?locale=zh_CN';true;\">简体中文</button>&nbsp;");
+    out.println("<button onClick=\"window.location.href='/login?locale=en';true;\">English</button>");
     out.println("<form method=POST action=\"" + req.getRequestURI() + "\">");
     out.println("<table>\n");
-    out.println("<tr><td>Email Address</td><td><input type=text name=email value=\"\"></td></tr>\n");
-    out.println("<tr><td>Password</td><td><input type=password name=password value=\"\"></td></tr>\n");
+    out.println("<tr><td>" + bundle.getString("emailaddress") + "</td><td><input type=text name=email value=\"\"></td></tr>\n");
+    out.println("<tr><td>" + bundle.getString("password") + "</td><td><input type=password name=password value=\"\"></td></tr>\n");
     out.println("</table>\n");
-    out.println("<input type=Submit value=\"Login\">\n");
+    out.println("<input type=Submit value=\"" + bundle.getString("login") + "\">\n");
     out.println("</form>\n");
-    out.println("<p><a href=\"/login/sendlink\">Click Here to Recover or Set your Password</a></p>\n");
+    out.println("<p><a href=\"/login/sendlink\">" + bundle.getString("passwordclickhere") + "</a></p>\n");
     out.println("</body></html\n");
   }
 
@@ -157,6 +178,14 @@ public class LoginServlet extends HttpServlet {
     BufferedReader input = new BufferedReader(new InputStreamReader(req.getInputStream()));
     String queryString = input.readLine();
     PrintWriter out = resp.getWriter();
+
+    String locale = (String) req.getSession().getAttribute("locale");
+    if (locale == null) {
+      locale = "en";
+    }
+
+    LOG.info("locale = " + locale + " bundle: " + new Locale(locale));
+    ResourceBundle bundle = ResourceBundle.getBundle("com/google/appinventor/server/loginmessages", new Locale(locale));
 
     if (queryString == null) {
       out.println("queryString is null");
@@ -178,7 +207,7 @@ public class LoginServlet extends HttpServlet {
         return;
       }
       String link = trimPage(req) + pwData.id + "/setpw";
-      sendmail(email, link);
+      sendmail(email, link, locale);
       resp.sendRedirect("/login/linksent/");
 //      req.getSession().setAttribute("error", link);
 //      resp.sendRedirect("/");
@@ -192,8 +221,8 @@ public class LoginServlet extends HttpServlet {
       }
       User user = storageIo.getUser(userid);
       String password = params.get("password");
-      if (password == null) {
-        fail(req, resp, "No Password Provided");
+      if (password == null || password.equals("")) {
+        fail(req, resp, bundle.getString("nopassword"));
         return;
       }
       String hashedPassword;
@@ -208,7 +237,11 @@ public class LoginServlet extends HttpServlet {
       }
 
       storageIo.setUserPassword(user.getUserId(),  hashedPassword);
-      resp.sendRedirect("/");   // Logged in, go to service
+      String uri = "/";
+      if (!locale.equals("en")) {
+        uri += "?locale=" + locale;
+      }
+      resp.sendRedirect(uri);   // Logged in, go to service
       return;
     }
 
@@ -230,13 +263,16 @@ public class LoginServlet extends HttpServlet {
     }
 
     if (!validLogin) {
-      fail(req, resp, "Invalid Password");
+      fail(req, resp, bundle.getString("invalidpassword"));
       return;
     }
 
     req.getSession().setAttribute("userid", user.getUserId());
 
     String uri = "/";
+    if (!locale.equals("en")) {
+      uri += "?locale=" + locale;
+    }
     resp.sendRedirect(uri);
   }
 
@@ -245,8 +281,11 @@ public class LoginServlet extends HttpServlet {
   }
 
   private static HashMap<String, String> getQueryMap(String query)  {
-    String[] params = query.split("&");
     HashMap<String, String> map = new HashMap<String, String>();
+    if (query == null || query.equals("")) {
+      return map;               // Empty map
+    }
+    String[] params = query.split("&");
     for (String param : params)  {
       String [] nvpair = param.split("=");
       if (nvpair.length <= 1) {
@@ -287,16 +326,16 @@ public class LoginServlet extends HttpServlet {
     return;
   }
 
-  private void sendmail(String email, String url) {
+  private void sendmail(String email, String url, String locale) {
     Properties props = System.getProperties();
     if (props.get("mail.smtp.host") == null) { // Use webserver approach
-      sendmailByWebService(email, url);
+      sendmailByWebService(email, url, locale);
     } else {
-      sendmailDirect(email, url);
+      sendmailDirect(email, url, locale);
     }
   }
 
-  private void sendmailByWebService(String email, String url) {
+  private void sendmailByWebService(String email, String url, String locale) {
     try {
       String tmailServer = mailServer.get();
       if (tmailServer.equals("")) { // No mailserver = no mail!
@@ -308,7 +347,7 @@ public class LoginServlet extends HttpServlet {
       connection.setRequestMethod("POST");
       PrintWriter stream = new PrintWriter(connection.getOutputStream());
       stream.write("email=" + URLEncoder.encode(email) + "&url=" + URLEncoder.encode(url) +
-          "&pass=" + password.get());
+          "&pass=" + password.get() + "&locale=" + locale);
       stream.flush();
       stream.close();
       int responseCode = 0;
@@ -330,12 +369,17 @@ public class LoginServlet extends HttpServlet {
    * originate from Google, which is not desirable at the
    * moment. [jis]
    */
-  private void sendmailDirect(final String email, final String url) {
+  private void sendmailDirect(final String email, final String url, final String locale) {
+    final ResourceBundle bundle = ResourceBundle.getBundle("com/google/appinventor/server/loginmessages", new Locale(locale));
     executorService.submit(new Runnable() {
         @Override
         public void run() {
           Properties props = new Properties();
           String mailhost = System.getProperty("mail.smtp.host");
+          String sendUrl = url;
+          if (!locale.equals("en")) {
+            sendUrl += "?locale=" + locale;
+          }
           props.put("mail.smtp.host", mailhost);
           props.put("mail.smtp.class", "com.sun.mail.smtp.SMTPTransport");
           String user = System.getProperty("mail.smtp.user");
@@ -360,12 +404,10 @@ public class LoginServlet extends HttpServlet {
             msg.setFrom(new InternetAddress("no-reply@" + mailhost));
             msg.setRecipients(Message.RecipientType.TO, email);
             msg.setSentDate(new Date());
-            msg.setSubject("Password Reset for you MIT App Inventor Account");
-            msg.setText("You have requested a new password for your MIT App Inventor Account.\n" +
-              "Use the link below to set (or reset) your password. After you click on\n" +
-              "this link you will be asked to provide a new password. Once you do that\n" + 
-              "you will be logged in to App Inventor.\n\n" + 
-              "    Your Link is: " + url + "\n\n");
+            msg.setSubject(bundle.getString("mailsubject"));
+            msg.setHeader("Content-Type", "text/plain; charset=utf-8");
+            msg.setHeader("Content-Transfer-Encoding", "8bit");
+            msg.setText(bundle.getString("mailbody") + sendUrl + bundle.getString("mailbody1"));
             if (password != null) {
               SMTPTransport.send(msg, user, password);
             } else {

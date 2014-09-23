@@ -276,8 +276,12 @@ public class YaVersion {
   // - FORM_COMPONENT_VERSION was incremented to 13.
   // For YOUNG_ANDROID_VERSION 102:
   // - FUSIONTABLESCONTROL_COMPONENT_VERSION was incremented to 3.
+  // For YOUNG_ANDROID_VERSION 103:
+  // - LISTVIEW_COMPONENT_VERSION was incremented to 2.
+  // For YOUNG_ANDROID_VERSION 104:
+  // - TWITTER_COMPONENT_VERSION was incremented to 4.
 
-  public static final int YOUNG_ANDROID_VERSION = 102;
+  public static final int YOUNG_ANDROID_VERSION = 104;
 
   // ............................... Blocks Language Version Number ...............................
 
@@ -346,6 +350,30 @@ public class YaVersion {
   //    upgradeComponentProperties to upgrade the .scm file contents
   // 4. Add code in openblocks.yacodeblocks.BlockSaveFile#upgradeComponentBlocks to
   //    upgrade the .blk file contents (not used in AI 2)
+
+
+  // Note added after internationalization (8/25/2014)
+  // If you add any properties, events or methods to a component you *must*:
+
+  //   Add an entry for each new property/event/method into
+  //   OdeMessages.java iff a property with that name doesn't already
+  //   exist (so if you are adding a property that has the same name as
+  //   another property in a different component, you don't do it a
+  //   second time). To add the "Foo" property you would add:
+
+  //         @defaultMessage("Foo")
+  //         @description(""
+  //         String FooProperties();
+
+  //   You then have to add a mapping to
+  //   TranslationComponentProperties.java (or ..Methods or ..Events
+  //   etc).
+
+  //   If you edit the description of a component (but not yet a
+  //   property,method or event of that component) you must also find and
+  //   update the description in OdeMessages.java
+
+
 
   //For ACCELEROMETERSENSOR_COMPONENT_VERSION 2:
   // - AccelerometerSensor.MinimumInterval property was added.
@@ -706,7 +734,10 @@ public class YaVersion {
   // - Added 'TweetWithImage' which uploads an image to TwitPic and adds it to
   //   a tweet to allow a user to tweet with a picture. This requires a TwitPic_API_Key
   //   property.
-  public static final int TWITTER_COMPONENT_VERSION = 3;
+  // For TWITTER_COMPONENT_VERSION 4:
+  // - Modified 'TweetWithImage' to upload images to Twitter directly because of the shutdown of
+  //   TwitPic. The TwitPic_API_Key property is now deprecated and hidden.
+  public static final int TWITTER_COMPONENT_VERSION = 4;
 
   // For VERTICALARRANGEMENT_COMPONENT_VERSION 2:
   // - The AlignHorizontal property was added
@@ -750,8 +781,11 @@ public class YaVersion {
   // For SPINNER_COMPONENT_VERSION 1:
   public static final int SPINNER_COMPONENT_VERSION = 1;
 
-  // For listView component Version
-  public static final int LISTVIEW_COMPONENT_VERSION = 1;
+  // For LISTVIEW_COMPONENT_VERSION 1:
+  // -- Initial version.
+  // For LISTVIEW_COMPONENT_VERSION 2:
+  // - Added the Elements property getter
+  public static final int LISTVIEW_COMPONENT_VERSION = 2;
 
   // For YANDEX_COMPONENT_VERSION 1:
   // - Initial version.
@@ -776,10 +810,11 @@ public class YaVersion {
   // key as the Companion it is replacing, as the Package Manager
   // is invoked from the running Companion.
 
-  public static final String PREFERRED_COMPANION = "2.20ai2zx1";
+  public static final String PREFERRED_COMPANION = "2.22ai2zx1";
   public static final String COMPANION_UPDATE_URL = "";
-  public static final String [] ACCEPTABLE_COMPANIONS = { "2.16ai2", "2.16ai2zx1", "2.17ai2", "2.17ai2zx1",
-                                                          "2.19ai2", "2.19ai2zx1", "2.20ai2", "2.20ai2zx1" };
+  public static final String COMPANION_UPDATE_URL1 = "";
+  public static final String [] ACCEPTABLE_COMPANIONS = { "2.20ai2", "2.20ai2zx1", "2.21ai2", "2.21ai2zx1",
+                                                          "2.22ai2", "2.22ai2zx1" };
 
   // Splash Screen Values
   public static final int SPLASH_SURVEY = 1;
