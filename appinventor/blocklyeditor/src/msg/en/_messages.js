@@ -1247,9 +1247,9 @@ Blockly.Msg.en.switch_language_to_english = {
 
 // Messages from replmgr.js
     Blockly.Msg.REPL_ERROR_FROM_COMPANION = "Error from Companion";
-    Blockly.Msg.REPL_NETWORK_CONNECTION_ERROR = "Network Connection Error";
+    Blockly.Msg.REPL_NETWORK_CONNECTION_ERROR = "Companion Connection Error";
     Blockly.Msg.REPL_NETWORK_ERROR = "Network Error";
-    Blockly.Msg.REPL_NETWORK_ERROR_RESTART = "Network Error Communicating with Companion.<br />Try restarting the Companion and reconnecting";
+    Blockly.Msg.REPL_NETWORK_ERROR_RESTART = "Companion Connection Error: <a href=\"http://explore.appinventor.mit.edu/ai2/connection-help\" target=\"_blank\">See Connection Help</a>";
     Blockly.Msg.REPL_OK = "OK";
     Blockly.Msg.REPL_COMPANION_VERSION_CHECK = "Companion Version Check";
     Blockly.Msg.REPL_COMPANION_OUT_OF_DATE = 'Your Companion App is out of date. Click "OK" to start the update. Watch your ';
@@ -1258,6 +1258,7 @@ Blockly.Msg.en.switch_language_to_english = {
     Blockly.Msg.REPL_APPROVE_UPDATE = " screen because you will be asked to approve the update.";
     Blockly.Msg.REPL_NOT_NOW = "Not Now";
     Blockly.Msg.REPL_COMPANION_OUT_OF_DATE1 = "The Companion you are using is out of date.<br/><br/>This Version of App Inventor should be used with Companion version";
+    Blockly.Msg.REPL_COMPANION_OUT_OF_DATE2 = "<br /><a href=\"http://appinventor.mit.edu/ai2/nb118/newcomp.html\" target=\"_blank\">You obtain the latest version here</a>";
     Blockly.Msg.REPL_COMPANION_OUT_OF_DATE_IMMEDIATE = "You are using an out-of-date Companion. You need not update the Companion immediately but should consider updating soon.";
     Blockly.Msg.REPL_DISMISS = "Dismiss";
     Blockly.Msg.REPL_SOFTWARE_UPDATE = "Software Update";
@@ -1278,11 +1279,11 @@ Blockly.Msg.en.switch_language_to_english = {
     Blockly.Msg.REPL_GIVE_UP = "Give Up";
     Blockly.Msg.REPL_KEEP_TRYING = "Keep Trying";
     Blockly.Msg.REPL_CONNECTION_FAILURE1 = "Connection Failure";
-    Blockly.Msg.REPL_NO_START_EMULATOR = "We could not start the MIT AI Companion within the Emulator";
+    Blockly.Msg.REPL_NO_START_EMULATOR = 'App Inventor is unable to connect to the Android emulator. Please see <a href="https://docs.google.com/document/d/1NbJRyCA9udxdU3oNyadR0fuvNglijYR7X3mVB_ZIeNU/pub" target="_blank">this web page</a> for help in dealing with this issue.';
     Blockly.Msg.REPL_PLUGGED_IN_Q = "Plugged In?";
     Blockly.Msg.REPL_AI_NO_SEE_DEVICE = "AI2 does not see your device, make sure the cable is plugged in and drivers are correct.";
     Blockly.Msg.REPL_HELPER_Q = "Helper?";
-    Blockly.Msg.REPL_HELPER_NOT_RUNNING = 'The aiStarter helper does not appear to be running<br /><a href="http://appinventor.mit.edu" target="_blank">Need Help?</a>';
+    Blockly.Msg.REPL_HELPER_NOT_RUNNING = 'Launch the aiStarter program on your computer and then try again. <a href="http://appinventor.mit.edu/explore/ai2/setup" target="_blank">Need Help?</a>';
     Blockly.Msg.REPL_USB_CONNECTED_WAIT = "USB Connected, waiting ";
     Blockly.Msg.REPL_SECONDS_ENSURE_RUNNING = " seconds to ensure all is running.";
     Blockly.Msg.REPL_EMULATOR_STARTED = "Emulator started, waiting ";
@@ -1292,6 +1293,7 @@ Blockly.Msg.en.switch_language_to_english = {
     Blockly.Msg.REPL_VERIFYING_COMPANION = "Verifying that the Companion Started....";
     Blockly.Msg.REPL_CONNECT_TO_COMPANION = "Connect to Companion";
     Blockly.Msg.REPL_TRY_AGAIN1 = "Failed to Connect to the MIT AI2 Companion, try again.";
+    Blockly.Msg.REPL_CODE_PREAMBLE = '<tr><td colspan=2>Launch the MIT AI2 Companion on your device<br/> and then scan the barcode or type in the code<br/> to connect for live testing of your app.<br /> <a href="http://appinventor.mit.edu/explore/ai2/setup-device-wifi" target="_blank">Need help finding the Companion App?</a></td></tr>\n';
     Blockly.Msg.REPL_YOUR_CODE_IS = "Your code is";
     Blockly.Msg.REPL_DO_YOU_REALLY_Q = "Do You Really?";
     Blockly.Msg.REPL_FACTORY_RESET = 'This will attempt to reset your Emulator to its "factory" state. If you had previously updated the Companion installed in the Emulator, you will likely have to do this again.';

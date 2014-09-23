@@ -1243,6 +1243,7 @@ Blockly.Msg.zh_tw.switch_language_to_chinese_tw = {
     Blockly.Msg.REPL_APPROVE_UPDATE ="屏幕，確認升級";
     Blockly.Msg.REPL_NOT_NOW ="現在不";
     Blockly.Msg.REPL_COMPANION_OUT_OF_DATE1 ="妳使用的伴侶程序已經過期，<br/><br/>本版App Inventor適用的伴侶程序版本為";
+    Blockly.Msg.REPL_COMPANION_OUT_OF_DATE2 ="";
     Blockly.Msg.REPL_COMPANION_OUT_OF_DATE_IMMEDIATE ="妳正在使用壹個過期版本的伴侶程序，請盡快升級";
     Blockly.Msg.REPL_DISMISS ="放棄";
     Blockly.Msg.REPL_SOFTWARE_UPDATE ="軟件升級";
@@ -1277,7 +1278,8 @@ Blockly.Msg.zh_tw.switch_language_to_chinese_tw = {
     Blockly.Msg.REPL_VERIFYING_COMPANION ="檢查伴侶程序啟動狀態....";
     Blockly.Msg.REPL_CONNECT_TO_COMPANION ="連接伴侶程序";
     Blockly.Msg.REPL_TRY_AGAIN1 ="無法連接伴侶程序，請重新連接。";
-    Blockly.Msg.REPL_YOUR_CODE_IS ="編碼為：";
+    Blockly.Msg.REPL_YOUR_CODE_IS ="編碼為";
+    Blockly.Msg.REPL_CODE_PREAMBLE = '';
     Blockly.Msg.REPL_DO_YOU_REALLY_Q ="妳真的要這麽做嗎？";
     Blockly.Msg.REPL_FACTORY_RESET = "這將使模擬器重置為出廠模式，如果此前升級過伴侶程序，則需要重新升級。";
 
