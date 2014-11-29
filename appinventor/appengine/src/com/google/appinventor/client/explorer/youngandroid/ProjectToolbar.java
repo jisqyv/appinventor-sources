@@ -7,7 +7,6 @@
 package com.google.appinventor.client.explorer.youngandroid;
 
 import com.google.appinventor.client.ErrorReporter;
-import com.google.appinventor.client.GalleryClient;
 import com.google.appinventor.client.Ode;
 import com.google.appinventor.client.OdeAsyncCallback;
 import com.google.appinventor.client.boxes.ProjectListBox;
@@ -30,6 +29,7 @@ import static com.google.appinventor.client.Ode.MESSAGES;
 public class ProjectToolbar extends Toolbar {
   private static final String WIDGET_NAME_NEW = "New";
   private static final String WIDGET_NAME_DELETE = "Delete";
+
   /**
    * Initializes and assembles all commands into buttons in the toolbar.
    */
@@ -61,7 +61,7 @@ public class ProjectToolbar extends Toolbar {
     @Override
     public void execute() {
       List<Project> selectedProjects =
-          ProjectListBox.getProjectListBox().getProjectList().getSelectedProjects();
+        ProjectListBox.getProjectListBox().getProjectList().getSelectedProjects();
       if (selectedProjects.size() > 0) {
         // Show one confirmation window for selected projects.
         if (deleteConfirmation(selectedProjects)) {
@@ -79,10 +79,7 @@ public class ProjectToolbar extends Toolbar {
     private boolean deleteConfirmation(List<Project> projects) {
       String message;
       if (projects.size() == 1) {
-        if (projects.get(0).isPublished())
-          message = MESSAGES.confirmDeleteSinglePublishedProject(projects.get(0).getProjectName());
-        else
-          message = MESSAGES.confirmDeleteSingleProject(projects.get(0).getProjectName());
+        message = MESSAGES.confirmDeleteSingleProject(projects.get(0).getProjectName());
       } else {
         StringBuilder sb = new StringBuilder();
         String separator = "";
@@ -110,11 +107,6 @@ public class ProjectToolbar extends Toolbar {
         // need to clear the ViewerBox first.
         ViewerBox.getViewerBox().clear();
       }
-      if (project.isPublished()) {
-        doDeleteGalleryApp(project.getGalleryId());
-        GalleryClient gallery = GalleryClient.getInstance();
-        gallery.appWasChanged();
-      }
       // Make sure that we delete projects even if they are not open.
       doDeleteProject(projectId);
     }
@@ -124,28 +116,18 @@ public class ProjectToolbar extends Toolbar {
           new OdeAsyncCallback<Void>(
               // failure message
               MESSAGES.deleteProjectError()) {
-            @Override
-            public void onSuccess(Void result) {
-              Ode.getInstance().getProjectManager().removeProject(projectId);
-              // Show a welcome dialog in case there are no
-              // projects saved.
-              if (Ode.getInstance().getProjectManager().getProjects().size() == 0) {
-                Ode.getInstance().createNoProjectsDialog(true);
-              }
-            }
-          });
+        @Override
+        public void onSuccess(Void result) {
+          Ode.getInstance().getProjectManager().removeProject(projectId);
+          // Show a welcome dialog in case there are no
+          // projects saved.
+          if (Ode.getInstance().getProjectManager().getProjects().size() == 0) {
+            Ode.getInstance().createWelcomeDialog(false);
+          }
+        }
+      });
     }
-    private void doDeleteGalleryApp(final long galleryId) {
-      Ode.getInstance().getGalleryService().deleteApp(galleryId,
-          new OdeAsyncCallback<Void>(
-              // failure message
-              MESSAGES.galleryDeleteError()) {
-            @Override
-            public void onSuccess(Void result) {
-              // need to update gallery list
-            }
-          });
-    }
+
   }
 
   /**

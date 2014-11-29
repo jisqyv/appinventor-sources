@@ -20,20 +20,12 @@ public class User implements IsSerializable, UserInfoProvider, Serializable {
   // user email address
   private String email;
 
-  // user display name
-  private String name;
-
-  // user introduction link
-  private String link;
-
   // whether user has accepted terms of service
   private boolean tosAccepted;
   
   // whether the user has admin priviledges
   private boolean isAdmin;
 
-  // which type the user has
-  private int type;
   private String sessionId;        // Used to ensure only one account active at a time
 
   private String password;      // Hashed password (if using local login system)
@@ -45,9 +37,6 @@ public class User implements IsSerializable, UserInfoProvider, Serializable {
   // properly generated, we don't have to worry about allocating specific prefixes and
   // ensuring that they are unique.
 
-  public static final int USER = 0;
-  public static final int MODERATOR = 1;
-
   /**
    * Creates a new user data transfer object.
    *
@@ -56,17 +45,11 @@ public class User implements IsSerializable, UserInfoProvider, Serializable {
    * @param tosAccepted TOS accepted?
    * @param sessionId client session Id
    */
-  public User(String id, String email, String name, String link, boolean tosAccepted, boolean isAdmin, int type, String sessionId) {
+  public User(String id, String email, boolean tosAccepted, boolean isAdmin, String sessionId) {
     this.id = id;
     this.email = email;
-    if (name==null)
-      this.name = getDefaultName();
-    else
-      this.name = name;
     this.tosAccepted = tosAccepted;
     this.isAdmin = isAdmin;
-    this.link = link;
-    this.type = type;
     this.sessionId = sessionId;
   }
 
@@ -132,44 +115,6 @@ public class User implements IsSerializable, UserInfoProvider, Serializable {
   }
 
   /**
-   * Returns the user's name.
-   * If user's name is missing (not set yet), return email instead.
-   * @return user name
-   */
-  @Override
-  public String getUserName() {
-    if (name != null) {
-      return name;
-    } else {
-      return email;
-    }
-  }
-
-  /**
-   * Sets the user's name.
-   */
-  public void setUserName(String name) {
-    this.name = name;
-  }
-
-  /**
-   * Returns the user's link.
-   *
-   * @return user link
-   */
-  @Override
-  public String getUserLink() {
-    return link;
-  }
-
-  /**
-   * Sets the user's link.
-   */
-  public void setUserLink(String link) {
-    this.link = link;
-  }
-
-  /**
    * Sets whether the user has accepted the terms of service.
    *
    * @param tos {@code true} if the user has accepted the terms of service,
@@ -205,19 +150,6 @@ public class User implements IsSerializable, UserInfoProvider, Serializable {
     isAdmin = admin;
   }
 
-  @Override
-  public int getType() {
-    return type;
-  }
-
-  /**
-   * Sets which type the user has.
-   *
-   * @param type `
-   */
-  public void setType(int type) {
-    this.type = type;
-  }
 
   /**
    * Returns this object.
@@ -239,29 +171,6 @@ public class User implements IsSerializable, UserInfoProvider, Serializable {
     return id.hashCode();
   }
 
-  public boolean isModerator() {
-    if(type == MODERATOR){
-      return true;
-    }
-    return false;
-  }
-
-  public static String getDefaultName(String email)
-  {
-    if (email==null)
-      return "user";
-    String[] parts = email.split("@");
-    if (parts.length>1) {
-      return parts[0];
-    } else {
-      return email;
-    }
-  }
-
-  public String getDefaultName() {
-    return getDefaultName(this.email);
-  }
-
   /**
    * Get the unique session id associated with this user
    * This is used to ensure that only one session is opened
@@ -280,6 +189,6 @@ public class User implements IsSerializable, UserInfoProvider, Serializable {
   }
 
   public User copy() {
-    return new User(id, email, name, link, tosAccepted, isAdmin, type, sessionId);
+    return new User(id, email, tosAccepted, isAdmin, sessionId);
   }
 }
