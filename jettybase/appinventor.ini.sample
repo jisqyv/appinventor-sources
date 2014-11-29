@@ -1,0 +1,18 @@
+[main]
+# Point this to a directory where your project data will be stored.
+storage = 
+[mail]
+# host name of the mail server
+host = 
+# username to login with on the mail server
+user = 
+# password to use (if needed)
+password = 
+# starttls whether or not to use the STARTTLS directive, true or false only
+starttls = false
+# Port to send mail. 25 is the "normal" mail port, 587 is the mail submission port
+# you most likely want to use 587
+port = 587
+# when starttls is used, if you care about certificate validate, point this
+# to a local java keystore file with the trusted root certificates you use.
+# keystore = 
