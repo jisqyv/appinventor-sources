@@ -57,7 +57,7 @@ public final class AppInventorFeatures {
    * @return true to display a splash screen
    */
   public static boolean showSplashScreen() {
-    return true;
+    return false;
   }
 
   /**
