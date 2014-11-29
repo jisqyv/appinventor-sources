@@ -839,10 +839,10 @@ Blockly.Msg.zh_cn.switch_language_to_chinese_cn = {
     Blockly.Msg.LANG_VARIABLES_GLOBAL_DECLARATION_TOOLTIP = '创建全局变量，并通过挂接的代码块赋值';
 
     Blockly.Msg.LANG_VARIABLES_GET_HELPURL = 'http://appinventor.mit.edu/explore/ai2/support/blocks/variables#get';
-    Blockly.Msg.LANG_VARIABLES_GET_TITLE_GET = '求';
+    Blockly.Msg.LANG_VARIABLES_GET_TITLE_GET = '取';
     // Blockly.Msg.LANG_VARIABLES_GET_INPUT_ITEM = '项目';
-    Blockly.Msg.LANG_VARIABLES_GET_COLLAPSED_TEXT = '求变量值';
-    Blockly.Msg.LANG_VARIABLES_GET_TOOLTIP = '求变量值';
+    Blockly.Msg.LANG_VARIABLES_GET_COLLAPSED_TEXT = '取变量值';
+    Blockly.Msg.LANG_VARIABLES_GET_TOOLTIP = '取变量值';
 
     Blockly.Msg.LANG_VARIABLES_SET_HELPURL = 'http://appinventor.mit.edu/explore/ai2/support/blocks/variables#set';
     Blockly.Msg.LANG_VARIABLES_SET_TITLE_SET = '设';
@@ -925,7 +925,7 @@ Blockly.Msg.zh_cn.switch_language_to_chinese_cn = {
     Blockly.Msg.LANG_PROCEDURES_MUTATORCONTAINER_TITLE = '输入项';
     Blockly.Msg.LANG_PROCEDURES_MUTATORARG_TITLE = '输入:';
 
-    Blockly.Msg.LANG_PROCEDURES_HIGHLIGHT_DEF = '突出显示过程';
+    Blockly.Msg.LANG_PROCEDURES_HIGHLIGHT_DEF = '预览代码块功能';
 
     Blockly.Msg.LANG_PROCEDURES_MUTATORCONTAINER_TOOLTIP = '';
     Blockly.Msg.LANG_PROCEDURES_MUTATORARG_TOOLTIP = '';
@@ -1248,8 +1248,7 @@ Blockly.Msg.zh_cn.switch_language_to_chinese_cn = {
     Blockly.Msg.REPL_SOFTWARE_UPDATE ="软件升级";
     Blockly.Msg.REPL_OK_LOWER ="确定";
     Blockly.Msg.REPL_GOT_IT ="升级完成";
-    Blockly.Msg.REPL_UPDATE_INFO = '正在安装升级包，请在设备（或模拟器）上检查确认。<br /><br />注意：升级完成后，请选择“完成”（不要选打开）。然后在浏览器中打开并进入App Inventor，点击“连接设备”并选择“重置连接”项。';
-
+    Blockly.Msg.REPL_UPDATE_INFO = '更新正在安装在你的设备上。请查看你设备(或模拟器)屏幕出现的提示并批准软件安装。<br /><br />重要:当更新完成,选择“完成”(不要点击“开放”)。然后再次浏览 App Inventor 网页,点击“连接”菜单,选择“重置连接”。然后重新连接设备。';
     Blockly.Msg.REPL_UNABLE_TO_UPDATE ="无法将升级包发送给设备或模拟器";
     Blockly.Msg.REPL_UNABLE_TO_LOAD ="无法从App Inventor服务器下载升级包";
     Blockly.Msg.REPL_UNABLE_TO_LOAD_NO_RESPOND ="无法App Inventor服务器(服务器没有响应)加载更新信息";
@@ -1286,9 +1285,9 @@ Blockly.Msg.zh_cn.switch_language_to_chinese_cn = {
 
 // Blocklyeditor.js
     Blockly.Msg.GENERATE_YAIL = "生成 Yail";
-    Blockly.Msg.DO_IT = "实现功能";
-    Blockly.Msg.CAN_NOT_DO_IT = "不能实现功能";
-    Blockly.Msg.CONNECT_TO_DO_IT = '你必须要连接AI伴侣或者模拟器才能使用"实现功能"';
+    Blockly.Msg.DO_IT = "预览代码块功能";
+    Blockly.Msg.CAN_NOT_DO_IT = "不能预览代码块功能";
+    Blockly.Msg.CONNECT_TO_DO_IT = '你必须要连接AI伴侣或者模拟器才能使用"预览代码块功能"';
   }
 };
 
