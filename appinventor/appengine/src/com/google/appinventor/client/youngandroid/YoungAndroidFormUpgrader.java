@@ -1,7 +1,8 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
-// Released under the MIT License https://raw.github.com/mit-cml/app-inventor/master/mitlicense.txt
+// Released under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 
 package com.google.appinventor.client.youngandroid;
 
@@ -860,8 +861,13 @@ public final class YoungAndroidFormUpgrader {
   private static int upgradeListViewProperties(Map<String, JSONValue> componentProperties,
       int srcCompVersion) {
     if (srcCompVersion < 2) {
-      // Added the Elements getter
+      // Added the Elements property
       srcCompVersion = 2;
+    }
+    if (srcCompVersion < 3) {
+      // Added the BackgroundColor property
+      // Added the TextColor property
+      srcCompVersion = 3;
     }
     return srcCompVersion;
   }
@@ -1135,6 +1141,11 @@ public final class YoungAndroidFormUpgrader {
       // The method BuildPostData was renamed to BuildRequestData.
       // No properties need to be modified to upgrade to version 3.
       srcCompVersion = 3;
+    }
+    if (srcCompVersion < 4) {
+      // The XMLTextDecode method was added.
+      // No properties need to be modified to upgrade to version 4.
+      srcCompVersion = 4;
     }
     return srcCompVersion;
   }

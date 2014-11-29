@@ -1,7 +1,8 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
-// Released under the MIT License https://raw.github.com/mit-cml/app-inventor/master/mitlicense.txt
+// Released under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 
 package com.google.appinventor.components.common;
 
@@ -280,8 +281,12 @@ public class YaVersion {
   // - LISTVIEW_COMPONENT_VERSION was incremented to 2.
   // For YOUNG_ANDROID_VERSION 104:
   // - TWITTER_COMPONENT_VERSION was incremented to 4.
+  // For YOUNG_ANDROID_VERSION 105:
+  // - WEB_COMPONENT_VERSION was incremented to 4.
+  // For YOUNG_ANDROID_VERSION 106:
+  // - LISTVIEW_COMPONENT_VERSION was incremented to 3.
 
-  public static final int YOUNG_ANDROID_VERSION = 104;
+  public static final int YOUNG_ANDROID_VERSION = 106;
 
   // ............................... Blocks Language Version Number ...............................
 
@@ -764,7 +769,9 @@ public class YaVersion {
   //   method was added.
   // For WEB_COMPONENT_VERSION 3:
   // - PUT and DELETE Actions added (PutText, PutTextWithEncoding, PutFile, and Delete).
-  public static final int WEB_COMPONENT_VERSION = 3;
+  // For WEB_COMPONENT_VERSION 4:
+  // - Added method XMLTextDecode
+  public static final int WEB_COMPONENT_VERSION = 4;
 
   // For WEBVIEWER_COMPONENT_VERSION 2:
   // - The CanGoForward and CanGoBack methods were added
@@ -782,10 +789,14 @@ public class YaVersion {
   public static final int SPINNER_COMPONENT_VERSION = 1;
 
   // For LISTVIEW_COMPONENT_VERSION 1:
-  // -- Initial version.
+  // - Initial version.
   // For LISTVIEW_COMPONENT_VERSION 2:
-  // - Added the Elements property getter
-  public static final int LISTVIEW_COMPONENT_VERSION = 2;
+  // - Added Elements property
+  // For LISTVIEW_COMPONENT_VERSION 3:
+  // - Added BackgroundColor Property
+  // - Added TextColor Property
+
+  public static final int LISTVIEW_COMPONENT_VERSION = 3;
 
   // For YANDEX_COMPONENT_VERSION 1:
   // - Initial version.
@@ -810,11 +821,10 @@ public class YaVersion {
   // key as the Companion it is replacing, as the Package Manager
   // is invoked from the running Companion.
 
-  public static final String PREFERRED_COMPANION = "2.22ai2zx1";
+  public static final String PREFERRED_COMPANION = "2.23ai2zx1";
   public static final String COMPANION_UPDATE_URL = "";
   public static final String COMPANION_UPDATE_URL1 = "";
-  public static final String [] ACCEPTABLE_COMPANIONS = { "2.20ai2", "2.20ai2zx1", "2.21ai2", "2.21ai2zx1",
-                                                          "2.22ai2", "2.22ai2zx1" };
+  public static final String [] ACCEPTABLE_COMPANIONS = { "2.22ai2", "2.22ai2zx1", "2.23ai2", "2.23ai2zx1", };
 
   // Splash Screen Values
   public static final int SPLASH_SURVEY = 1;
