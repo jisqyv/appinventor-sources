@@ -1,7 +1,8 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
-// Released under the MIT License https://raw.github.com/mit-cml/app-inventor/master/mitlicense.txt
+// Released under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 
 package com.google.appinventor.client;
 
@@ -4113,6 +4114,10 @@ public interface OdeMessages extends Messages {
   @Description("")
   String JsonTextDecodeMethods();
 
+  @DefaultMessage("XmlTextDecode")
+  @Description("")
+  String XmlTextDecodeMethods();
+
   @DefaultMessage("PostFile")
   @Description("")
   String PostFileMethods();
@@ -4308,7 +4313,11 @@ public interface OdeMessages extends Messages {
   @Description("")
   String CheckBoxHelpStringComponentPallette();
 
-  @DefaultMessage("Non-visible component that provides the phone\"s clock, a timer, and time calculations.")
+  @DefaultMessage("Non-visible component that provides the instant in time"+
+      "using the internal clock on the phone. It can fire a timer at " +
+      "regularly set intervals and perform time calculations, " +
+      "manipulations, and conversions. Methods to format the date and " +
+      "time are also available.")
   @Description("")
   String ClockHelpStringComponentPallette();
 
@@ -4683,6 +4692,10 @@ public interface OdeMessages extends Messages {
   @DefaultMessage("繁体中文")
   @Description("")
   String SwitchToTraditionalChinese();
+
+  @DefaultMessage("Español")
+  @Description("")
+  String SwitchToSpanish();
   
   @DefaultMessage("Progress Bar")
   @Description("")
