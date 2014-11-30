@@ -132,8 +132,9 @@ public class LoginServlet extends HttpServlet {
       out.println("</head>\n<body>\n");
       out.println("<h1>" + bundle.getString("setyourpassword") + "</h1>\n");
       out.println("<form method=POST action=\"" + req.getRequestURI() + "\">");
-      out.println("<input type=password name=password value=\"\"><br />\n");
-      out.println("<input type=Submit value=\"" + bundle.getString("setpassword") + "\">\n");
+      out.println("<input type=password name=password value=\"\" size=\"35\"><br />\n");
+      out.println("<p></p>");
+      out.println("<input type=Submit value=\"" + bundle.getString("setpassword") + "\" style=\"font-size: 300%;\">\n");
       out.println("</form>\n");
       storageIo.cleanuppwdata();
       return;
@@ -149,28 +150,50 @@ public class LoginServlet extends HttpServlet {
       out.println("<h1>" + bundle.getString("requestlink") + "</h1>\n");
       out.println("<p>" + bundle.getString("requestinstructions") + "</p>\n");
       out.println("<form method=POST action=\"" + req.getRequestURI() + "\">\n");
-      out.println(bundle.getString("enteremailaddress") + ":&nbsp;<input type=text name=email value=\"\"><br />\n");
-      out.println("<input type=submit value=\"" + bundle.getString("sendlink") + "\">\n");
+      out.println(bundle.getString("enteremailaddress") + ":&nbsp;<input type=text name=email value=\"\" size=\"35\"><br />\n");
+      out.println("<p></p>");
+      out.println("<input type=submit value=\"" + bundle.getString("sendlink") + "\" style=\"font-size: 300%;\">\n");
       out.println("</form>\n");
       return;
     }
 
     out.println("<html><head><title>" + bundle.getString("pleaselogin") + "</title></head><body>\n");
-    out.println("<h1>" + bundle.getString("pleaselogin") + "</h1>\n");
+    out.println("<center><h1>" + bundle.getString("pleaselogin") + "</h1>\n</center>");
     if (error != null) {
       req.getSession().removeAttribute("error");
       out.println("<b>" + bundle.getString("error") + ": " + error + "</b><br /><br />\n");
     }
-    out.println("<button onClick=\"window.location.href='/login?locale=zh_CN';true;\">简体中文</button>&nbsp;");
-    out.println("<button onClick=\"window.location.href='/login?locale=en';true;\">English</button>");
     out.println("<form method=POST action=\"" + req.getRequestURI() + "\">");
-    out.println("<table>\n");
-    out.println("<tr><td>" + bundle.getString("emailaddress") + "</td><td><input type=text name=email value=\"\"></td></tr>\n");
-    out.println("<tr><td>" + bundle.getString("password") + "</td><td><input type=password name=password value=\"\"></td></tr>\n");
-    out.println("</table>\n");
-    out.println("<input type=Submit value=\"" + bundle.getString("login") + "\">\n");
+    out.println("<center><table>\n");
+    out.println("<tr><td>" + bundle.getString("emailaddress") + "</td><td><input type=text name=email value=\"\" size=\"35\"></td></tr>\n");
+    out.println("<tr><td></td></td>");
+    out.println("<tr><td>" + bundle.getString("password") + "</td><td><input type=password name=password value=\"\" size=\"35\"></td></tr>\n");
+    out.println("</table></center>\n");
+    out.println("<p></p>");
+    out.println("<center><input type=Submit value=\"" + bundle.getString("login") + "\" style=\"font-size: 300%;\"></center>\n");
     out.println("</form>\n");
-    out.println("<p><a href=\"/login/sendlink\">" + bundle.getString("passwordclickhere") + "</a></p>\n");
+    out.println("<p></p>");
+    out.println("<center><p><a href=\"/login/sendlink\"  style=\"text-decoration:none;\">" + bundle.getString("passwordclickhere") + "</a></p></center>\n");
+    if (useGoogle.get() == true) {
+      out.println("<center><p><a href=\"/login/google\" style=\"text-decoration:none;\">Click Here to use your Google Account to login</a></p></center>\n");
+    }
+    out.println("<footer>");
+    out.println("<center><a href=\"/login?locale=zh_CN\"  style=\"text-decoration:none;\" >中文</a>&nbsp;");
+    out.println("<a href=\"/login?locale=en\"  style=\"text-decoration:none;\" >English</a></center>");
+    out.println("<p></p>");
+    out.println("<center>");
+    if (locale.equals("zh_CN")) {
+      out.println("<a href=\"http://www.weibo.com/mitappinventor\" target=\"_blank\"><img class=\"img-scale\"" +
+                  "src=\"/images/mzl.png\" width=\"30\" height=\"30\" title=\"Sina WeiBo\"></a>&nbsp;");
+    }
+    out.println("<a href=\"http://www.appinventor.mit.edu\" target=\"_blank\"><img class=\"img-scale\" " +
+                "src=\"/images/login-app-inventor.jpg\" width=\"50\" height=\"30\" title=\"MIT App Inventor\"></a></center>");
+    out.println("<p></p>");
+    
+    out.println("<p style=\"text-align: center; clear:both;\"><a rel=\"license\" href=\"http://creativecommons.org/licenses/by-sa/3.0/\" target=" +
+    		"\"_blank\"><img alt=\"Creative Commons License\" src=\"/images/cc3.png\"></a> <br>" +
+    		"<a rel=\"license\" href=\"http://creativecommons.org/licenses/by-sa/3.0/\" target=\"_blank\"></a></p>");
+    out.println("</footer>");
     out.println("</body></html\n");
   }
 
