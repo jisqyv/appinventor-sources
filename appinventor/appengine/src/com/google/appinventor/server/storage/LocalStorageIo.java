@@ -1102,7 +1102,7 @@ public class LocalStorageIo implements  StorageIo {
   public ProjectSourceZip exportProjectSourceZip(final String userId, final long projectId,
                                                  final boolean includeProjectHistory,
                                                  final boolean includeAndroidKeystore,
-                                                 @Nullable String zipName) throws IOException {
+                                                 @Nullable String zipName, boolean fatalError) throws IOException {
     int fileCount = 0;
     ByteArrayOutputStream zipFile = new ByteArrayOutputStream();
     ZipOutputStream out = new ZipOutputStream(zipFile);
