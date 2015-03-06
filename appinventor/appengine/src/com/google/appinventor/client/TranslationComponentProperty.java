@@ -52,6 +52,8 @@ public class TranslationComponentProperty {
     map.put("Angle", MESSAGES.AngleProperties());
     map.put("Animation", MESSAGES.AnimationProperties());
     map.put("Available", MESSAGES.AvailableProperties());
+    map.put("AvailableCountries", MESSAGES.AvailableCountriesProperties());
+    map.put("AvailableLanguages", MESSAGES.AvailableLanguagesProperties());
     map.put("AvailableProviders", MESSAGES.AvailableProvidersProperties());
     map.put("Azimuth", MESSAGES.AzimuthProperties());
     map.put("BallotOptions", MESSAGES.BallotOptionsProperties());
@@ -205,6 +207,7 @@ public class TranslationComponentProperty {
     map.put("MaxValue", MESSAGES.MaxValueProperties());
     map.put("MinValue", MESSAGES.MinValueProperties());
     map.put("ThumbPosition", MESSAGES.ThumbPositionProperties());
+    map.put("ThumbEnabled", MESSAGES.ThumbEnabled());
     map.put("FontBold", MESSAGES.FontBoldProperties());
     map.put("FontItalic", MESSAGES.FontItalicProperties());
     map.put("ShowFeedback", MESSAGES.ShowFeedbackProperties());
