@@ -12,6 +12,25 @@
   <description>
     Appengine server and client code
   </description>
+
+  <!-- =====================================================================
+       Definition for generating a Unique ID.
+       ===================================================================== -->
+
+  <scriptdef name="generateguid" language="javascript">
+    <attribute name="property" />
+    <![CDATA[
+             try {
+               load("nashorn:mozilla_compat.js");
+             }
+             catch (exception) {
+               // Ignore the exception as the compat mode is only needed for Java 8
+             }
+             importClass( java.util.UUID );
+             project.setProperty( attributes.get( "property" ), UUID.randomUUID() );
+    ]]>
+  </scriptdef>
+
   <condition property="XstartOnFirstThread" value="-XstartOnFirstThread">
     <os family="mac"/>
   </condition>
@@ -39,26 +58,45 @@
   <property name="build.war.dir" location="${local.build.dir}/war" />
 
   <!-- =====================================================================
+       Generate a Unique ID for this build. This is used to name blockly-all.js
+       in a unique way (blockly-${guid1}.js) so blockly is cacheable but
+       different builds get their own copy instead of a potentially out of date
+       version. This is particularly important when we do releases.
+       ===================================================================== -->
+  <target name="GenerateGuid1"
+          description="Generate a Unique ID for this build">
+    <generateguid property="guid1" />
+    <echo message="${guid1}" />
+  </target>
+
+  <!-- =====================================================================
        Copy static files to <build>/war, from war and elsewhere
        ===================================================================== -->
   <target name="CopyToBuildWar"
           description="Create and populate build/war directory structure"
-          depends="init,blocklyeditor_BlocklyCompile">
+          depends="init,GenerateGuid1,blocklyeditor_BlocklyCompile">
     <mkdir dir="${build.war.dir}" />
     <copy todir="${build.war.dir}/">
-      <fileset dir="war"/>
+      <fileset dir="war">
+        <exclude name="blocklyframe.html"/>
+      </fileset>
       <fileset dir="src/${appinventor.pkg}">
         <!-- canvas is a special case (see MockCanvas.java) -->
         <include name="images/canvas.png" />
       </fileset>
       <fileset dir="${docs.dir}"/>
-      <fileset file="${build.dir}/blocklyeditor/blockly-all.js"/>
       <fileset dir="${lib.dir}/blockly/src">
         <include name="media/*"/>
         <include name="**/*.css"/>
         <include name="1x1.gif"/>
       </fileset>
     </copy>
+    <copy file="war/blocklyframe.html" toFile="${build.war.dir}/blocklyframe.html" overwrite="true">
+      <filterset>
+        <filter token="GUID" value="${guid1}"/>
+      </filterset>
+    </copy>
+    <copy file="${build.dir}/blocklyeditor/blockly-all.js" tofile="${build.war.dir}/blockly-${guid1}.js" />
     <copy todir="${build.war.dir}/">
       <fileset dir="${lib.dir}">
         <include name="closure-library/**/*"/>
@@ -67,10 +105,13 @@
   </target>
 
   <target name="CopyBlocklyToBuildWar"
-          description="Create blockly-all.js and add to war"
-          depends="init,blocklyeditor_BlocklyCompile">
-    <copy todir="${build.war.dir}/">
-      <fileset file="${build.dir}/blocklyeditor/blockly-all.js"></fileset>
+          description="Create blockly-all.js and add to war with unique name"
+          depends="init,GenerateGuid1,blocklyeditor_BlocklyCompile">
+    <copy file="${build.dir}/blocklyeditor/blockly-all.js" tofile="${build.war.dir}/blockly-${guid1}.js" />
+    <copy file="war/blocklyframe.html" toFile="${build.war.dir}/blocklyframe.html" overwrite="true">
+      <filterset>
+        <filter token="GUID" value="${guid1}"/>
+      </filterset>
     </copy>
   </target>
   <!-- =====================================================================
