@@ -56,4 +56,11 @@ public interface UserInfoService extends RemoteService {
    * Deletes the user file with the given file name
    */
   void deleteUserFile(String fileName);
+
+  /**
+   * This is part of the licensing code. Store the authentication
+   * code in the database. It is provided by the user after they
+   * get it from the license registration website.
+   */
+  void setAuthCode(String authCode);
 }

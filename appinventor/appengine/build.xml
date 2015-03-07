@@ -368,6 +368,7 @@
         <pathelement location="${build.dir}/components/CommonConstants-gwt.jar" />
         <!-- external libs -->
         <pathelement location="${lib.dir}/guava/guava-18.0.jar" />
+        <pathelement location="${lib.dir}/gwt_crypto/gwt-crypto-2.3.0.jar" />
         <pathelement location="${lib.dir}/gwt_dragdrop/gwt-dnd-3.2.3.jar" />
         <pathelement location="${lib.dir}/gwt_incubator/gwt-incubator-20101117-r1766.jar" />
         <!-- gwt libs -->
@@ -418,6 +419,7 @@
         <pathelement location="${lib.dir}/findbugs/jsr305.jar" />
         <pathelement location="${lib.dir}/guava/guava-18.0.jar" />
         <pathelement location="${lib.dir}/guava/guava-gwt-18.0.jar" />
+        <pathelement location="${lib.dir}/gwt_crypto/gwt-crypto-2.3.0.jar" />
         <pathelement location="${lib.dir}/gwt_dragdrop/gwt-dnd-3.2.3.jar" />
         <pathelement location="${lib.dir}/gwt_incubator/gwt-incubator-20101117-r1766.jar" />
         <!-- gwt libs -->

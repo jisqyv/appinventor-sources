@@ -9,6 +9,7 @@ import com.google.appinventor.server.CrashReport;
 import com.google.appinventor.server.FileExporter;
 import com.google.appinventor.server.flags.Flag;
 import com.google.appinventor.server.storage.StoredData.PWData;
+import com.google.appinventor.server.util.LicenseConfig;
 import com.google.appinventor.shared.rpc.BlocksTruncatedException;
 import com.google.appinventor.shared.rpc.Motd;
 import com.google.appinventor.shared.rpc.Nonce;
@@ -133,6 +134,7 @@ public class LocalStorageIo implements  StorageIo {
         statement.executeUpdate("create unique index rendkey on rendezvous (key)");
 //        statement.executeUpdate("create index pwdatauuid on pwdata(uuid)");
 //        statement.executeUpdate("create index pwdataemail on pwdata(email)");
+        statement.executeUpdate("create table if not exists license (uuid text, hardware text, authcode text)");
         statement.close();
         conn.commit();
         conn.close();
@@ -141,6 +143,23 @@ public class LocalStorageIo implements  StorageIo {
         // Something is really broken
         // XXX
       }
+    } finally {
+      if (conn != null) {
+        try {
+          conn.close();
+        } catch (Exception e) {
+          throw CrashReport.createAndLogError(LOG, null, null, e);
+        }
+      }
+    }
+    // Create the license table if it doesn't exit
+    try {
+      conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
+      PreparedStatement prep = conn.prepareStatement("select * from users limit 1");
+      Statement statement = conn.createStatement();
+      statement.executeUpdate("create table if not exists license (uuid text, hardware text, authcode text)");
+    } catch (SQLException e) {
+      throw CrashReport.createAndLogError(LOG, null, null, e);
     } finally {
       if (conn != null) {
         try {
@@ -1451,6 +1470,86 @@ public class LocalStorageIo implements  StorageIo {
     }
   }
 
+  // Fetch license data
+  @Override
+  public LicenseConfig getLicenseConfig() {
+    Connection conn = null;
+    try {
+      conn = userConn.get();
+      if (conn == null) {
+        conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
+        userConn.set(conn);
+      }
+      PreparedStatement prep = conn.prepareStatement("select uuid, hardware, authcode from license limit 1");
+      ResultSet rs = prep.executeQuery();
+      if (rs.next()) {
+        LicenseConfig conf = new LicenseConfig(rs.getString("hardware"),
+          rs.getString("uuid"), rs.getString("authcode"));
+        prep.close();
+        return conf;
+      } else {
+        prep.close();
+        return null;
+      }
+    } catch (SQLException e) {
+      // Something went wrong, we'll flush this connection as a result...
+      userConn.remove();
+      try {
+        conn.close();
+      } catch (Exception z) {
+      }
+      conn = null;
+      throw CrashReport.createAndLogError(LOG, null, null, e);
+    }
+  }
+
+  public void setLicenseConfig(LicenseConfig conf) {
+    Connection conn = null;
+    PreparedStatement prep;
+    try {
+      conn = userConn.get();
+      if (conn == null) {
+        conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
+        userConn.set(conn);
+      }
+      LicenseConfig oldConf = getLicenseConfig();
+      String hardwareHint = conf.getHardwareHint();
+      String UUID = conf.getUUID();
+      String authCode = conf.getAuthCode();
+      if (oldConf != null) {
+        if (hardwareHint == null)
+          hardwareHint = oldConf.getHardwareHint();
+        if (UUID == null)
+          UUID = oldConf.getUUID();
+        if (authCode == null)
+          authCode = oldConf.getAuthCode();
+        prep = conn.prepareStatement("update or replace license set hardware = ?, uuid = ?, authcode = ? where rowid = 1");
+        prep.setQueryTimeout(30);
+        prep.setString(1, hardwareHint);
+        prep.setString(2, UUID);
+        prep.setString(3, authCode);
+        prep.executeUpdate();
+        prep.close();
+      } else {
+        prep = conn.prepareStatement("insert into license (hardware, uuid, authcode) values (?, ?, ?)");
+        prep.setQueryTimeout(30);
+        prep.setString(1, hardwareHint);
+        prep.setString(2, UUID);
+        prep.setString(3, authCode);
+        prep.executeUpdate();
+        prep.close();
+      }
+    } catch (SQLException e) {
+      // Something went wrong, we'll flush this connection as a result...
+      userConn.remove();
+      try {
+        conn.close();
+      } catch (Exception z) {
+      }
+      conn = null;
+      throw CrashReport.createAndLogError(LOG, null, null, e);
+    }
+  }
 
   private static String collectUserErrorInfo(final String userId) {
     return collectUserErrorInfo(userId, CrashReport.NOT_AVAILABLE);

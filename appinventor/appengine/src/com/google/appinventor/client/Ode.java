@@ -9,6 +9,8 @@ package com.google.appinventor.client;
 import java.util.Date;
 import java.util.Random;
 
+import com.googlecode.gwt.crypto.bouncycastle.digests.MD5Digest;
+
 import com.google.appinventor.client.boxes.AssetListBox;
 import com.google.appinventor.client.boxes.BlockSelectorBox;
 import com.google.appinventor.client.boxes.MessagesOutputBox;
@@ -93,6 +95,7 @@ import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.PushButton;
 import com.google.gwt.user.client.ui.RootPanel;
 import com.google.gwt.user.client.ui.SimplePanel;
+import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
 
@@ -205,6 +208,11 @@ public class Ode implements EntryPoint {
   private boolean windowClosing;
 
   private boolean screensLocked;
+
+  // Licensing related variables
+
+  private String licenseCode;
+  private String systemId;
 
   /**
    * Returns global instance of Ode.
@@ -485,6 +493,9 @@ public class Ode implements EntryPoint {
         } else {
           setRendezvousServer(YaVersion.RENDEZVOUS_SERVER);
         }
+
+        licenseCode = result.getAuthCode();
+        systemId = result.getSysUID();
 
         userSettings = new UserSettings(user);
 
@@ -1116,6 +1127,15 @@ public class Ode implements EntryPoint {
    * @return The created and optionally displayed Dialog box.
    */
   public DialogBox createWelcomeDialog(boolean showDialog) {
+    // First arrange for the license check to happen...
+    Timer t = new Timer() {
+        @Override
+        public void run() {
+          // Check System License
+          licenseCheck();
+        }
+      };
+    t.schedule(4000);           // Fire in four seconds
     // Create the UI elements of the DialogBox
     final DialogBox dialogBox = new DialogBox(false, true); // DialogBox(autohide, modal)
     dialogBox.setStylePrimaryName("ode-DialogBox");
@@ -1248,15 +1268,24 @@ public class Ode implements EntryPoint {
   // after the userSettings object is loaded (above) and parsed.
   public void showSplashScreens() {
 
-    // Deal with possible expiration
     Timer t = new Timer() {
+        @Override
+        public void run() {
+          // Check System License
+          licenseCheck();
+        }
+      };
+    t.schedule(4000);           // Fire in four seconds
+
+    // Deal with possible expiration
+    t = new Timer() {
         @Override
         public void run () {
           // Display expiration dialog if appropriate
           expireDialog();
         }
       };
-    t.schedule(5000);           // In five seconds...
+    t.schedule(6000);           // In six seconds...
 
     boolean showSplash = false;
     if (AppInventorFeatures.showSurveySplashScreen()) {
@@ -1585,6 +1614,69 @@ public class Ode implements EntryPoint {
     }
   }
 
+  private void licenseCheck() {
+    try {
+      if (makeAuthCode(makeCode(systemId)) == Long.parseLong(licenseCode)) {
+        return;                   // License checks out
+      }
+    } catch (Exception e) {
+      // fall through. An exception likely means that licenseCode is not a number
+      // because we are in a fresh database and it is null
+    }
+    final DialogBox dialogBox = new DialogBox(false, true); // DialogBox(autohide, modal)
+    final TextBox inputBox = new TextBox();
+    final String messageText = "Your siteCode is " + makeCode(systemId) + "<br />Please visit http://register.appinventor.mit.edu " +
+      "to obtain an authentication code. Enter it below to continue.";
+    final HTML message = new HTML(messageText);
+    FlowPanel holder = new FlowPanel();
+    VerticalPanel DialogBoxContents = new VerticalPanel();
+    dialogBox.setStylePrimaryName("ode-DialogBox");
+    dialogBox.setText("License Check");
+    dialogBox.setHeight("100px");
+    dialogBox.setWidth("400px");
+    dialogBox.setGlassEnabled(true);
+    dialogBox.setAnimationEnabled(true);
+    dialogBox.center();
+    Button okButton = new Button("Continue");
+    okButton.addClickListener(new ClickListener() {
+        public void onClick(Widget sender) {
+          if (validLicense(inputBox.getText())) {
+            dialogBox.hide();
+            userInfoService.setAuthCode(inputBox.getText(), new OdeAsyncCallback<Void> ("") {
+                @Override
+                  public void onSuccess(Void result) {
+                  // do nothing
+                }
+              });
+          } else {
+            message.setHTML("<b>Invalid authCode entered, verify your siteCode and try again</b><br/><br/>" + messageText);
+          }
+        }
+      });
+    holder.add(inputBox);
+    holder.add(okButton);
+    message.setStyleName("DialogBox-message");
+    DialogBoxContents.add(message);
+    DialogBoxContents.add(holder);
+    dialogBox.setWidget(DialogBoxContents);
+    dialogBox.show();
+  }
+
+  private boolean validLicense(String authCodeString) {
+    try {
+      long siteCode = makeCode(systemId);
+      long inputAuthCode = Long.parseLong(authCodeString);
+      long authCode = makeAuthCode(siteCode);
+      if (inputAuthCode == authCode) {
+        return true;
+      } else {
+        return false;
+      }
+    } catch (Exception e) {     // Number format, null, who knows
+      return false;             // if we get one, no valid license!
+    }
+  }
+
   /**
    * Is it OK to connect a device/emulator. Returns true if so false
    * otherwise.
@@ -1669,6 +1761,39 @@ public class Ode implements EntryPoint {
       OdeLog.log("Unlocking Screens");
     }
     screensLocked = value;
+  }
+
+  // Convert a HEX input string into a decimal
+  // value reduce mod 100000000 (to yield an 8
+  // digit value, to ease typing requirements)
+  private static long makeCode(String systemId) {
+    Long v = Long.parseLong(systemId.substring(0, 10), 16);
+    v = v % 100000000;
+    return v.longValue();
+  }
+
+  private static long makeAuthCode(long sysCode) {
+    byte [] ikey = { 0x16, 0x7f, 0x01, 0x43, 0x79 };
+    byte [] okey = { 0x45, 0x13, 0x7f, 0x01, 0x03 };
+    byte [] code = Long.toString(sysCode, 16).getBytes();
+    MD5Digest md = new MD5Digest();
+    md.update(ikey, 0, ikey.length);
+    md.update(code, 0, code.length);
+    md.update(okey, 0, okey.length);
+    byte [] result = new byte[md.getDigestSize()];
+    md.doFinal(result, 0);
+    return makeCode(bytesToHex(result));
+  }
+
+  final protected static char[] hexArray = "0123456789ABCDEF".toCharArray();
+  private static String bytesToHex(byte[] bytes) {
+    char[] hexChars = new char[bytes.length * 2];
+    for ( int j = 0; j < bytes.length; j++ ) {
+      int v = bytes[j] & 0xFF;
+      hexChars[j * 2] = hexArray[v >>> 4];
+      hexChars[j * 2 + 1] = hexArray[v & 0x0F];
+    }
+    return new String(hexChars);
   }
 
   // Native code to set the top level rendezvousServer variable

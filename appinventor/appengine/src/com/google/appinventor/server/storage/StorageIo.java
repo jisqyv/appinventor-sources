@@ -6,6 +6,7 @@
 
 package com.google.appinventor.server.storage;
 
+import com.google.appinventor.server.util.LicenseConfig;
 import com.google.appinventor.shared.rpc.BlocksTruncatedException;
 import com.google.appinventor.shared.rpc.Motd;
 import com.google.appinventor.shared.rpc.Nonce;
@@ -500,5 +501,10 @@ public interface StorageIo {
   StoredData.PWData createPWData(String email);
   StoredData.PWData findPWData(String uid);
   void cleanuppwdata();
+
+  // License Management
+
+  LicenseConfig getLicenseConfig();
+  void setLicenseConfig(LicenseConfig config);
 
 }
