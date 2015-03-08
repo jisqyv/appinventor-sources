@@ -11,7 +11,7 @@ import java.util.List;
 
 public class StartSystem {
 
-    private static final long expiration = 1426392000000L;  // March 15, 2015 at Midnight EST
+    private static final long expiration = 1430366400000L;  // April 30, 2015 at Midnight EST
 
     private static String storage = null;
 

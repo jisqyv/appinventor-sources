@@ -6,6 +6,7 @@
 
 package com.google.appinventor.client;
 
+import java.util.Date;
 import java.util.Random;
 
 import com.google.appinventor.client.boxes.AssetListBox;
@@ -1242,6 +1243,17 @@ public class Ode implements EntryPoint {
   // (if enabled). This function is called out of SplashSettings.java
   // after the userSettings object is loaded (above) and parsed.
   public void showSplashScreens() {
+
+    // Deal with possible expiration
+    Timer t = new Timer() {
+        @Override
+        public void run () {
+          // Display expiration dialog if appropriate
+          expireDialog();
+        }
+      };
+    t.schedule(5000);           // In five seconds...
+
     boolean showSplash = false;
     if (AppInventorFeatures.showSurveySplashScreen()) {
       int nvalue = 0;
@@ -1521,6 +1533,52 @@ public class Ode implements EntryPoint {
     DialogBoxContents.add(holder);
     dialogBox.setWidget(DialogBoxContents);
     dialogBox.show();
+  }
+
+  /**
+   * Dialog box to display expiration warning.
+   * If it is less then 10 days to expiration, this dialog box is displayed with
+   * a Continue button. If this copy of App Inventor has expired, then there
+   * is no Continue button and the application is now hung.
+   */
+  private void expireDialog() {
+    Date now = new Date();
+    Date expiration = new Date(1430366400000L);
+    Date warning = new Date(expiration.getTime() - 3600*1000*10*24); // Ten days before expiration
+    if (now.compareTo(warning) < 0) {
+      return;                                    // Don't display if expiration in far future
+    }
+    HTML message;
+    final DialogBox dialogBox = new DialogBox(false, true); // DialogBox(autohide, modal)
+    FlowPanel holder = new FlowPanel();
+    VerticalPanel DialogBoxContents = new VerticalPanel();
+    dialogBox.setStylePrimaryName("ode-DialogBox");
+    dialogBox.setHeight("100px");
+    dialogBox.setWidth("400px");
+    dialogBox.setGlassEnabled(true);
+    dialogBox.setAnimationEnabled(true);
+    dialogBox.center();
+    if (now.compareTo(expiration) < 0) {         // Give warning
+      message = new HTML("This version of MIT App Inventor will expire: " + expiration.toString());
+      Button okButton = new Button("Continue");
+      okButton.addClickListener(new ClickListener() {
+          public void onClick(Widget sender) {
+            dialogBox.hide();
+          }
+        });
+      holder.add(okButton);
+      message.setStyleName("DialogBox-message");
+      DialogBoxContents.add(message);
+      DialogBoxContents.add(holder);
+      dialogBox.setWidget(DialogBoxContents);
+      dialogBox.show();
+    } else {
+      message = new HTML("This copy of MIT App Inventor has expired");
+      message.setStyleName("DialogBox-message");
+      DialogBoxContents.add(message);
+      dialogBox.setWidget(DialogBoxContents);
+      dialogBox.show();
+    }
   }
 
   /**
