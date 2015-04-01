@@ -12,6 +12,10 @@
   </Call>
 
   <Call class="java.lang.System" name="setProperty">
+    <Arg>require.tos</Arg>
+    <Arg>false</Arg>
+  </Call>
+  <Call class="java.lang.System" name="setProperty">
     <Arg>auth.usegoogle</Arg>
     <Arg>false</Arg>
   </Call>
