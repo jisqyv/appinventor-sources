@@ -189,7 +189,7 @@ public class LocalStorageIo implements  StorageIo {
       if (rs.next()) {
         String uuid = rs.getString("uuid");
         String zemail = rs.getString("email");
-        boolean tosAccepted = rs.getBoolean("tosaccepted");
+        boolean tosAccepted = rs.getBoolean("tosaccepted") || !requireTos.get();
         boolean isAdmin = rs.getBoolean("isadmin");
         String sessionId = rs.getString("sessionid");
         User retUser = new User(uuid, zemail, tosAccepted, isAdmin, sessionId);
