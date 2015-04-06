@@ -76,6 +76,7 @@
     <copy tofile="package/appinventor.xml" file="../jettybase/appinventor.xml" />
     <copy tofile="package/appinventor.ini.sample" file="../jettybase/appinventor.ini.sample"/>
     <copy tofile="package/starter.jar" file="build/starter.jar" />
+    <copy tofile="package/README.txt" file="starter/README.txt" />
     <jar destfile="standalone.zip">
       <fileset dir="package">
         <include name="**"/>
