@@ -54,6 +54,7 @@ public class StoredData {
 
     public String name;
     public String link;
+    public int emailFrequency;
     public int type;
     String sessionid;           // uuid of active session
     String password;            // Hashed (PBKDF2 hashing) password

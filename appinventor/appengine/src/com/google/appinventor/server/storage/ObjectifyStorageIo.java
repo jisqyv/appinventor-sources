@@ -220,7 +220,7 @@ public class ObjectifyStorageIo implements  StorageIo {
       return tuser;
     } else {                    // If not in memcache, or tos
                                 // not yet accepted, fetch from datastore
-        tuser = new User(userId, email, null, null, false, false, 0, null);
+        tuser = new User(userId, email, null, null, 0, false, false, 0, null);
     }
     final User user = tuser;
     try {
@@ -265,9 +265,17 @@ public class ObjectifyStorageIo implements  StorageIo {
               datastore.put(userData);
             }
           }
+          if(userData.emailFrequency == 0){
+            // when users of old version access UserData,
+            // emailFrequency will be automatically set as 0
+            // force it to be DEFAULT_EMAIL_NOTIFICATION_FREQUENCY
+            userData.emailFrequency = User.DEFAULT_EMAIL_NOTIFICATION_FREQUENCY;
+            datastore.put(userData);
+          }
           user.setUserEmail(userData.email);
           user.setUserName(userData.name);
           user.setUserLink(userData.link);
+          user.setUserEmailFrequency(userData.emailFrequency);
           user.setType(userData.type);
           user.setUserTosAccepted(userData.tosAccepted || !requireTos.get());
           user.setIsAdmin(userData.isAdmin);
@@ -306,7 +314,7 @@ public class ObjectifyStorageIo implements  StorageIo {
         user = createUser(datastore, newId, email);
       }
     }
-    User retUser = new User(user.id, email, user.name, user.link, user.tosAccepted,
+    User retUser = new User(user.id, email, user.name, user.link, 0, user.tosAccepted,
       false, user.type, user.sessionid);
     retUser.setPassword(user.password);
     return retUser;
@@ -326,6 +334,7 @@ public class ObjectifyStorageIo implements  StorageIo {
     userData.type = User.USER;
     userData.link = "";
     userData.emaillower = email == null ? "" : emaillower;
+    userData.emailFrequency = User.DEFAULT_EMAIL_NOTIFICATION_FREQUENCY;
     datastore.put(userData);
     return userData;
   }
@@ -379,7 +388,7 @@ public class ObjectifyStorageIo implements  StorageIo {
             datastore.put(userData);
           }
           // we need to change the memcache version of user
-          User user = new User(userData.id,userData.email,name, userData.link, userData.tosAccepted,
+          User user = new User(userData.id,userData.email,name, userData.link, userData.emailFrequency, userData.tosAccepted,
               false, userData.type, userData.sessionid);
           String cachekey = User.usercachekey + "|" + userId;
           memcache.put(cachekey, user, Expiration.byDeltaSeconds(60)); // Remember for one minute
@@ -403,7 +412,30 @@ public class ObjectifyStorageIo implements  StorageIo {
             datastore.put(userData);
           }
           // we need to change the memcache version of user
-          User user = new User(userData.id,userData.email,userData.name,link,userData.tosAccepted,
+          User user = new User(userData.id,userData.email,userData.name,link,userData.emailFrequency,userData.tosAccepted,
+              false, userData.type, userData.sessionid);
+          String cachekey = User.usercachekey + "|" + userId;
+          memcache.put(cachekey, user, Expiration.byDeltaSeconds(60)); // Remember for one minute
+        }
+      }, true);
+    } catch (ObjectifyException e) {
+      throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId), e);
+    }
+  }
+
+  @Override
+  public void setUserEmailFrequency(final String userId, final int emailFrequency) {
+    try {
+      runJobWithRetries(new JobRetryHelper() {
+        @Override
+        public void run(Objectify datastore) {
+          UserData userData = datastore.find(userKey(userId));
+          if (userData != null) {
+            userData.emailFrequency = emailFrequency;
+            datastore.put(userData);
+          }
+          // we need to change the memcache version of user
+          User user = new User(userData.id,userData.email,userData.name,userData.link,emailFrequency,userData.tosAccepted,
               false, userData.type, userData.sessionid);
           String cachekey = User.usercachekey + "|" + userId;
           memcache.put(cachekey, user, Expiration.byDeltaSeconds(60)); // Remember for one minute
@@ -515,6 +547,27 @@ public class ObjectifyStorageIo implements  StorageIo {
       throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId), e);
     }
     return link.t;
+  }
+
+  @Override
+  public int getUserEmailFrequency(final String userId) {
+    final Result<Integer> emailFrequency = new Result<Integer>();
+    try {
+      runJobWithRetries(new JobRetryHelper() {
+        @Override
+        public void run(Objectify datastore) {
+          UserData userData = datastore.find(UserData.class, userId);
+          if (userData != null) {
+            emailFrequency.t = userData.emailFrequency;
+          } else {
+            emailFrequency.t = User.DEFAULT_EMAIL_NOTIFICATION_FREQUENCY;
+          }
+        }
+      }, true);
+    } catch (ObjectifyException e) {
+      throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId), e);
+    }
+    return emailFrequency.t;
   }
 
   @Override
@@ -920,7 +973,7 @@ public class ObjectifyStorageIo implements  StorageIo {
           if (pd != null) {
             modDate.t = pd.dateModified;
           } else {
-            modDate.t = Long.valueOf(0);
+            modDate.t = UserProject.NOTPUBLISHED;
           }
         }
       }, false); // Transaction not needed, and we want the caching we get if we don't
@@ -972,7 +1025,7 @@ public class ObjectifyStorageIo implements  StorageIo {
           if (pd != null) {
             dateCreated.t = pd.dateCreated;
           } else {
-            dateCreated.t = Long.valueOf(0);
+            dateCreated.t = UserProject.NOTPUBLISHED;
           }
         }
       }, true);
@@ -994,7 +1047,7 @@ public class ObjectifyStorageIo implements  StorageIo {
           if (pd != null) {
             galleryId.t = pd.galleryId;
           } else {
-            galleryId.t = Long.valueOf(0);
+            galleryId.t = UserProject.NOTPUBLISHED;
           }
         }
       }, true);
@@ -1015,7 +1068,7 @@ public class ObjectifyStorageIo implements  StorageIo {
           if (pd != null) {
             attributionId.t = pd.attributionId;
           } else {
-            attributionId.t = Long.valueOf(UserProject.FROMSCRATCH);
+            attributionId.t = UserProject.FROMSCRATCH;
           }
         }
       }, true);
