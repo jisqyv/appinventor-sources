@@ -156,6 +156,27 @@ public interface OdeMessages extends Messages {
 //  @Description("Label of the button for switching language to Vietnamese")
 //  String switchLanguageVietnameseButton();
 
+  @DefaultMessage("An Email from App Inventor Gallery")
+  @Description("Title of the email when moderator sends out an email")
+  String moderationSendEmailTitle();
+
+  @DefaultMessage("App Inventor Gallery: App Activated")
+  @Description("Title of the email when app was activated")
+  String moderationAppReactivatedTitle();
+
+  @DefaultMessage("Your app \"{0}\" has been reactivated.")
+  @Description("Body of the email when app was activated")
+  String moderationAppReactivateBody(String title);
+
+  @DefaultMessage("App Inventor Gallery: App Deactivated")
+  @Description("Title of the email when app was deactivated")
+  String moderationAppDeactivatedTitle();
+
+  @DefaultMessage("Fail to send out the email, please try again later")
+  @Description("error message when fail to send to user from moderator")
+  String moderationErrorFailToSendEmail();
+
+
   // Used in MotdFetcher.java
 
   @DefaultMessage("Failed to contact server to get the MOTD.")
@@ -1750,6 +1771,10 @@ public interface OdeMessages extends Messages {
   @DefaultMessage("ApiKey")
   @Description("")
   String ApiKeyProperties();
+
+  @DefaultMessage("AppName")
+  @Description("")
+  String AppNameProperties();
 
   @DefaultMessage("AvailableCountries")
   @Description("")
@@ -4814,5 +4839,51 @@ public interface OdeMessages extends Messages {
   @DefaultMessage("Error on Fusion Tables query")
   @Description("")
   String FusionTablesStandardErrorMessage();
+
+  // Missing translations from 4/8/2015 -- Should sort into appropriate place
+
+  @DefaultMessage("LaunchPicker")
+  @Description("")
+  String LaunchPickerMethods();
+
+  @DefaultMessage("SetDateToDisplay")
+  @Description("")
+  String SetDateToDisplayMethods();
+
+  @DefaultMessage("IncomingCallAnswered")
+  @Description("")
+  String IncomingCallAnsweredEvents();
+
+  @DefaultMessage("PhoneCallEnded")
+  @Description("")
+  String PhoneCallEndedEvents();
+
+  @DefaultMessage("PhoneCallStarted")
+  @Description("")
+  String PhoneCallStartedEvents();
+
+  @DefaultMessage("OnSettings")
+  @Description("")
+  String OnSettingsEvents();
+
+  @DefaultMessage("OtherPlayerStarted")
+  @Description("")
+  String OtherPlayerStartedEvents();
+
+  @DefaultMessage("ProximityChanged")
+  @Description("")
+  String ProximityChangedEvents();
+
+  @DefaultMessage("ThumbEnabled")
+  @Description("")
+  String ThumbEnabledProperties();
+
+  @DefaultMessage("SetTimeToDisplay")
+  @Description("")
+  String SetTimeToDisplayMethods();
+
+  @DefaultMessage("XMLTextDecode")
+  @Description("")
+  String XMLTextDecodeMethods();
 
 }

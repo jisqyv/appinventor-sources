@@ -148,8 +148,8 @@
         <!-- acra -->
         <pathelement location="lib/acra/acra-4.4.0.jar" />
         <!-- gwt libs -->
-        <pathelement location="lib/gwt/2.5.1/gwt-dev.jar"/>
-        <pathelement location="lib/gwt/2.5.1/gwt-user.jar"/>
+        <pathelement location="lib/gwt/2.7/gwt-dev.jar"/>
+        <pathelement location="lib/gwt/2.7/gwt-user.jar"/>
         <!-- prevent error importing GitBuildId if it has been generated -->
         <pathelement location="common/build/classes/CommonVersion" />
       </classpath>
