@@ -1543,7 +1543,7 @@ public class Ode implements EntryPoint {
    */
   private void expireDialog() {
     Date now = new Date();
-    Date expiration = new Date(1430366400000L);
+    Date expiration = new Date(1433131200000L);
     Date warning = new Date(expiration.getTime() - 3600*1000*10*24); // Ten days before expiration
     if (now.compareTo(warning) < 0) {
       return;                                    // Don't display if expiration in far future
