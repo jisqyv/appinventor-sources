@@ -1004,12 +1004,18 @@ public class LocalStorageIo implements  StorageIo {
       if (theFile.exists() && considerBackup) {   // check to see if we should back it up
         if ((theFile.lastModified() + TWENTYFOURHOURS) < System.currentTimeMillis()) {
           // Yes backup, which in this case means we rename the file
-          File renamedFile = new File(storageRoot.get() + "/" + userId + "/" + projectId + "/" + fileName +
-                                      "." + formattedTime() + ".backup");
+          String renamedFileName = storageRoot.get() + File.separator +
+            userId + File.separator + projectId + File.separator +
+            fileName + "." + formattedTime() + ".backup";
+          if (System.getProperty("os.name").startsWith("Windows")) {
+            renamedFileName = renamedFileName.replace(":", "-"); // Windows doesn't like
+                                                         // :'s in file names
+          }
+          File renamedFile = new File(renamedFileName);
           if (!theFile.renameTo(renamedFile)) {
             throw CrashReport.createAndLogError(LOG, null,
                 collectProjectErrorInfo(userId, projectId, fileName),
-                new RuntimeException("File Rename for Backup Failed"));
+                new RuntimeException("File Rename for Backup Failed new filename = " + renamedFile));
           }
         }
       }

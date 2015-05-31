@@ -102,13 +102,23 @@ public class StartSystem {
                   cp += file.getPath();
                   first = false;
               } else {
-                  cp += ":" + file.getPath();
+                  cp += File.pathSeparator + file.getPath();
               }
           }
       }
 
-      ProcessBuilder buildserver = new ProcessBuilder("java", "-Xmx1828m", "-cp", cp, "com.google.appinventor.buildserver.BuildServer",
-        "--dexCacheDir", "/tmp/dxcache");
+      String maxMem = "-Xmx1828m";
+      ProcessBuilder buildserver = null;
+      if (System.getProperty("os.name").startsWith("Windows")) {
+          maxMem = "-Xmx1024m";
+          buildserver = new ProcessBuilder("java", maxMem, "-cp", cp,
+            "com.google.appinventor.buildserver.BuildServer","--dexCacheDir",
+            "/tmp/dxcache", "--childProcessRamMb", "1024");
+      } else {
+          buildserver = new ProcessBuilder("java", maxMem, "-cp", cp,
+            "com.google.appinventor.buildserver.BuildServer","--dexCacheDir",
+            "/tmp/dxcache");
+      }
       buildserver.inheritIO();
       buildserver.directory(execDir);
 
