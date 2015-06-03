@@ -50,6 +50,14 @@ public interface OdeMessages extends Messages {
   @Description("Text on \"Delete Project\" button")
   String deleteProjectButton();
 
+  @DefaultMessage("Publish to Gallery")
+  @Description("Text on \"Publish to Gallery\" button")
+  String publishToGalleryButton();
+
+  @DefaultMessage("Update Gallery App")
+  @Description("Text on \"Update Gallery App\" button")
+  String updateGalleryAppButton();
+
   @DefaultMessage("Show Warnings")
   @Description("Text on Toggle Warning Button")
   String showWarnings();
@@ -73,6 +81,10 @@ public interface OdeMessages extends Messages {
   @DefaultMessage("Date Modified")
   @Description("Header for date modified column of project table.")
   String projectDateModifiedHeader();
+
+  @DefaultMessage("Published")
+  @Description("Header for published column of project table.")
+  String projectPublishedHeader();
 
   @DefaultMessage("Save")
   @Description("Label of the button for save")
@@ -1127,6 +1139,10 @@ public interface OdeMessages extends Messages {
   @DefaultMessage("One project must be selected")
   @Description("Error message displayed when no or many projects are selected")
   String wrongNumberProjectsSelected();
+
+  @DefaultMessage("Please select only one project to publish or update")
+  @Description("Error message displayed when zero or more than one projects are selected")
+  String wrongNumberProjectSelectedForPublishOrUpdate();
 
   @DefaultMessage("Server error: could not download your keystore file.")
   @Description("Error message displayed when a server error occurs during download keystore")
@@ -4450,7 +4466,7 @@ public interface OdeMessages extends Messages {
   @Description("")
   String ImageHelpStringComponentPallette();
 
-  @DefaultMessage("A special-purpose button. When the user taps an image picker, the device\"s image gallery appears, and the user can choose an image. After an image is picked, it is saved on the SD card and the <code>ImageFile</code> property will be the name of the file where the image is stored. In order to not fill up storage, a maximum of 10 images will be stored.  Picking more images will delete previous images, in order from oldest to newest.")
+  @DefaultMessage("A special-purpose button. When the user taps an image picker, the device\"s image gallery appears, and the user can choose an image. After an image is picked, it is saved, and the <code>Selected</code> property will be the name of the file where the image is stored. In order to not fill up storage, a maximum of 10 images will be stored.  Picking more images will delete previous images, in order from oldest to newest.")
   @Description("")
   String ImagePickerHelpStringComponentPallette();
 
@@ -4466,7 +4482,7 @@ public interface OdeMessages extends Messages {
   @Description("")
   String ListPickerHelpStringComponentPallette();
 
-  @DefaultMessage("<p>This is a visible component that allows to place a list of text elements in your Screen to display. <br> The list can be set using the ElementsFromString property or using the Elements block in the blocks editor. <br> Warning: This component will not work correctly on Screens that are scrollable.</p>")
+  @DefaultMessage("<p>This is a visible component that allows to place a list of text elements in your Screen to display. <br> The list can be set using the ElementsFromString property or using the Elements block in the blocks editor.</p>")
   @Description("")
   String ListViewHelpStringComponentPallette();
 
