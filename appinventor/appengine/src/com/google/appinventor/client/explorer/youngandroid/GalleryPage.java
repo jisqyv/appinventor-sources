@@ -109,6 +109,7 @@ public class GalleryPage extends Composite implements GalleryRequestListener {
   public static final int NEWAPP = 1;
   public static final int UPDATEAPP = 2;
   private int editStatus;
+  private static final int MIN_DESC_LENGTH = 40;
 
   /* Publish & edit state components */
   private FlowPanel imageUploadBox;
@@ -129,6 +130,10 @@ public class GalleryPage extends Composite implements GalleryRequestListener {
   private Button actionButton;
   private Button removeButton;
   private Button editButton;
+  private Button cancelButton;
+
+  private HTML ccLicenseRef;
+
 
 /* Here is the organization of this page:
 panel
@@ -186,8 +191,16 @@ panel
     // Now let's add the button for publishing, updating, or trying
     appHeader.add(appAction);
     initActionButton();
+    if (editStatus==NEWAPP) {
+      initCancelButton();
+      /* Add Creative Commons Publishing Reference */
+      appAction.add(ccLicenseRef);
+    }
     if (editStatus==UPDATEAPP) {
       initRemoveButton();
+      initCancelButton();
+      /* Add Creative Commons Updating Reference */
+      appAction.add(ccLicenseRef);
     }
 
     // App details - app title
@@ -312,6 +325,8 @@ panel
     titleText = new TextArea();
     moreInfoText = new TextArea();
     creditText = new TextArea();
+    ccLicenseRef = new HTML(MESSAGES.galleryCcLicenseRef());
+    ccLicenseRef.addStyleName("app-action-html");
   }
 
 
@@ -582,6 +597,10 @@ panel
     initLikeSection(container);
     // Adds dynamic feature
     initFeatureSection(container);
+    // Adds dynamic salvage
+    initSalvageSection(container);
+    // Adds dynamic salvage
+    initSalvageAllSection(container);
 
     // We are not using views and comments at initial launch
     /*
@@ -1033,12 +1052,69 @@ panel
   }
 
   /**
+   * Helper method called by constructor to initialize the salvage all section
+   * @param container   The container that salvage label reside
+   */
+  private void initSalvageAllSection(Panel container) { //TODO: Update the location of this button
+    if(!canSalvage()){                                   // Permitted to Salvage Apps?
+      return;
+    }
+
+    final Label salvagePrompt = new Label("salvageAll");
+    salvagePrompt.addStyleName("primary-link");
+    container.add(salvagePrompt);
+
+    salvagePrompt.addClickHandler(new ClickHandler() {
+      public void onClick(ClickEvent event) {
+        final OdeAsyncCallback<Void> callback = new OdeAsyncCallback<Void>(
+            // failure message
+            MESSAGES.galleryError()) {
+              @Override
+              public void onSuccess(Void bool) {
+                salvagePrompt.setText("done");
+              }
+          };
+        Ode.getInstance().getGalleryService().salvageAllGalleryApps(callback);
+      }
+    });
+  }
+
+  /**
+   * Helper method called by constructor to initialize the salvage section
+   * @param container   The container that salvage label reside
+   */
+  private void initSalvageSection(Panel container) { //TODO: Update the location of this button
+    if (!canSalvage()) {                              // Permitted to salvage?
+      return;
+    }
+
+    final Label salvagePrompt = new Label("salvage");
+    salvagePrompt.addStyleName("primary-link");
+    container.add(salvagePrompt);
+
+    salvagePrompt.addClickHandler(new ClickHandler() {
+      public void onClick(ClickEvent event) {
+        final OdeAsyncCallback<Void> callback = new OdeAsyncCallback<Void>(
+            // failure message
+            MESSAGES.galleryError()) {
+              @Override
+              public void onSuccess(Void bool) {
+                salvagePrompt.setText("done");
+              }
+          };
+        Ode.getInstance().getGalleryService().salvageGalleryApp(app.getGalleryAppId(), callback);
+      }
+    });
+  }
+
+
+  /**
    * Helper method called by constructor to initialize the feature section
    * @param container   The container that feature label reside
    */
   private void initFeatureSection(Panel container) { //TODO: Update the location of this button
     final User currentUser = Ode.getInstance().getUser();
-    if(currentUser.getType() != 1){     //not admin
+    if(currentUser.getType() != User.MODERATOR){     //not admin
       return;
     }
 
@@ -1132,6 +1208,9 @@ panel
     actionButton = new Button(MESSAGES.galleryPublishText());
     actionButton.addClickHandler(new ClickHandler() {
       public void onClick(ClickEvent event) {
+         if(!checkIfReadyToPublishOrUpdateApp(app)){
+           return;
+         }
          actionButton.setEnabled(false);
          actionButton.setText(MESSAGES.galleryAppPublishing());
          final OdeAsyncCallback<GalleryApp> callback = new OdeAsyncCallback<GalleryApp>(
@@ -1195,6 +1274,9 @@ panel
     actionButton = new Button(MESSAGES.galleryUpdateText());
     actionButton.addClickHandler(new ClickHandler() {
       public void onClick(ClickEvent event) {
+         if(!checkIfReadyToPublishOrUpdateApp(app)){
+           return;
+         }
          actionButton.setEnabled(false);
          actionButton.setText(MESSAGES.galleryAppUpdating());
          final OdeAsyncCallback<Void> updateSourceCallback = new OdeAsyncCallback<Void>(
@@ -1216,6 +1298,26 @@ panel
     });
     actionButton.addStyleName("app-action-button");
     appAction.add(actionButton);
+  }
+
+  /**
+   * check if it is ready to publish or update GalleryApp
+   * 1.The minimum length of Desc must be at least MIN_DESC_LENGTH
+   * 2.User must upload an image first, in order to publish GaleryApp
+   * @param app
+   * @return
+   */
+  private boolean checkIfReadyToPublishOrUpdateApp(GalleryApp app){
+    if(app.getDescription().length() < MIN_DESC_LENGTH){
+      Window.alert(MESSAGES.galleryNotEnoughDescriptionMessage());
+      return false;
+    }
+    if(!imageUploaded && editStatus==NEWAPP){
+        /*we only need to check the image on the publish status*/
+        Window.alert(MESSAGES.galleryNoScreenShotMessage());
+      return false;
+    }
+    return true;
   }
 
   /**
@@ -1271,6 +1373,25 @@ panel
   }
 
   /**
+   * Helper method called by constructor to initialize the cancel button
+   */
+  private void initCancelButton() {
+    cancelButton = new Button(MESSAGES.galleryCancelText());
+    cancelButton.addClickHandler(new ClickHandler() {
+      @Override
+      public void onClick(ClickEvent event) {
+        if (editStatus==NEWAPP) {
+          Ode.getInstance().switchToProjectsView();
+        }else if(editStatus==UPDATEAPP){
+          Ode.getInstance().switchToGalleryAppView(app, GalleryPage.VIEWAPP);
+        }
+      }
+    });
+    cancelButton.addStyleName("app-action-button");
+    appAction.add(cancelButton);
+  }
+
+  /**
    * Loads the proper tab GUI with gallery's app data.
    * @param apps: list of returned gallery apps from callback.
    * @param requestId: determines the specific type of app data.
@@ -1313,6 +1434,22 @@ panel
   @Override
   public void onSourceLoadCompleted(UserProject projectInfo) {
 
+  }
+
+  /**
+   * Routine to determine if this user can salvage likes on a Gallery App
+   * Verifies that they are a Gallery Moderator AND a site Admin.
+   *
+   * @return boolean true if permitted
+   */
+  private boolean canSalvage() {
+    User currentUser = Ode.getInstance().getUser();
+    if ((currentUser.getType() == User.MODERATOR)
+      && currentUser.getIsAdmin()) {
+      return true;
+    } else {
+      return false;
+    }
   }
 
   /**

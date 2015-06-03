@@ -6,6 +6,9 @@
 
 package com.google.appinventor.server.storage;
 
+import com.google.appengine.api.appidentity.AppIdentityService;
+import com.google.appengine.api.appidentity.AppIdentityServiceFactory;
+import com.google.appengine.api.appidentity.AppIdentityServiceFailureException;
 import com.google.appengine.api.blobstore.BlobKey;
 import com.google.appengine.api.blobstore.BlobstoreInputStream;
 import com.google.appengine.api.blobstore.BlobstoreServiceFactory;
@@ -108,12 +111,11 @@ public class ObjectifyStorageIo implements  StorageIo {
 
   private final GcsService gcsService;
 
-  private final String GCS_BUCKET_NAME = Flag.createFlag("gcs.bucket", "").get();
+  private static final String GCS_BUCKET_NAME;
 
   private static final long TWENTYFOURHOURS = 24*3600*1000; // 24 hours in milliseconds
 
   private final boolean useGcs = Flag.createFlag("use.gcs", false).get();
-
 
   // Use this class to define the work of a job that can be
   // retried. The "datastore" argument to run() is the Objectify
@@ -169,6 +171,27 @@ public class ObjectifyStorageIo implements  StorageIo {
     ObjectifyService.register(NonceData.class);
     ObjectifyService.register(CorruptionRecord.class);
     ObjectifyService.register(PWData.class);
+
+    // Learn GCS Bucket from App Configuration or App Engine Default
+    String gcsBucket = Flag.createFlag("gcs.bucket", "").get();
+    if (gcsBucket.equals("")) { // Attempt to get default bucket
+                                // from AppIdentity Service
+      AppIdentityService appIdentity = AppIdentityServiceFactory.getAppIdentityService();
+      try {
+        gcsBucket = appIdentity.getDefaultGcsBucketName();
+      } catch (AppIdentityServiceFailureException e) {
+        // We get this exception when we are running on an App Engine instance
+        // created before App Engine version 1.9.0 and we have neither configured
+        // the GCS bucket in appengine-web.xml or used the App Engine console to
+        // create the default bucket. The Default Bucket is a better approach for
+        // personal instances because they have a default free quota of 5 Gb (as
+        // of 5/29/2015 when this code was written).
+        gcsBucket = ""; // This will cause a RunTimeException in the RPC code later
+                        // which will log a better message
+      }
+      LOG.log(Level.INFO, "Default GCS Bucket Configured from App Identity: " + gcsBucket);
+    }
+    GCS_BUCKET_NAME = gcsBucket;
   }
 
   ObjectifyStorageIo() {
@@ -712,6 +735,7 @@ public class ObjectifyStorageIo implements  StorageIo {
    */
   private FileData createRawFile(Key<ProjectData> projectKey, FileData.RoleEnum role,
     String fileName, byte[] content) throws BlobWriteException, ObjectifyException, IOException {
+    validateGCS();
     FileData file = new FileData();
     file.fileName = fileName;
     file.projectKey = projectKey;
@@ -734,6 +758,7 @@ public class ObjectifyStorageIo implements  StorageIo {
 
   @Override
   public void deleteProject(final String userId, final long projectId) {
+    validateGCS();
     // blobs associated with the project
     final List<String> blobPaths = new ArrayList<String>();
     final List<String> gcsPaths = new ArrayList<String>();
@@ -1498,6 +1523,7 @@ public class ObjectifyStorageIo implements  StorageIo {
   @Override
   public long uploadRawFile(final long projectId, final String fileName, final String userId,
       final boolean force, final byte[] content) throws BlocksTruncatedException {
+    validateGCS();
     final Result<Long> modTime = new Result<Long>();
     final boolean useBlobstore = useBlobstoreForFile(fileName, content.length);
     final boolean useGCS = useGCSforFile(fileName, content.length);
@@ -1711,6 +1737,7 @@ public class ObjectifyStorageIo implements  StorageIo {
 
   @Override
   public long deleteFile(final String userId, final long projectId, final String fileName) {
+    validateGCS();
     if (!getProjects(userId).contains(projectId)) {
       throw CrashReport.createAndLogError(LOG, null,
           collectUserProjectErrorInfo(userId, projectId),
@@ -1791,6 +1818,7 @@ public class ObjectifyStorageIo implements  StorageIo {
 
   @Override
   public byte[] downloadRawFile(final String userId, final long projectId, final String fileName) {
+    validateGCS();
     if (!getProjects(userId).contains(projectId)) {
       throw CrashReport.createAndLogError(LOG, null,
           collectUserProjectErrorInfo(userId, projectId),
@@ -1925,6 +1953,7 @@ public class ObjectifyStorageIo implements  StorageIo {
                                                  final boolean includeAndroidKeystore,
                                                  @Nullable String zipName,
                                                  final boolean fatalError) throws IOException {
+    validateGCS();
     final Result<Integer> fileCount = new Result<Integer>();
     fileCount.t = 0;
     final Result<String> projectHistory = new Result<String>();
@@ -2523,6 +2552,27 @@ public class ObjectifyStorageIo implements  StorageIo {
       throw new ObjectifyException("BlocksTruncated"); // Hack
     // I'm avoiding having to modify every use of runJobWithRetries to handle a new
     // exception, so we use this dodge.
+  }
+
+  // Make sure we throw an exception if the GCS bucket isn't defined. This hopefully
+  // will prompt the person deploying App Inventor to check the server logs and see
+  // the message below.
+  //
+  // This only happens when deploying code that uses GCS but doesn't specify a bucket
+  // name in appengine-web.xml *AND* the instance was created before App Engine version
+  // 1.9.0. Apps created after 1.9.0 automatically have a default bucket created for
+  // them. Older Apps can configure a default bucket. The App Engine documentation
+  // explains how.
+
+  private void validateGCS() {
+    if (GCS_BUCKET_NAME.equals("")) {
+      try {
+        throw new RuntimeException("You need to configure the default GCS Bucket for your App. " +
+          "Follow instructions in the App Engine Developer's Documentation");
+      } catch (RuntimeException e) {
+        throw CrashReport.createAndLogError(LOG, null, null, e);
+      }
+    }
   }
 
 }
