@@ -18,6 +18,7 @@ import com.google.appinventor.shared.rpc.project.RawFile;
 import com.google.appinventor.shared.rpc.project.TextFile;
 import com.google.appinventor.shared.rpc.project.UserProject;
 import com.google.appinventor.shared.rpc.project.youngandroid.YoungAndroidProjectNode;
+import com.google.appinventor.shared.rpc.user.SplashConfig;
 import com.google.appinventor.shared.rpc.user.User;
 import com.google.appinventor.shared.storage.StorageUtil;
 import com.google.common.annotations.VisibleForTesting;
@@ -131,6 +132,28 @@ public class LocalStorageIo implements  StorageIo {
         statement.executeUpdate("create table pwdata (uuid string, email string, timestamp timestamp)");
         statement.executeUpdate("create table rendezvous (ipaddr string, key string, timestamp timestamp)");
         statement.executeUpdate("create unique index rendkey on rendezvous (key)");
+        // Handle version upgrades here
+        statement.executeUpdate("create table version if not exists (version int)");
+        PreparedStatement prep;
+        ResultSet rs;
+        prep = conn.prepareStatement("select version from version");
+        rs = prep.executeQuery();
+        int version = 0;
+        boolean doUpdate = false;
+        if (rs.next()) {        // Version will be 0 if the table is empty
+          version = rs.getInt("version");
+        }
+        switch (version) {
+        case 0:                 // Newly created
+          statement.executeUpdate("create table splashconfig (version int, width int, height int, content text)");
+          doUpdate = true;
+          break;
+        default:
+          break;
+        }
+        if (doUpdate) {
+          statement.executeUpdate("insert or replace into version (rowid, version) values (1, 1)");
+        }
 //        statement.executeUpdate("create index pwdatauuid on pwdata(uuid)");
 //        statement.executeUpdate("create index pwdataemail on pwdata(email)");
         statement.close();
@@ -1299,6 +1322,40 @@ public class LocalStorageIo implements  StorageIo {
       } else {
         prep.close();
         return null;
+      }
+    }
+    catch (SQLException e) {
+      // Something went wrong, we'll flush this connection as a result...
+      userConn.remove();
+      try {
+        conn.close();
+      } catch (Exception z) {
+      }
+      conn = null;
+      throw CrashReport.createAndLogError(LOG, null, null, e);
+    }
+  }
+
+  @Override
+  public SplashConfig getSplashConfig() {
+    Connection conn = null;
+    try {
+      conn = userConn.get();
+      if (conn == null) {
+        conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
+        userConn.set(conn);
+      }
+      PreparedStatement prep = conn.prepareStatement("select version, width, height, content from splashconfig where rowid = 1");
+      ResultSet rs = prep.executeQuery();
+      if (rs.next()) {
+        SplashConfig retval = new SplashConfig(rs.getInt("version"),
+          rs.getInt("width"), rs.getInt("height"),
+          rs.getString("content"));
+        prep.close();
+        return retval;
+      } else {
+        prep.close();
+        return new SplashConfig(0, 640, 100, "Welcome to MIT App Inventor");
       }
     }
     catch (SQLException e) {

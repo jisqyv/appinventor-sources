@@ -122,7 +122,7 @@ public class ProjectToolbar extends Toolbar {
           // Show a welcome dialog in case there are no
           // projects saved.
           if (Ode.getInstance().getProjectManager().getProjects().size() == 0) {
-            Ode.getInstance().createWelcomeDialog(false);
+            Ode.getInstance().createNoProjectsDialog(true);
           }
         }
       });
