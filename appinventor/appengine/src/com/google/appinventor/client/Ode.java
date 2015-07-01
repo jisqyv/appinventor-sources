@@ -1150,14 +1150,6 @@ public class Ode implements EntryPoint {
    * @param showDialog Convenience variable to show the created DialogBox.
    */
   private void createWelcomeDialog(boolean showDialog) {
-    Timer t = new Timer() {
-        @Override
-        public void run() {
-          // Check System License
-          licenseCheck();
-        }
-      };
-    t.schedule(4000);           // Fire in four seconds
     if (!shouldShowWelcomeDialog()) {
       openProjectsTab();
       return;
@@ -1710,6 +1702,8 @@ public class Ode implements EntryPoint {
     message.setStyleName("DialogBox-message");
     DialogBoxContents.add(message);
     DialogBoxContents.add(holder);
+    dialogBox.setWidget(DialogBoxContents);
+    dialogBox.show();
   }
 
   /**

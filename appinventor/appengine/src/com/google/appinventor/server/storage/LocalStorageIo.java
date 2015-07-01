@@ -133,28 +133,6 @@ public class LocalStorageIo implements  StorageIo {
         statement.executeUpdate("create table pwdata (uuid string, email string, timestamp timestamp)");
         statement.executeUpdate("create table rendezvous (ipaddr string, key string, timestamp timestamp)");
         statement.executeUpdate("create unique index rendkey on rendezvous (key)");
-        // Handle version upgrades here
-        statement.executeUpdate("create table version if not exists (version int)");
-        PreparedStatement prep;
-        ResultSet rs;
-        prep = conn.prepareStatement("select version from version");
-        rs = prep.executeQuery();
-        int version = 0;
-        boolean doUpdate = false;
-        if (rs.next()) {        // Version will be 0 if the table is empty
-          version = rs.getInt("version");
-        }
-        switch (version) {
-        case 0:                 // Newly created
-          statement.executeUpdate("create table splashconfig (version int, width int, height int, content text)");
-          doUpdate = true;
-          break;
-        default:
-          break;
-        }
-        if (doUpdate) {
-          statement.executeUpdate("insert or replace into version (rowid, version) values (1, 1)");
-        }
 //        statement.executeUpdate("create index pwdatauuid on pwdata(uuid)");
 //        statement.executeUpdate("create index pwdataemail on pwdata(email)");
         statement.executeUpdate("create table if not exists license (uuid text, hardware text, authcode text)");
@@ -163,8 +141,7 @@ public class LocalStorageIo implements  StorageIo {
         conn.close();
         conn = null;
       } catch (SQLException ee) {
-        // Something is really broken
-        // XXX
+        throw CrashReport.createAndLogError(LOG, null, null, e);
       }
     } finally {
       if (conn != null) {
@@ -174,6 +151,39 @@ public class LocalStorageIo implements  StorageIo {
           throw CrashReport.createAndLogError(LOG, null, null, e);
         }
       }
+    }
+    try {
+      conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
+      conn.setAutoCommit(false);
+      // Handle version upgrades here
+      Statement statement = conn.createStatement();
+      PreparedStatement prep;
+      ResultSet rs;
+      statement.executeUpdate("create table if not exists version (version int)");
+      prep = conn.prepareStatement("select version from version");
+      rs = prep.executeQuery();
+      int version = 0;
+      boolean doUpdate = false;
+      if (rs.next()) {        // Version will be 0 if the table is empty
+        version = rs.getInt("version");
+      }
+      prep.close();
+      switch (version) {
+      case 0:                 // Newly created
+        statement.executeUpdate("create table splashconfig (version int, width int, height int, content text)");
+        doUpdate = true;
+        break;
+      default:
+        break;
+      }
+      if (doUpdate) {
+        statement.executeUpdate("insert or replace into version (rowid, version) values (1, 1)");
+      }
+      statement.close();
+      conn.commit();
+      conn.close();
+    } catch (SQLException ee) {
+      throw CrashReport.createAndLogError(LOG, null, null, ee);
     }
     // Create the license table if it doesn't exit
     try {
