@@ -20,6 +20,11 @@ import com.google.appengine.api.memcache.ErrorHandlers;
 import com.google.appengine.api.memcache.MemcacheService;
 import com.google.appengine.api.memcache.MemcacheServiceFactory;
 import com.google.appengine.api.memcache.Expiration;
+import com.google.appengine.api.memcache.MemcacheService.SetPolicy;
+import com.google.appengine.api.taskqueue.Queue;
+import com.google.appengine.api.taskqueue.QueueFactory;
+import com.google.appengine.api.taskqueue.TaskOptions;
+import com.google.apphosting.api.ApiProxy;
 import com.google.appinventor.server.CrashReport;
 import com.google.appinventor.server.FileExporter;
 import com.google.appinventor.server.flags.Flag;
@@ -30,6 +35,7 @@ import com.google.appinventor.server.storage.StoredData.MotdData;
 import com.google.appinventor.server.storage.StoredData.NonceData;
 import com.google.appinventor.server.storage.StoredData.ProjectData;
 import com.google.appinventor.server.storage.StoredData.PWData;
+import com.google.appinventor.server.storage.StoredData.SplashData;
 import com.google.appinventor.server.storage.StoredData.UserData;
 import com.google.appinventor.server.storage.StoredData.UserFileData;
 import com.google.appinventor.server.storage.StoredData.UserProjectData;
@@ -44,6 +50,7 @@ import com.google.appinventor.shared.rpc.project.RawFile;
 import com.google.appinventor.shared.rpc.project.TextFile;
 import com.google.appinventor.shared.rpc.project.UserProject;
 import com.google.appinventor.shared.rpc.project.youngandroid.YoungAndroidProjectNode;
+import com.google.appinventor.shared.rpc.user.SplashConfig;
 import com.google.appinventor.shared.rpc.user.User;
 import com.google.appinventor.shared.storage.StorageUtil;
 import com.google.common.annotations.VisibleForTesting;
@@ -103,6 +110,7 @@ public class ObjectifyStorageIo implements  StorageIo {
   private static final String DEFAULT_ENCODING = "UTF-8";
 
   private static final long MOTD_ID = 1;
+  private static final long SPLASHDATA_ID = 1;
 
   // TODO(user): need a way to modify this. Also, what is really a good value?
   private static final int MAX_JOB_RETRIES = 10;
@@ -116,6 +124,8 @@ public class ObjectifyStorageIo implements  StorageIo {
   private static final long TWENTYFOURHOURS = 24*3600*1000; // 24 hours in milliseconds
 
   private final boolean useGcs = Flag.createFlag("use.gcs", false).get();
+
+  private final boolean conversionEnabled = true; // We are converting GCS <=> Blobstore
 
   // Use this class to define the work of a job that can be
   // retried. The "datastore" argument to run() is the Objectify
@@ -171,6 +181,7 @@ public class ObjectifyStorageIo implements  StorageIo {
     ObjectifyService.register(NonceData.class);
     ObjectifyService.register(CorruptionRecord.class);
     ObjectifyService.register(PWData.class);
+    ObjectifyService.register(SplashData.class);
 
     // Learn GCS Bucket from App Configuration or App Engine Default
     String gcsBucket = Flag.createFlag("gcs.bucket", "").get();
@@ -955,7 +966,7 @@ public class ObjectifyStorageIo implements  StorageIo {
       throw CrashReport.createAndLogError(LOG, null,
           collectUserProjectErrorInfo(userId, projectId), e);
     }
-    if (projectData == null) {
+    if (projectData.t == null) {
       return null;
     } else {
       return new UserProject(projectId, projectData.t.name,
@@ -1334,7 +1345,7 @@ public class ObjectifyStorageIo implements  StorageIo {
     }
     datastore.put(addedFiles); // batch put
     if (changeModDate) {
-      updateProjectModDate(datastore, projectId);
+      updateProjectModDate(datastore, projectId, false);
     }
   }
 
@@ -1407,7 +1418,7 @@ public class ObjectifyStorageIo implements  StorageIo {
     }
     datastore.delete(filesToRemove);  // batch delete
     if (changeModDate) {
-      updateProjectModDate(datastore, projectId);
+      updateProjectModDate(datastore, projectId, false);
     }
   }
 
@@ -1489,13 +1500,15 @@ public class ObjectifyStorageIo implements  StorageIo {
     }
   }
 
-  private long updateProjectModDate(Objectify datastore, long projectId) {
+  private long updateProjectModDate(Objectify datastore, long projectId, boolean doingConversion) {
     long modDate = System.currentTimeMillis();
     ProjectData pd = datastore.find(projectKey(projectId));
     if (pd != null) {
       // Only update the ProjectData dateModified if it is more then a minute
-      // in the future. Do this to avoid unnecessary datastore puts
-      if (modDate > (pd.dateModified + 1000*60)) {
+      // in the future. Do this to avoid unnecessary datastore puts.
+      // Also do not update modification time when doing conversion from
+      // blobstore to GCS
+      if ((modDate > (pd.dateModified + 1000*60)) && !doingConversion) {
         pd.dateModified = modDate;
         datastore.put(pd);
       } else {
@@ -1523,6 +1536,11 @@ public class ObjectifyStorageIo implements  StorageIo {
   @Override
   public long uploadRawFile(final long projectId, final String fileName, final String userId,
       final boolean force, final byte[] content) throws BlocksTruncatedException {
+    return uploadRawFile(projectId, fileName, userId, force, content, false);
+  }
+
+  private long uploadRawFile(final long projectId, final String fileName, final String userId,
+      final boolean force, final byte[] content, final boolean doingConversion) throws BlocksTruncatedException {
     validateGCS();
     final Result<Long> modTime = new Result<Long>();
     final boolean useBlobstore = useBlobstoreForFile(fileName, content.length);
@@ -1590,11 +1608,20 @@ public class ObjectifyStorageIo implements  StorageIo {
               throw CrashReport.createAndLogError(LOG, null,
                   collectProjectErrorInfo(userId, projectId, fileName), e);
             }
-            // If the content was previously stored in the datastore or GCS, clear it out.
             fd.isBlob = true;
-            fd.isGCS = false;
-            fd.gcsName = null;
             fd.content = null;
+            if (fd.isGCS) { // If the content was previously stored in GCS, clear it out.
+              if (fd.gcsName != null) {
+                try {
+                  gcsService.delete(new GcsFilename(GCS_BUCKET_NAME, fd.gcsName));
+                } catch (IOException e) {
+                  throw CrashReport.createAndLogError(LOG, null,
+                    collectProjectErrorInfo(userId, projectId, fileName), e);
+                }
+              }
+              fd.gcsName = null;
+              fd.isGCS = false;
+            }
           } else {
             if (fd.isGCS) {     // Was a GCS file, must have gotten smaller
               try {             // and is now stored in the data store
@@ -1614,7 +1641,7 @@ public class ObjectifyStorageIo implements  StorageIo {
             fd.blobstorePath = null;
             fd.content = content;
           }
-          if (considerBackup) {
+          if (considerBackup && !doingConversion) {
             if ((fd.lastBackup + TWENTYFOURHOURS) < System.currentTimeMillis()) {
               try {
                 String gcsName = makeGCSfileName(fileName + "." + formattedTime() + ".backup", projectId);
@@ -1631,7 +1658,7 @@ public class ObjectifyStorageIo implements  StorageIo {
           }
           datastore.put(fd);
           memcache.put(key.getString(), fd); // Store the updated data in memcache
-          modTime.t = updateProjectModDate(datastore, projectId);
+          modTime.t = updateProjectModDate(datastore, projectId, doingConversion);
         }
 
         @Override
@@ -1760,7 +1787,7 @@ public class ObjectifyStorageIo implements  StorageIo {
             }
           }
           datastore.delete(fileKey);
-          modTime.t = updateProjectModDate(datastore, projectId);
+          modTime.t = updateProjectModDate(datastore, projectId, false);
         }
       }, true);
     } catch (ObjectifyException e) {
@@ -1867,6 +1894,24 @@ public class ObjectifyStorageIo implements  StorageIo {
                 }
                 recovered = true;
                 result.t = resultBuffer.array();
+                // Should we downgrade to the blobstore (for debugging)?
+                // Note: We only run if we have at least 5 seconds of runtime left in the request
+                long timeRemaining = ApiProxy.getCurrentEnvironment().getRemainingMillis();
+                if (conversionEnabled && !useGcs && (timeRemaining > 5000)) {
+                  // Garf, Let's downgrade this file to the blobstore!
+                  // This is used for debugging -- so we can retry upgrading by
+                  // first downgrading!
+                  // Note: uploadRawFile will do the work!
+                  LOG.log(Level.INFO, "Downgrading " + fileName + " with " +
+                    timeRemaining + " left on the clock.");
+                  try {
+                    uploadRawFile(projectId, fileName, userId, true /* force */,
+                      result.t, true /* no project timestamp update */);
+                  } catch (BlocksTruncatedException e) {
+                    /* will never happen because force is true */
+                  }
+                }
+
                 break;          // We got the data, break out of the loop!
               } finally {
                 readChannel.close();
@@ -1900,6 +1945,21 @@ public class ObjectifyStorageIo implements  StorageIo {
       } else if (fileData.isBlob) {
         try {
           result.t = getBlobstoreBytes(fileData.blobstorePath);
+          // Time to consider upgrading this file if we are moving to GCS
+          // Note: We only run if we have at least 5 seconds of runtime left in the request
+          long timeRemaining = ApiProxy.getCurrentEnvironment().getRemainingMillis();
+          if (conversionEnabled && useGcs && (timeRemaining > 5000)) {
+            // Upgrade the file to use GCS
+            // Note: uploadRawFile does the work for us!
+            LOG.log(Level.INFO, "Upgrading " + fileName + " with " +
+              timeRemaining + " left on the clock.");
+            try {
+              uploadRawFile(projectId, fileName, userId, true /* force */,
+                result.t, true /* no project timestamp update */);
+            } catch (BlocksTruncatedException e) {
+              /* will never happen because force is true */
+            }
+          }
         } catch (BlobReadException e) {
           throw CrashReport.createAndLogError(LOG, null,
               collectProjectErrorInfo(userId, projectId, fileName), e);
@@ -2565,7 +2625,7 @@ public class ObjectifyStorageIo implements  StorageIo {
   // explains how.
 
   private void validateGCS() {
-    if (GCS_BUCKET_NAME.equals("")) {
+    if (useGcs && GCS_BUCKET_NAME.equals("")) {
       try {
         throw new RuntimeException("You need to configure the default GCS Bucket for your App. " +
           "Follow instructions in the App Engine Developer's Documentation");
@@ -2573,6 +2633,92 @@ public class ObjectifyStorageIo implements  StorageIo {
         throw CrashReport.createAndLogError(LOG, null, null, e);
       }
     }
+  }
+
+  // See if this person needs to have their projects upgraded and if so
+  // add a task to the task queue to take care of it
+  public void checkUpgrade(String userId) {
+    if (!conversionEnabled)     // Unless conversion is enabled...
+      return;
+    Objectify datastore = ObjectifyService.begin();
+    UserData userData = datastore.find(userKey(userId));
+    if ((userData.upgradedGCS && useGcs) ||
+      (!userData.upgradedGCS && !useGcs))
+      return;                   // All done.
+    Queue queue = QueueFactory.getQueue("blobupgrade");
+    queue.add(TaskOptions.Builder.withUrl("/convert").param("user", userId)
+      .etaMillis(System.currentTimeMillis() + 60000));
+    return;
+  }
+
+  public void doUpgrade(String userId) {
+    if (!conversionEnabled)     // Unless conversion is enabled...
+      return;                   // shouldn't really ever happen but...
+    Objectify datastore = ObjectifyService.begin();
+    UserData userData = datastore.find(userKey(userId));
+    if ((userData.upgradedGCS && useGcs) ||
+      (!userData.upgradedGCS && !useGcs))
+      return;                   // All done, another task did it!
+    List<Long> projectIds = getProjects(userId);
+    boolean anyFailed = false;
+    for (long projectId : projectIds) {
+      for (FileData fd : datastore.query(FileData.class).ancestor(projectKey(projectId))) {
+        if (fd.isBlob) {
+          if (useGcs) {         // Let's convert by just reading it!
+            downloadRawFile(userId, projectId, fd.fileName);
+          }
+        } else if (fd.isGCS) {
+          if (!useGcs) {        // Let's downgrade by just reading it!
+            downloadRawFile(userId, projectId, fd.fileName);
+          }
+        }
+      }
+    }
+
+    /*
+     * If we are running low on time, we may have not moved all files
+     * so exit now without marking the user as having been finished
+     */
+    if (ApiProxy.getCurrentEnvironment().getRemainingMillis() <= 5000)
+      return;
+
+    /* If anything failed, also return without marking user */
+    if (anyFailed)
+      return;
+
+    datastore = ObjectifyService.beginTransaction();
+    userData = datastore.find(userKey(userId));
+    userData.upgradedGCS = useGcs;
+    datastore.put(userData);
+    datastore.getTxn().commit();
+  }
+
+  public SplashConfig getSplashConfig() {
+    final Result<SplashConfig> result = new Result<SplashConfig>();
+    try {
+      runJobWithRetries(new JobRetryHelper() {
+          @Override
+          public void run(Objectify datastore) {
+            // Fixed key because only one record
+            SplashData sd = datastore.find(SplashData.class, SPLASHDATA_ID);
+            if (sd == null) {   // If we don't have Splash Data, create it
+              SplashData firstSd = new SplashData(); // We do this so cacheing works
+              firstSd.id = SPLASHDATA_ID;
+              firstSd.version = 0;                   // on future calls
+              firstSd.content = "<b>Welcome to MIT App Inventor</b>";
+              firstSd.width = 350;
+              firstSd.height = 100;
+              datastore.put(firstSd);
+              result.t = new SplashConfig(0, firstSd.width, firstSd.height, firstSd.content);
+            } else {
+              result.t = new SplashConfig(sd.version, sd.width, sd.height, sd.content);
+            }
+          }
+        }, false);             // No transaction, Objectify will cache
+    } catch (ObjectifyException e) {
+      throw CrashReport.createAndLogError(LOG, null, null, e);
+    }
+    return result.t;
   }
 
 }
