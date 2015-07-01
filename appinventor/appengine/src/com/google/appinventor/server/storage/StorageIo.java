@@ -14,6 +14,7 @@ import com.google.appinventor.shared.rpc.project.Project;
 import com.google.appinventor.shared.rpc.project.ProjectSourceZip;
 import com.google.appinventor.shared.rpc.project.UserProject;
 import com.google.appinventor.shared.rpc.user.User;
+import com.google.appinventor.shared.rpc.user.SplashConfig;
 
 import java.io.IOException;
 import java.util.Date;
@@ -497,6 +498,9 @@ public interface StorageIo {
 
   // Cleanup expired nonces
   void cleanupNonces();
+
+  // Retrieve the current Splash Screen Version
+  SplashConfig getSplashConfig();
 
   StoredData.PWData createPWData(String email);
   StoredData.PWData findPWData(String uid);

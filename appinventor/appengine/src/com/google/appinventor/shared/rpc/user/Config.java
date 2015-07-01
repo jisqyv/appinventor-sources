@@ -20,6 +20,8 @@ public class Config implements IsSerializable, Serializable {
   private String sysUID;        // Unique ID of this sytem (computed)
   private String authCode;        // Associated verification MAC
 
+  private SplashConfig splashConfig;
+
   public Config() {
   }
 
@@ -53,6 +55,14 @@ public class Config implements IsSerializable, Serializable {
 
   public void setAuthCode(String value) {
     this.authCode = value;
+  }
+
+  public SplashConfig getSplashConfig() {
+    return this.splashConfig;
+  }
+
+  public void setSplashConfig(SplashConfig config) {
+    this.splashConfig = config;
   }
 
 }

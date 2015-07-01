@@ -49,6 +49,9 @@ public class UserInfoServiceImpl extends OdeRemoteServiceServlet implements User
     config.setAuthCode(LicenseUtil.getAuthCode()); // Do this second because getSysUID will fetch and
                                                // and cache the authCode value (KLUDGE)
 
+    // Fetch the current splash screen version
+    config.setSplashConfig(storageIo.getSplashConfig());
+
     return config;
   }
 
