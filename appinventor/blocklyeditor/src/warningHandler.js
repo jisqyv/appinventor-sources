@@ -270,25 +270,24 @@ Blockly.WarningHandler.determineDuplicateComponentEventHandlers = function(){
     var typeName = eventBlock.typeName;
     eventBlock.IAmADuplicate = false;
     var genericPropertyName = typeName + ":" + eventBlock.eventName;
-    // If the instance is not yet determined, we will continue
+    // Generic events cannot be duplicates
     if (eventBlock.isGeneric && !eventBlock.isMulti) {
       continue;
     }
     var propertyName = null;
+    // For normal event handler blocks
     if (!eventBlock.isMulti) {
-      var instanceName = eventBlock.isGeneric ? eventBlock.getInputTargetBlock("COMPONENT").instanceName : eventBlock.instanceName;
-      propertyName = genericPropertyName + ":" + instanceName + ":" + topBlocks[i].disabled;
-    }
-    if (multiHandlers[genericPropertyName] == null) {
-      multiHandlers[genericPropertyName] = []
-    }
-    multiHandlers[genericPropertyName].push(eventBlock);
-    if (propertyName != null) {
+      var instanceName = eventBlock.instanceName;
+      propertyName = genericPropertyName + ":" + instanceName;
       if (eventHandlers[propertyName] == null) {
         eventHandlers[propertyName] = []
       }
       eventHandlers[propertyName].push(eventBlock);
     }
+    if (multiHandlers[genericPropertyName] == null) {
+      multiHandlers[genericPropertyName] = []
+    }
+    multiHandlers[genericPropertyName].push(eventBlock);
   }
 
   var markDuplicate = function(block) {
@@ -298,12 +297,15 @@ Blockly.WarningHandler.determineDuplicateComponentEventHandlers = function(){
   var findMulti = function(block) {
     return block.isMulti;
   }
-  // If there are multiple handlers for propertyName, they are duplicates
+
+  // If there are multiple handlers for propertyName, they are duplicates (2 of the same normal event handlers)
   for (var property in eventHandlers) {
     if (eventHandlers.hasOwnProperty(property) && eventHandlers[property].length > 1) {
       eventHandlers[property].forEach(markDuplicate);
     }
   }
+
+  // If there is a normal event handler (Button1.Click) and multi-generic handler (AnyButton.Click)
   for (var property in multiHandlers) {
     // If there are multiple handlers for this genericPropertyName and at least one of them is a multi-generic block, they are duplicates
     if (multiHandlers.hasOwnProperty(property) && multiHandlers[property].length > 1 && multiHandlers[property].filter(findMulti).length > 0) {
