@@ -79,7 +79,6 @@ public class LoginServlet extends HttpServlet {
     String [] components = req.getRequestURI().split("/");
     LOG.info("requestURI = " + req.getRequestURI());
     String page = getPage(req);
-    String error = (String) req.getSession().getAttribute("error");
     String locale = (String) req.getSession().getAttribute("locale");
     if (locale == null) {       // Default to English
       locale = "en";
@@ -172,44 +171,29 @@ public class LoginServlet extends HttpServlet {
       return;
     }
 
-    out.println("<html><head><title>" + bundle.getString("pleaselogin") + "</title></head><body>\n");
-    out.println("<center><h1>" + bundle.getString("pleaselogin") + "</h1>\n</center>");
-    if (error != null) {
-      req.getSession().removeAttribute("error");
-      out.println("<b>" + bundle.getString("error") + ": " + error + "</b><br /><br />\n");
+    String emailAddress = bundle.getString("emailaddress");
+    String password = bundle.getString("password");
+    String login = bundle.getString("login");
+    String passwordclickhere = bundle.getString("passwordclickhere");
+
+    req.setCharacterEncoding("UTF-8");
+    if (useGoogle.get()) {
+      req.setAttribute("useGoogleLabel", "true");
+    } else {
+      req.setAttribute("useGoogleLabel", "false");
     }
-    out.println("<form method=POST action=\"" + req.getRequestURI() + "\">");
-    out.println("<center><table>\n");
-    out.println("<tr><td>" + bundle.getString("emailaddress") + "</td><td><input type=text name=email value=\"\" size=\"35\"></td></tr>\n");
-    out.println("<tr><td></td></td>");
-    out.println("<tr><td>" + bundle.getString("password") + "</td><td><input type=password name=password value=\"\" size=\"35\"></td></tr>\n");
-    out.println("</table></center>\n");
-    out.println("<p></p>");
-    out.println("<center><input type=Submit value=\"" + bundle.getString("login") + "\" style=\"font-size: 300%;\"></center>\n");
-    out.println("</form>\n");
-    out.println("<p></p>");
-    out.println("<center><p><a href=\"/login/sendlink\"  style=\"text-decoration:none;\">" + bundle.getString("passwordclickhere") + "</a></p></center>\n");
-    if (useGoogle.get() == true) {
-      out.println("<center><p><a href=\"/login/google\" style=\"text-decoration:none;\">Click Here to use your Google Account to login</a></p></center>\n");
+    req.setAttribute("emailAddressLabel", emailAddress);
+    req.setAttribute("passwordLabel", password);
+    req.setAttribute("loginLabel", login);
+    req.setAttribute("passwordclickhereLabel", passwordclickhere);
+    req.setAttribute("localeLabel", locale);
+    req.setAttribute("pleaselogin", bundle.getString("pleaselogin"));
+    req.setAttribute("login", bundle.getString("login"));
+    try {
+      req.getRequestDispatcher("/login.jsp").forward(req, resp);
+    } catch (ServletException e) {
+      throw new IOException(e);
     }
-    out.println("<footer>");
-    out.println("<center><a href=\"/login?locale=zh_CN\"  style=\"text-decoration:none;\" >中文</a>&nbsp;");
-    out.println("<a href=\"/login?locale=en\"  style=\"text-decoration:none;\" >English</a></center>");
-    out.println("<p></p>");
-    out.println("<center>");
-    if (locale.equals("zh_CN")) {
-      out.println("<a href=\"http://www.weibo.com/mitappinventor\" target=\"_blank\"><img class=\"img-scale\"" +
-                  "src=\"/images/mzl.png\" width=\"30\" height=\"30\" title=\"Sina WeiBo\"></a>&nbsp;");
-    }
-    out.println("<a href=\"http://www.appinventor.mit.edu\" target=\"_blank\"><img class=\"img-scale\" " +
-                "src=\"/images/login-app-inventor.jpg\" width=\"50\" height=\"30\" title=\"MIT App Inventor\"></a></center>");
-    out.println("<p></p>");
-    
-    out.println("<p style=\"text-align: center; clear:both;\"><a rel=\"license\" href=\"http://creativecommons.org/licenses/by-sa/3.0/\" target=" +
-    		"\"_blank\"><img alt=\"Creative Commons License\" src=\"/images/cc3.png\"></a> <br>" +
-    		"<a rel=\"license\" href=\"http://creativecommons.org/licenses/by-sa/3.0/\" target=\"_blank\"></a></p>");
-    out.println("</footer>");
-    out.println("</body></html\n");
   }
 
   protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
