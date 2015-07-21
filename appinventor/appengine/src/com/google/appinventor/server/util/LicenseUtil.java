@@ -82,20 +82,24 @@ public class LicenseUtil {
   public static String getSysUID() {
     String sysUID = null;
     String hardware = null;
+    String oldhardware = "";
     LicenseConfig conf = storageIo.getLicenseConfig();
     if (conf != null) {
       sysUID = conf.getUUID();
-      hardware = conf.getHardwareHint();
+      oldhardware = conf.getHardwareHint();
       authCode = conf.getAuthCode();
     }
     boolean storeback = false;
     if (sysUID == null || hardware == null) {
       storeback = true;
     }
-    hardware = getSysId(hardware);  // Get a hardware address from an interface
+    hardware = getSysId(oldhardware);  // Get a hardware address from an interface
     if (hardware == null) {         // Could not find hardware address, fail
       System.err.println("hardware address is NULL.");
       return null;
+    }
+    if (!oldhardware.equals(hardware)) { // Hardware address changed...
+      storeback = true;
     }
     System.err.println("Hardware address = " + hardware);
     if (sysUID == null) {           // Need to generate one.
