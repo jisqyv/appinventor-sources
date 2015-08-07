@@ -101,6 +101,7 @@ public class TopToolbar extends Composite {
   private static final String WIDGET_NAME_EXPORTPROJECT = "ExportProject";
 
   private static final String WIDGET_NAME_ADMIN = "Admin";
+  private static final String WIDGET_NAME_USER_ADMIN = "UserAdmin";
   private static final String WIDGET_NAME_DOWNLOAD_USER_SOURCE = "DownloadUserSource";
   private static final String WIDGET_NAME_SWITCH_TO_DEBUG = "SwitchToDebugPane";
 
@@ -255,6 +256,8 @@ public class TopToolbar extends Composite {
           MESSAGES.downloadUserSourceMenuItem(), new DownloadUserSourceAction()));
       adminItems.add(new DropDownItem(WIDGET_NAME_SWITCH_TO_DEBUG,
           MESSAGES.switchToDebugMenuItem(), new SwitchToDebugAction()));
+      adminItems.add(new DropDownItem(WIDGET_NAME_USER_ADMIN,
+          "User Admin", new SwitchToUserAdminAction()));
       adminDropDown = new DropDownButton(WIDGET_NAME_ADMIN, MESSAGES.adminTabName(), adminItems,
           false);
       adminDropDown.setStyleName("ode-TopPanelButton");
@@ -913,6 +916,13 @@ public class TopToolbar extends Composite {
     @Override
     public void execute() {
       Ode.getInstance().switchToDebuggingView();
+    }
+  }
+
+  private static class SwitchToUserAdminAction implements Command {
+    @Override
+    public void execute() {
+      Ode.getInstance().switchToUserAdminPanel();
     }
   }
 

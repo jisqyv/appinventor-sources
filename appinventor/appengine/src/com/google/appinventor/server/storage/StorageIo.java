@@ -9,6 +9,7 @@ package com.google.appinventor.server.storage;
 import com.google.appinventor.shared.rpc.BlocksTruncatedException;
 import com.google.appinventor.shared.rpc.Motd;
 import com.google.appinventor.shared.rpc.Nonce;
+import com.google.appinventor.shared.rpc.admin.AdminUser;
 import com.google.appinventor.shared.rpc.project.Project;
 import com.google.appinventor.shared.rpc.project.ProjectSourceZip;
 import com.google.appinventor.shared.rpc.project.UserProject;
@@ -605,5 +606,10 @@ public interface StorageIo {
   StoredData.PWData createPWData(String email);
   StoredData.PWData findPWData(String uid);
   void cleanuppwdata();
+
+  // Routines for user admin interface
+
+  List<AdminUser> searchUsers(String partialEmail);
+  void storeUser(AdminUser user);
 
 }

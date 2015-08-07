@@ -40,6 +40,7 @@ import com.google.appinventor.server.storage.StoredData.WhiteListData;
 import com.google.appinventor.shared.rpc.BlocksTruncatedException;
 import com.google.appinventor.shared.rpc.Motd;
 import com.google.appinventor.shared.rpc.Nonce;
+import com.google.appinventor.shared.rpc.admin.AdminUser;
 import com.google.appinventor.shared.rpc.project.Project;
 import com.google.appinventor.shared.rpc.project.ProjectSourceZip;
 import com.google.appinventor.shared.rpc.project.RawFile;
@@ -2626,4 +2627,76 @@ public class ObjectifyStorageIo implements  StorageIo {
     }
   }
 
+  // The routines below are part of the user admin interface. Called from AdminInfoServiceImpl
+
+  @Override
+  public List<AdminUser> searchUsers(final String partialEmail) {
+    final List<AdminUser> retval = new ArrayList();
+    try {
+      runJobWithRetries(new JobRetryHelper() {
+          @Override
+          public void run(Objectify datastore) {
+            Query<UserData> userDataQuery = datastore.query(UserData.class).filter("email >=", partialEmail);
+            int count = 0;
+            for (UserData user : userDataQuery) {
+              retval.add(new AdminUser(user.id, user.name, user.email, user.tosAccepted,
+                  user.isAdmin, user.visited));
+              count++;
+              if (count > 20) {
+                break;
+              }
+            }
+          }
+        }, false);
+    } catch (ObjectifyException e) {
+      throw CrashReport.createAndLogError(LOG, null, null, e);
+    }
+    return retval;
+  }
+
+  @Override
+  public void storeUser(final AdminUser user) {
+    try {
+      runJobWithRetries(new JobRetryHelper() {
+          @Override
+          public void run(Objectify datastore) {
+            UserData userData = null;
+            if (user.getId() != null) {
+              userData = datastore.find(userKey(user.getId()));
+            }
+            if (userData != null) {
+              userData.email = user.getEmail();
+              userData.emaillower = userData.email.toLowerCase();
+              String password = user.getPassword();
+              if (password != null && !password.equals("")) {
+                userData.password = user.getPassword();
+              }
+              userData.isAdmin = user.getIsAdmin();
+              datastore.put(userData);
+            } else {            // New User
+              userData = new UserData();
+              userData.id = UUID.randomUUID().toString();
+              userData.tosAccepted = false;
+              userData.settings = "";
+              userData.email = user.getEmail();
+              userData.emaillower = user.getEmail().toLowerCase();
+              userData.type = User.USER;
+              userData.link = "";
+              userData.name = User.getDefaultName(user.getEmail());
+              userData.emailFrequency = User.DEFAULT_EMAIL_NOTIFICATION_FREQUENCY;
+              if (!user.getPassword().equals("")) {
+                userData.password = user.getPassword();
+              }
+              userData.isAdmin = user.getIsAdmin();
+              datastore.put(userData);
+            }
+          }
+        }, true);
+    } catch (ObjectifyException e) {
+      throw CrashReport.createAndLogError(LOG, null, null, e);
+    }
+  }
+
 }
+
+

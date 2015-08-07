@@ -12,6 +12,7 @@ import static com.google.appinventor.client.Ode.MESSAGES;
 import java.util.List;
 import java.util.logging.Logger;
 
+import com.google.appinventor.client.boxes.AdminUserListBox;
 import com.google.appinventor.client.boxes.AssetListBox;
 import com.google.appinventor.client.boxes.BlockSelectorBox;
 import com.google.appinventor.client.boxes.PrivateUserProfileTabPanel;
@@ -56,6 +57,8 @@ import com.google.appinventor.components.common.YaVersion;
 import com.google.appinventor.shared.rpc.GetMotdService;
 import com.google.appinventor.shared.rpc.GetMotdServiceAsync;
 import com.google.appinventor.shared.rpc.ServerLayout;
+import com.google.appinventor.shared.rpc.admin.AdminInfoService;
+import com.google.appinventor.shared.rpc.admin.AdminInfoServiceAsync;
 import com.google.appinventor.shared.rpc.help.HelpService;
 import com.google.appinventor.shared.rpc.help.HelpServiceAsync;
 import com.google.appinventor.shared.rpc.launch.LaunchService;
@@ -186,6 +189,7 @@ public class Ode implements EntryPoint {
   private static final int USERPROFILE = 4;
   private static final int PRIVATEUSERPROFILE = 5;
   private static final int MODERATIONPAGE = 6;
+  private static final int USERADMIN = 7;
   private static int currentView = DESIGNER;
 
   /*
@@ -209,6 +213,7 @@ public class Ode implements EntryPoint {
   private int debuggingTabIndex;
   private int galleryTabIndex;
   private int galleryAppTabIndex;
+  private int userAdminTabIndex;
   private int userProfileTabIndex;
   private int privateUserProfileIndex;
   private int moderationPageTabIndex;
@@ -219,6 +224,7 @@ public class Ode implements EntryPoint {
   private ProjectToolbar projectToolbar;
   private GalleryToolbar galleryListToolbar;
   private GalleryToolbar galleryPageToolbar;
+  private AdminUserListBox uaListBox;
   private DesignToolbar designToolbar;
   private TopToolbar topToolbar;
   // Popup that indicates that an asynchronous request is pending. It is visible
@@ -242,6 +248,8 @@ public class Ode implements EntryPoint {
 
   // Web service for get motd information
   private final GetMotdServiceAsync getMotdService = GWT.create(GetMotdService.class);
+
+  private final AdminInfoServiceAsync adminInfoService = GWT.create(AdminInfoService.class);
 
   private boolean windowClosing;
 
@@ -383,6 +391,15 @@ public class Ode implements EntryPoint {
     currentView = PROJECTS;
     getTopToolbar().updateFileMenuButtons(currentView);
     deckPanel.showWidget(projectsTabIndex);
+  }
+
+  /**
+   * Switch to the User Admin Panel
+   */
+
+  public void switchToUserAdminPanel() {
+    currentView = USERADMIN;
+    deckPanel.showWidget(userAdminTabIndex);
   }
 
   /**
@@ -905,6 +922,17 @@ public class Ode implements EntryPoint {
     galleryAppTabIndex = deckPanel.getWidgetCount();
     deckPanel.add(aVertPanel);
 
+    // User Admin Panel
+    VerticalPanel uaVertPanel = new VerticalPanel();
+    uaVertPanel.setWidth("100%");
+    uaVertPanel.setSpacing(0);
+    HorizontalPanel adminUserListPanel = new HorizontalPanel();
+    adminUserListPanel.setWidth("100%");
+    adminUserListPanel.add(AdminUserListBox.getAdminUserListBox());
+    uaVertPanel.add(adminUserListPanel);
+    userAdminTabIndex = deckPanel.getWidgetCount();
+    deckPanel.add(uaVertPanel);
+
     // KM: DEBUGGING BEGIN
     // User profile tab
     VerticalPanel uVertPanel = new VerticalPanel();
@@ -1168,6 +1196,15 @@ public class Ode implements EntryPoint {
    */
   public GetMotdServiceAsync getGetMotdService() {
     return getMotdService;
+  }
+
+  /**
+   * Get an instance of the Admin Info service
+   *
+   * @return admin info service instance
+   */
+  public AdminInfoServiceAsync getAdminInfoService() {
+    return adminInfoService;
   }
 
   /**
