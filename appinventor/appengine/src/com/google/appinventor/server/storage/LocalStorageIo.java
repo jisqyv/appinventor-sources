@@ -519,6 +519,7 @@ public class LocalStorageIo implements  StorageIo {
       conn.commit();            // Commit it now. If things blow out below we may
                                 // wind up with a half created project so we will
                                 // have to manually back out.
+      rs.close();
       conn.close();
       conn = null;
     } catch (SQLException e) {
