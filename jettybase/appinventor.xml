@@ -36,6 +36,51 @@
     <Arg>0</Arg>
   </Call>
 
+  <Call class="java.lang.System" name="setProperty">
+    <Arg>library.url</Arg>
+    <Arg>http://appinventor.mit.edu/explore/library</Arg>
+  </Call>
+  <Call class="java.lang.System" name="setProperty">
+    <Arg>get_started.url</Arg>
+    <Arg>http://appinventor.mit.edu/explore/get-started</Arg>
+  </Call>
+  <Call class="java.lang.System" name="setProperty">
+    <Arg>tutorials.url</Arg>
+    <Arg>http://appinventor.mit.edu/explore/ai2/tutorials</Arg>
+  </Call>
+  <Call class="java.lang.System" name="setProperty">
+    <Arg>troubleshooting.url</Arg>
+    <Arg>http://appinventor.mit.edu/explore/ai2/support/troubleshooting</Arg>
+  </Call>
+  <Call class="java.lang.System" name="setProperty">
+    <Arg>forums.url</Arg>
+    <Arg>https://groups.google.com/forum/#!forum/mitappinventortest</Arg>
+  </Call>
+  <Call class="java.lang.System" name="setProperty">
+    <Arg>feedback.url</Arg>
+    <Arg>http://something.example.com</Arg>
+  </Call>
+  <Call class="java.lang.System" name="setProperty">
+    <Arg>release.notes.url</Arg>
+    <Arg>http://appinventor.mit.edu/ai2/ReleaseNotes.html</Arg>
+  </Call>
+  <Call class="java.lang.System" name="setProperty">
+    <Arg>tos.url</Arg>
+    <Arg>/about/termsofservice.html</Arg>
+  </Call>
+  <Call class="java.lang.System" name="setProperty">
+    <Arg>logo.url</Arg>
+    <Arg>http://appinventor.mit.edu</Arg>
+  </Call>
+  <Call class="java.lang.System" name="setProperty">
+    <Arg>guide.url</Arg>
+    <Arg>http://appinventor.mit.edu/explore/library</Arg>
+  </Call>
+  <Call class="java.lang.System" name="setProperty">
+    <Arg>reference.components.url</Arg>
+    <Arg>/reference/components/</Arg>
+  </Call>
+
  <Get name="sessionHandler">
      <Set name="sessionManager">
          <New class="org.eclipse.jetty.server.session.HashSessionManager">
