@@ -90,6 +90,19 @@ Blockly.FieldLexicalVariable.prototype.getValue = function() {
 Blockly.FieldLexicalVariable.prototype.setValue = function(text) {
   this.value_ = text;
   this.setText(text);
+  // The code below is almost certainly in the wrong place
+  // but it seems to fix the problem by making sure that any
+  // eventparam value in a variable block is removed. The next
+  // time it is needed, it will be re-computed. There *has*
+  // to be a better place for this code, but I couldn't find it in the
+  // short time I had to work on this. So consider this a patch
+  // until we figure out where this code really belongs!
+  if (this.block_) {
+    if (this.block_.eventparam) {
+      this.block_.eventparam = undefined; // unset it
+    }
+  }
+
 };
 
 /**
@@ -982,6 +995,13 @@ Blockly.LexicalVariable.eventParamMutationToDom = function (block) {
  */
 
 Blockly.LexicalVariable.getEventParam = function (block) {
+  // If it isn't undefined, then we have already computed it.
+  if (block.eventparam !== undefined) {
+    return block.eventparam;
+  }
+  block.eventparam = null;      // So if we leave without setting it to
+                                // some value, we know we have already
+                                // evaluated it.
   var prefixPair = Blockly.unprefixName(block.getFieldValue("VAR"));
   var prefix = prefixPair[0];
   if (prefix !== Blockly.globalNamePrefix) {
