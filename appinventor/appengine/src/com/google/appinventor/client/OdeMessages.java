@@ -4919,6 +4919,10 @@ public interface OdeMessages extends Messages {
   @Description("")
   String SwitchToRussian();
 
+  @DefaultMessage("한국어")
+  @Description("")
+  String SwitchToKorean();
+
   @DefaultMessage("Progress Bar")
   @Description("")
   String ProgressBarFor();
