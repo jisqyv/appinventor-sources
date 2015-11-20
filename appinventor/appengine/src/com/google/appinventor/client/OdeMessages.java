@@ -4923,6 +4923,10 @@ public interface OdeMessages extends Messages {
   @Description("")
   String SwitchToKorean();
 
+  @DefaultMessage("Svenska")
+  @Description("")
+  String SwitchToSwedish();
+
   @DefaultMessage("Progress Bar")
   @Description("")
   String ProgressBarFor();
