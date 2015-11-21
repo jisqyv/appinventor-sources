@@ -32,12 +32,12 @@ public class StartSystem {
       boolean useStartTls = false;
 
       // Expiration Check
-      if (System.currentTimeMillis() > expiration) {
-          System.err.println("This copy of the Local App Inventor Server has expired, please get an updated version");
-          System.exit(1);
-      } else {
-          System.err.println("This copy of MIT App Inventor expires on: " + new java.util.Date(expiration));
-      }
+      // if (System.currentTimeMillis() > expiration) {
+      //     System.err.println("This copy of the Local App Inventor Server has expired, please get an updated version");
+      //     System.exit(1);
+      // } else {
+      //     System.err.println("This copy of MIT App Inventor expires on: " + new java.util.Date(expiration));
+      // }
 
       List<String> pArgs = new ArrayList<String>();
       pArgs.add("java");

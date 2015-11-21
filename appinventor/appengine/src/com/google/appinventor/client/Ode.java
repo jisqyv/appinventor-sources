@@ -1396,24 +1396,24 @@ public class Ode implements EntryPoint {
   // after the userSettings object is loaded (above) and parsed.
   public void showSplashScreens() {
 
-    Timer t = new Timer() {
-        @Override
-        public void run() {
-          // Check System License
-          licenseCheck();
-        }
-      };
-    t.schedule(4000);           // Fire in four seconds
+    // Timer t = new Timer() {
+    //     @Override
+    //     public void run() {
+    //       // Check System License
+    //       licenseCheck();
+    //     }
+    //   };
+    // t.schedule(4000);           // Fire in four seconds
 
-    // Deal with possible expiration
-    t = new Timer() {
-        @Override
-        public void run () {
-          // Display expiration dialog if appropriate
-          expireDialog();
-        }
-      };
-    t.schedule(6000);           // In six seconds...
+    // // Deal with possible expiration
+    // t = new Timer() {
+    //     @Override
+    //     public void run () {
+    //       // Display expiration dialog if appropriate
+    //       expireDialog();
+    //     }
+    //   };
+    // t.schedule(6000);           // In six seconds...
 
     boolean showSplash = false;
     if (AppInventorFeatures.showSurveySplashScreen()) {
