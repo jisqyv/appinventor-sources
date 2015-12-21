@@ -542,6 +542,7 @@ public interface StorageIo {
                                           boolean includeProjectHistory,
                                           boolean includeAndroidKeystore,
                                           @Nullable String zipName,
+                                          boolean includeYail,
                                           boolean fatalError) throws IOException;
 
   /**
