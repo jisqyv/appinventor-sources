@@ -1,7 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2014 MIT, All rights reserved
-// Released under the MIT License https://raw.github.com/mit-cml/app-inventor/master/mitlicense.txt
+// Copyright 2014-2015 MIT, All rights reserved.
+// This is unreleased code.
 
 package com.google.appinventor.server;
 
