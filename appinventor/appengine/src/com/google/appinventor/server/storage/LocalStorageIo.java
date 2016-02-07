@@ -12,6 +12,8 @@ import com.google.appinventor.server.util.LicenseConfig;
 import com.google.appinventor.shared.rpc.BlocksTruncatedException;
 import com.google.appinventor.shared.rpc.Motd;
 import com.google.appinventor.shared.rpc.Nonce;
+import com.google.appinventor.shared.rpc.AdminInterfaceException;
+import com.google.appinventor.shared.rpc.admin.AdminUser;
 import com.google.appinventor.shared.rpc.project.Project;
 import com.google.appinventor.shared.rpc.project.ProjectSourceZip;
 import com.google.appinventor.shared.rpc.project.RawFile;
@@ -1160,13 +1162,26 @@ public class LocalStorageIo implements  StorageIo {
   public ProjectSourceZip exportProjectSourceZip(final String userId, final long projectId,
                                                  final boolean includeProjectHistory,
                                                  final boolean includeAndroidKeystore,
-                                                 @Nullable String zipName, boolean fatalError) throws IOException {
+                                                 @Nullable String zipName, boolean includeYail,
+                                                 boolean fatalError) throws IOException {
     int fileCount = 0;
     ByteArrayOutputStream zipFile = new ByteArrayOutputStream();
     ZipOutputStream out = new ZipOutputStream(zipFile);
     List<String> sources = getProjectSourceFiles(userId, projectId);
     for (String fileName : sources) {
       byte [] data = downloadRawFile(userId, projectId, fileName);
+      if (fileName.endsWith(".yail") && !includeYail) {
+        // Don't include YAIL files when exporting projects
+        // includeYail will be set to true when we are exporting the source
+        // to send to the buildserver or when the person exporting
+        // a project is an Admin (for debugging).
+        // Otherwise Yail files are confusing cruft. In the case of
+        // the Firebase Component they may contain secrets which we would
+        // rather not have leak into an export .aia file or into the Gallery
+        // NOTE: Standalone code doesn't include a Gallery, but will likely
+        // include one in the future.
+        continue;
+      }
       out.putNextEntry(new ZipEntry(fileName));
       out.write(data, 0, data.length);
       fileCount++;
@@ -1570,6 +1585,7 @@ public class LocalStorageIo implements  StorageIo {
     }
   }
 
+  @Override
   public void setLicenseConfig(LicenseConfig conf) {
     Connection conn = null;
     PreparedStatement prep;
@@ -1603,6 +1619,107 @@ public class LocalStorageIo implements  StorageIo {
         prep.setString(1, hardwareHint);
         prep.setString(2, UUID);
         prep.setString(3, authCode);
+        prep.executeUpdate();
+        prep.close();
+      }
+    } catch (SQLException e) {
+      // Something went wrong, we'll flush this connection as a result...
+      userConn.remove();
+      try {
+        conn.close();
+      } catch (Exception z) {
+      }
+      conn = null;
+      throw CrashReport.createAndLogError(LOG, null, null, e);
+    }
+  }
+
+  @Override
+  public List<AdminUser> searchUsers(String partialEmail) {
+    Connection conn = null;
+    ResultSet rs;
+    List<AdminUser> retval = new ArrayList();
+    try {
+      conn = userConn.get();
+      if (conn == null) {
+        conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
+        userConn.set(conn);
+      }
+      PreparedStatement prep;
+      prep = conn.prepareStatement("select * from users where emaillower > ? limit 20");
+      prep.setString(1, partialEmail.toLowerCase());
+      rs = prep.executeQuery();
+
+      while (rs.next()) {
+        java.sql.Timestamp ts = rs.getTimestamp("visited");
+        java.util.Date visited = new java.util.Date(ts.getTime());
+        AdminUser user = new AdminUser(rs.getString("uuid"), rs.getString("email"),
+          rs.getString("email"), rs.getBoolean("tosaccepted"),
+          rs.getBoolean("isadmin"), visited);
+        retval.add(user);
+      }
+      return retval;
+    } catch (SQLException e) {
+      userConn.remove();
+      try {
+        conn.close();
+      } catch (Exception ee) {
+      }
+      conn = null;
+      throw CrashReport.createAndLogError(LOG, null, null, e);
+    }
+  }
+
+  @Override
+  public void storeUser(AdminUser user) throws AdminInterfaceException {
+    Connection conn = null;
+    User userData = null;
+    if (user.getId() != null) {
+      userData = getUser(user.getId());
+    }
+    try {
+      conn = userConn.get();
+      if (conn == null) {
+        conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
+        userConn.set(conn);
+      }
+      PreparedStatement prep;
+      if (userData != null) {
+        // Update them
+        String password = user.getPassword();
+        boolean isAdmin = user.getIsAdmin();
+        if (password != null && !password.equals("")) { // We have a password
+          prep = conn.prepareStatement("update users set password = ?, isadmin = ? where uuid = ?");
+          prep.setQueryTimeout(30);
+          prep.setString(1, password);
+          prep.setBoolean(2, isAdmin);
+          prep.setString(3, user.getId());
+          prep.executeUpdate();
+          prep.close();
+        } else {                // Only set isadmin
+          prep = conn.prepareStatement("update users set isadmin = ? where uuid = ?");
+          prep.setBoolean(1, isAdmin);
+          prep.setString(2, user.getId());
+          prep.executeUpdate();
+          prep.close();
+        }
+      } else {
+        // Add them
+        // First let's make sure the email address is unique
+        prep = conn.prepareStatement("select * from users where emaillower = ?");
+        prep.setString(1, user.getEmail().toLowerCase());
+        ResultSet rs = prep.executeQuery();
+        if (rs.next()) {
+          prep.close();
+          throw new AdminInterfaceException("User Already Exists with email = " + user.getEmail());
+        }
+        // Got this far, we can really add them
+        prep.close();
+        userData= createUser(user.getEmail(), conn);
+        prep = conn.prepareStatement("update users set isadmin = ?, password = ? where uuid = ?");
+        prep.setBoolean(1, user.getIsAdmin());
+        prep.setString(2, user.getPassword());
+        prep.setString(3, userData.getUserId());
         prep.executeUpdate();
         prep.close();
       }

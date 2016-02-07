@@ -6,6 +6,7 @@ package com.google.appinventor.client;
 
 import static com.google.appinventor.client.Ode.MESSAGES;
 import com.google.appinventor.client.admin.AdminComparators;
+import com.google.appinventor.client.output.OdeLog;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.dom.client.MouseDownEvent;
@@ -27,7 +28,9 @@ import com.google.gwt.user.client.ui.PasswordTextBox;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
+
 import com.google.appinventor.client.widgets.LabeledTextBox;
+import com.google.appinventor.shared.rpc.AdminInterfaceException;
 import com.google.appinventor.shared.rpc.admin.AdminUser;
 
 import java.util.ArrayList;
@@ -79,6 +82,7 @@ public class AdminUserList extends Composite {
       refreshTable(true);
       refreshSortIndicators();
     }
+
   };
 
   /**
@@ -386,7 +390,12 @@ public class AdminUserList extends Composite {
                 }
                 @Override
                 public void onFailure(Throwable error) {
-                  super.onFailure(error);
+                  OdeLog.xlog(error);
+                  if (error instanceof AdminInterfaceException) {
+                    ErrorReporter.reportError(error.getMessage());
+                  } else {
+                    super.onFailure(error);
+                  }
                   dialogBox.hide();
                 }
               });
