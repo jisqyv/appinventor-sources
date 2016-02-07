@@ -10,6 +10,7 @@ import com.google.appinventor.server.util.LicenseConfig;
 import com.google.appinventor.shared.rpc.BlocksTruncatedException;
 import com.google.appinventor.shared.rpc.Motd;
 import com.google.appinventor.shared.rpc.Nonce;
+import com.google.appinventor.shared.rpc.admin.AdminUser;
 import com.google.appinventor.shared.rpc.project.Project;
 import com.google.appinventor.shared.rpc.project.ProjectSourceZip;
 import com.google.appinventor.shared.rpc.project.UserProject;
@@ -450,6 +451,7 @@ public interface StorageIo {
                                           boolean includeProjectHistory,
                                           boolean includeAndroidKeystore,
                                           @Nullable String zipName,
+                                          boolean includeYail,
                                           boolean fatalError) throws IOException;
 
   /**
@@ -510,5 +512,10 @@ public interface StorageIo {
 
   LicenseConfig getLicenseConfig();
   void setLicenseConfig(LicenseConfig config);
+
+  // Routines for user admin interface
+
+  List<AdminUser> searchUsers(String partialEmail);
+  void storeUser(AdminUser user);
 
 }

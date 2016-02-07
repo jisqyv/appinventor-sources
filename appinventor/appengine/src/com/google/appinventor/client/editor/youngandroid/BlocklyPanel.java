@@ -565,7 +565,7 @@ public class BlocklyPanel extends HTMLPanel {
   // [lyn, 2014/10/28] Handle these cases
   public String getFormJson() {
     if (blocksInited(formName)) {
-      return myBlocksEditor.encodeFormAsJsonString();
+      return myBlocksEditor.encodeFormAsJsonString(true);
     } else {
       // in case someone clicks Save before the blocks area is inited
       String formJson = pendingFormJsonMap.get(formName);
@@ -785,6 +785,22 @@ public class BlocklyPanel extends HTMLPanel {
     doSwitchLanguage(formName, languageSetting);
   }
 
+  /**
+   * Trigger and Update of the Companion if the Companion is connected
+   * and an update is available. Note: We do not compare the currently
+   * running Companion's version against the version we are going to load
+   * we just do it. If YaVersion.COMPANION_UPDATE_URL is "", then no
+   * Update is available.
+   */
+
+  public void updateCompanion() {
+    updateCompanion(formName);
+  }
+
+  public static void updateCompanion(String formName) {
+    doUpdateCompanion(formName);
+  }
+
   public static String getLocalizedPropertyName(String key) {
     return ComponentsTranslation.getPropertyName(key);
   }
@@ -999,6 +1015,10 @@ public class BlocklyPanel extends HTMLPanel {
    */
   public static native void doSwitchLanguage(String formName, String language) /*-{
     $wnd.Blocklies[formName].language_switch.switchLanguage(language);
+  }-*/;
+
+  public static native void doUpdateCompanion(String formName) /*-{
+    $wnd.Blocklies[formName].ReplMgr.triggerUpdate();
   }-*/;
 
   public static native String getURL() /*-{

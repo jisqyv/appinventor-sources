@@ -11,6 +11,7 @@ import java.util.Random;
 
 import com.googlecode.gwt.crypto.bouncycastle.digests.MD5Digest;
 
+import com.google.appinventor.client.boxes.AdminUserListBox;
 import com.google.appinventor.client.boxes.AssetListBox;
 import com.google.appinventor.client.boxes.BlockSelectorBox;
 import com.google.appinventor.client.boxes.MessagesOutputBox;
@@ -48,6 +49,8 @@ import com.google.appinventor.components.common.YaVersion;
 import com.google.appinventor.shared.rpc.GetMotdService;
 import com.google.appinventor.shared.rpc.GetMotdServiceAsync;
 import com.google.appinventor.shared.rpc.ServerLayout;
+import com.google.appinventor.shared.rpc.admin.AdminInfoService;
+import com.google.appinventor.shared.rpc.admin.AdminInfoServiceAsync;
 import com.google.appinventor.shared.rpc.help.HelpService;
 import com.google.appinventor.shared.rpc.help.HelpServiceAsync;
 import com.google.appinventor.shared.rpc.launch.LaunchService;
@@ -161,6 +164,7 @@ public class Ode implements EntryPoint {
   // Remembers the current View
   static final int DESIGNER = 0;
   static final int PROJECTS = 1;
+  private static final int USERADMIN = 2;
   private static int currentView = DESIGNER;
 
   /*
@@ -182,11 +186,13 @@ public class Ode implements EntryPoint {
   private int projectsTabIndex;
   private int designTabIndex;
   private int debuggingTabIndex;
+  private int userAdminTabIndex;
   private TopPanel topPanel;
   private StatusPanel statusPanel;
   private HorizontalPanel workColumns;
   private VerticalPanel structureAndAssets;
   private ProjectToolbar projectToolbar;
+  private AdminUserListBox uaListBox;
   private DesignToolbar designToolbar;
   private TopToolbar topToolbar;
   // Popup that indicates that an asynchronous request is pending. It is visible
@@ -207,6 +213,8 @@ public class Ode implements EntryPoint {
 
   // Web service for get motd information
   private final GetMotdServiceAsync getMotdService = GWT.create(GetMotdService.class);
+
+  private final AdminInfoServiceAsync adminInfoService = GWT.create(AdminInfoService.class);
 
   private boolean windowClosing;
 
@@ -306,6 +314,20 @@ public class Ode implements EntryPoint {
     currentView = PROJECTS;
     getTopToolbar().updateFileMenuButtons(currentView);
     deckPanel.showWidget(projectsTabIndex);
+    // If we started a project, then the start button was disabled (to avoid
+    // a second press while the new project wizard was starting (aka we "debounce"
+    // the button). When the person switches to the projects list view again (here)
+    // we re-enable it.
+    projectToolbar.enableStartButton();
+  }
+
+  /**
+   * Switch to the User Admin Panel
+   */
+
+  public void switchToUserAdminPanel() {
+    currentView = USERADMIN;
+    deckPanel.showWidget(userAdminTabIndex);
   }
 
   /**
@@ -726,6 +748,17 @@ public class Ode implements EntryPoint {
     designTabIndex = deckPanel.getWidgetCount();
     deckPanel.add(dVertPanel);
 
+    // User Admin Panel
+    VerticalPanel uaVertPanel = new VerticalPanel();
+    uaVertPanel.setWidth("100%");
+    uaVertPanel.setSpacing(0);
+    HorizontalPanel adminUserListPanel = new HorizontalPanel();
+    adminUserListPanel.setWidth("100%");
+    adminUserListPanel.add(AdminUserListBox.getAdminUserListBox());
+    uaVertPanel.add(adminUserListPanel);
+    userAdminTabIndex = deckPanel.getWidgetCount();
+    deckPanel.add(uaVertPanel);
+
     // Debugging tab
     if (AppInventorFeatures.hasDebuggingView()) {
 
@@ -944,6 +977,15 @@ public class Ode implements EntryPoint {
   }
 
   /**
+   * Get an instance of the Admin Info service
+   *
+   * @return admin info service instance
+   */
+  public AdminInfoServiceAsync getAdminInfoService() {
+    return adminInfoService;
+  }
+
+  /**
    * Get an instance of the help web service.
    *
    * @return help service instance
@@ -1100,7 +1142,7 @@ public class Ode implements EntryPoint {
    */
   public DialogBox createNoProjectsDialog(boolean showDialog) {
     // Create the UI elements of the DialogBox
-    final DialogBox dialogBox = new DialogBox(true);
+    final DialogBox dialogBox = new DialogBox(true, false); //DialogBox(autohide, modal)
     dialogBox.setStylePrimaryName("ode-DialogBox");
     dialogBox.setText(MESSAGES.createNoProjectsDialogText());
 
@@ -1763,6 +1805,46 @@ public class Ode implements EntryPoint {
     } catch (Exception e) {     // Number format, null, who knows
       return false;             // if we get one, no valid license!
     }
+  }
+
+  /**
+   * Display a generic warning dialog box.
+   * This method is public because it is intended to be used from other
+   * parts of the client GWT side system.
+   *
+   * Note: We expect our caller to internationalize the messages to be
+   * displayed.
+   *
+   * @param title The title for the dialog box
+   * @param message The message to display
+   * @param buttonString the name of the button, i.e., "OK"
+   */
+
+  public void warningDialog(String title, String messageString, String buttonString) {
+    // Create the UI elements of the DialogBox
+    final DialogBox dialogBox = new DialogBox(false, true); // DialogBox(autohide, modal)
+    dialogBox.setStylePrimaryName("ode-DialogBox");
+    dialogBox.setText(title);
+    dialogBox.setHeight("100px");
+    dialogBox.setWidth("400px");
+    dialogBox.setGlassEnabled(true);
+    dialogBox.setAnimationEnabled(true);
+    dialogBox.center();
+    VerticalPanel DialogBoxContents = new VerticalPanel();
+    HTML message = new HTML("<p>" + messageString + "</p>");
+    message.setStyleName("DialogBox-message");
+    FlowPanel holder = new FlowPanel();
+    Button okButton = new Button(buttonString);
+    okButton.addClickListener(new ClickListener() {
+        public void onClick(Widget sender) {
+          dialogBox.hide();
+        }
+      });
+    holder.add(okButton);
+    DialogBoxContents.add(message);
+    DialogBoxContents.add(holder);
+    dialogBox.setWidget(DialogBoxContents);
+    dialogBox.show();
   }
 
   /**

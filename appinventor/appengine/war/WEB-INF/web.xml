@@ -136,6 +136,21 @@
     <servlet-name>uploadServlet</servlet-name>
   </filter-mapping>
 
+  <!-- admininfo -->
+  <servlet>
+    <servlet-name>adminInfoService</servlet-name>
+    <servlet-class>com.google.appinventor.server.AdminInfoServiceImpl</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>adminInfoService</servlet-name>
+    <url-pattern>/ode/admininfo</url-pattern>
+  </servlet-mapping>
+  <filter-mapping>
+    <filter-name>odeAuthFilter</filter-name>
+    <servlet-name>adminInfoService</servlet-name>
+  </filter-mapping>
+
+
   <!-- userinfo -->
   <servlet>
     <servlet-name>userInfoService</servlet-name>
@@ -255,6 +270,31 @@
   <session-config>
     <session-timeout>60</session-timeout>
   </session-config>
+
+  <!-- default Firebase authentication -->
+  <servlet>
+    <servlet-name>firebaseAuthService</servlet-name>
+    <servlet-class>com.google.appinventor.server.components.FirebaseAuthServiceImpl</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>firebaseAuthService</servlet-name>
+    <url-pattern>/ode/firebase_auth</url-pattern>
+  </servlet-mapping>
+  <filter-mapping>
+    <filter-name>odeAuthFilter</filter-name>
+    <servlet-name>firebaseAuthService</servlet-name>
+  </filter-mapping>
+
+  <!-- Not sure what needs to replace GwtResourceServlet
+  <servlet>
+    <servlet-name>odeUiServlet</servlet-name>
+    <servlet-class>com.google.gwt.gserver.GwtResourceServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>odeUiServlet</servlet-name>
+    <url-pattern>/ode/*</url-pattern>
+  </servlet-mapping>
+  -->
 
   <mime-mapping>
     <extension>js</extension>

@@ -63,6 +63,7 @@ public class UserInfoServiceImpl extends OdeRemoteServiceServlet implements User
     config.setLogoUrl(Flag.createFlag("logo.url", "").get());
     config.setGuideUrl(Flag.createFlag("guide.url", "").get());
     config.setReferenceComponentsUrl(Flag.createFlag("reference.components.url", "").get());
+    config.setFirebaseURL(Flag.createFlag("firebase.url", "").get());
 
     return config;
   }

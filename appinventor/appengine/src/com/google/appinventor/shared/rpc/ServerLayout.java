@@ -62,6 +62,12 @@ public class ServerLayout {
   public static final String USER_INFO_SERVICE = "userinfo";
 
   /**
+   * Relative path of the Admin Info Service within ODE
+   */
+
+  public static final String ADMIN_INFO_SERVICE = "admininfo";
+
+  /**
    * Relative path of the
    * {@link com.google.appinventor.shared.rpc.launch.LaunchService} within
    * the ODE GWT module.
@@ -148,6 +154,12 @@ public class ServerLayout {
    * within the ODE GWT module.
    */
   public static final String GET_MOTD_SERVICE = "getmotd";
+
+  /**
+   * Relative path of the {@link com.google.appinventor.server.components.FirebaseAuthServiceImpl}
+   * within the ODE GWT module.
+   */
+  public static final String FIREBASE_AUTH_SERVICE = "firebase_auth";
 
   /**
    * Relative path of the form through which the user can see and accept
