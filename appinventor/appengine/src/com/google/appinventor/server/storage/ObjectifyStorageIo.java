@@ -37,6 +37,7 @@ import com.google.appinventor.server.storage.StoredData.UserFileData;
 import com.google.appinventor.server.storage.StoredData.UserProjectData;
 import com.google.appinventor.server.storage.StoredData.RendezvousData;
 import com.google.appinventor.server.storage.StoredData.WhiteListData;
+import com.google.appinventor.shared.rpc.AdminInterfaceException;
 import com.google.appinventor.shared.rpc.BlocksTruncatedException;
 import com.google.appinventor.shared.rpc.Motd;
 import com.google.appinventor.shared.rpc.Nonce;
@@ -2422,7 +2423,8 @@ public class ObjectifyStorageIo implements  StorageIo {
         LOG.log(Level.WARNING, "Optimistic concurrency failure", ex);
       } catch (ObjectifyException oe) {
         String message = oe.getMessage();
-        if (message != null && message.startsWith("Blocks")) { // This one is fatal!
+        if (message != null &&
+          (message.startsWith("Blocks") || message.startsWith("User Al"))) { // This one is fatal!
           throw oe;
         }
         // maybe this should be a fatal error? I think only thing
@@ -2655,11 +2657,11 @@ public class ObjectifyStorageIo implements  StorageIo {
   }
 
   @Override
-  public void storeUser(final AdminUser user) {
+  public void storeUser(final AdminUser user) throws AdminInterfaceException {
     try {
       runJobWithRetries(new JobRetryHelper() {
           @Override
-          public void run(Objectify datastore) {
+          public void run(Objectify datastore) throws ObjectifyException {
             UserData userData = null;
             if (user.getId() != null) {
               userData = datastore.find(userKey(user.getId()));
@@ -2674,12 +2676,20 @@ public class ObjectifyStorageIo implements  StorageIo {
               userData.isAdmin = user.getIsAdmin();
               datastore.put(userData);
             } else {            // New User
+              String emaillower = user.getEmail().toLowerCase();
+              Objectify qDatastore = ObjectifyService.begin(); // Need an instance not in this transaction
+              UserData tuser = qDatastore.query(UserData.class).filter("email", emaillower).get();
+              if (tuser != null) {
+                // This is a total kludge, but we have to do things this way because of
+                // how runJobWithRetries works
+                throw new ObjectifyException("User Already exists = " + user.getEmail());
+              }
               userData = new UserData();
               userData.id = UUID.randomUUID().toString();
               userData.tosAccepted = false;
               userData.settings = "";
               userData.email = user.getEmail();
-              userData.emaillower = user.getEmail().toLowerCase();
+              userData.emaillower = emaillower;
               userData.type = User.USER;
               userData.link = "";
               userData.name = User.getDefaultName(user.getEmail());
@@ -2693,6 +2703,9 @@ public class ObjectifyStorageIo implements  StorageIo {
           }
         }, true);
     } catch (ObjectifyException e) {
+      if (e.getMessage().startsWith("User Al")) {
+        throw new AdminInterfaceException(e.getMessage());
+      }
       throw CrashReport.createAndLogError(LOG, null, null, e);
     }
   }

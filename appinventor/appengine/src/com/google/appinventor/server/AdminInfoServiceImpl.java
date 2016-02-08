@@ -13,6 +13,7 @@ import java.util.List;
 import com.google.appinventor.server.flags.Flag;
 import com.google.appinventor.server.storage.StorageIo;
 import com.google.appinventor.server.storage.StorageIoInstanceHolder;
+import com.google.appinventor.shared.rpc.AdminInterfaceException;
 import com.google.appinventor.shared.rpc.user.Config;
 import com.google.appinventor.shared.rpc.admin.AdminUser;
 import com.google.appinventor.shared.rpc.admin.AdminInfoService;
@@ -44,7 +45,7 @@ public class AdminInfoServiceImpl extends OdeRemoteServiceServlet implements Adm
     }
 
     @Override
-    public void storeUser(AdminUser user) {
+    public void storeUser(AdminUser user) throws AdminInterfaceException {
       if (!userInfoProvider.getIsAdmin()) {
           throw new IllegalArgumentException("Unauthorized.");
       }

@@ -11,6 +11,7 @@ import java.util.List;
 import com.google.appinventor.shared.rpc.ServerLayout;
 import com.google.gwt.user.client.rpc.RemoteService;
 import com.google.gwt.user.client.rpc.RemoteServiceRelativePath;
+import com.google.appinventor.shared.rpc.AdminInterfaceException;
 
 /**
  * Interface for the service providing user related information.
@@ -30,6 +31,6 @@ public interface AdminInfoService extends RemoteService {
    * Update or Add a user.
    */
 
-  void storeUser(AdminUser user);
+  void storeUser(AdminUser user) throws AdminInterfaceException;;
 
 }
