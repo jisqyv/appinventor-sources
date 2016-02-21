@@ -43,6 +43,12 @@ public class StartSystem {
           mailuser = parser.get("mail", "user");
           mailpassword = parser.get("mail", "password");
           String stls = parser.get("mail", "starttls");
+          String firebaseURL = parser.get("main", "firebaseurl");
+          String firebaseSecret = parser.get("main", "firebasesecret");
+          if (firebaseURL != null && firebaseSecret != null) {
+              pArgs.add("-Dfirebase.url=" + firebaseURL);
+              pArgs.add("-Dfirebase.secret=" + firebaseSecret);
+          }
           if ((stls != null) && (stls.equals("true"))) {
               pArgs.add("-Dmail.smtp.starttls.enable=true");
           }
