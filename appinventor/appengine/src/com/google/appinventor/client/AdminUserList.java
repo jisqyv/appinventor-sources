@@ -416,6 +416,32 @@ public class AdminUserList extends Composite {
       isAdminBox.setChecked(user.getIsAdmin());
       userName.setText(user.getEmail());
     }
+    // switchUserPanel -- Put up a button to permit us to
+    // switch to the selected user, but readonly
+    if (!adding) {
+      HorizontalPanel switchUserPanel = new HorizontalPanel();
+      Button switchButton = new Button("Switch to This User");
+      switchButton.addClickListener(new ClickListener() {
+          @Override
+          public void onClick(Widget sender) {
+            Ode.getInstance().setReadOnly();  // Must make sure we are read only.
+                                              // When we call reloadWindow (below) the onClosing
+                                              // handler in Ode will be called. It will attempt
+                                              // to save the project settings. But by the time we
+                                              // return below, we have switched accounts, so the settings
+                                              // will be saved in the wrong account(!!). So we set the
+                                              // read-only flag now!
+            Ode.getInstance().getAdminInfoService().switchUser(user, new OdeAsyncCallback<Void>("Oops") {
+                @Override
+                public void onSuccess(Void v) {
+                  Ode.getInstance().reloadWindow();
+                }
+              });
+          }
+        });
+      switchUserPanel.add(switchButton);
+      vPanel.add(switchUserPanel);
+    }
     dialogBox.center();
     dialogBox.show();
   }

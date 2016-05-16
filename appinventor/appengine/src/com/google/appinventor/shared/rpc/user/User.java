@@ -22,9 +22,16 @@ public class User implements IsSerializable, UserInfoProvider, Serializable {
 
   // whether user has accepted terms of service
   private boolean tosAccepted;
-  
+
   // whether the user has admin priviledges
   private boolean isAdmin;
+
+  // If set, we inform the client side to go into read only mode
+  // NOTE: isReadOnly is *not* enforced on the server. This is because
+  // only privileged users can assert isReadOnly and we assume that they
+  // are sufficiently trustworthy that they will not attempt to abuse the
+  // system by unsetting it on their client to cause mischief
+  private boolean isReadOnly;
 
   private String sessionId;        // Used to ensure only one account active at a time
 
@@ -134,12 +141,12 @@ public class User implements IsSerializable, UserInfoProvider, Serializable {
   public boolean getUserTosAccepted() {
     return tosAccepted;
   }
-  
+
   @Override
   public boolean getIsAdmin() {
     return isAdmin;
   }
-  
+
   /**
    * Sets whether the user has admin priviledges.
    *
@@ -188,7 +195,22 @@ public class User implements IsSerializable, UserInfoProvider, Serializable {
     this.sessionId = sessionId;
   }
 
+  @Override
+  public void setReadOnly(boolean value) {
+    isReadOnly = value;
+  }
+
+  public boolean isReadOnly() {
+    return isReadOnly;
+  }
+
   public User copy() {
-    return new User(id, email, tosAccepted, isAdmin, sessionId);
+    // We set the isReadOnly flag in the copy in this fashion so we do not have to
+    // modify all the places in the source where we create a "User" object. There are
+    // only a few places where we assert or read the isReadOnly flag, so we want to
+    // limit the places where we have to have knowledge of it to just those places that care
+    User retval =  new User(id, email, tosAccepted, isAdmin, sessionId);
+    retval.setReadOnly(isReadOnly);
+    return retval;
   }
 }

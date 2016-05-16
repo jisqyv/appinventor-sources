@@ -1304,7 +1304,8 @@ Blockly.Msg.en.switch_language_to_english = {
     Blockly.Msg.REPL_NOT_NOW = "Not Now";
     Blockly.Msg.REPL_COMPANION_OUT_OF_DATE1 = "The Companion you are using is out of date.<br/><br/>This Version of App Inventor should be used with Companion version";
     Blockly.Msg.REPL_COMPANION_OUT_OF_DATE2 = "<br /><a href=\"http://appinventor.mit.edu/ai2/nb118/newcomp.html\" target=\"_blank\">You obtain the latest version here</a>";
-    Blockly.Msg.REPL_COMPANION_OUT_OF_DATE_IMMEDIATE = "You are using an out-of-date Companion. You need not update the Companion immediately but should consider updating soon.";
+    Blockly.Msg.REPL_COMPANION_OUT_OF_DATE_IMMEDIATE = "You are using an out-of-date Companion. You should update the MIT AI2 Companion as soon as possible. If you have auto-update setup in the store, the update will happen by itself shortly.";
+    Blockly.Msg.REPL_COMPANION_WRONG_PACKAGE = "The Companion you are using was built for different instance of App Inventor. To obtain the correct companion look on the App Inventor screen under Help->Companion Information menu.";
     Blockly.Msg.REPL_DISMISS = "Dismiss";
     Blockly.Msg.REPL_SOFTWARE_UPDATE = "Software Update";
     Blockly.Msg.REPL_OK_LOWER = "Ok";

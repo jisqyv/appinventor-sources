@@ -28,7 +28,7 @@ def store():
     message.email = d['email']
     message.url = d['url']
     message.locale = d.get('locale', 'en')
-    if d.get('pass') != 'secret123':
+    if d.get('pass') != 'changeme':
         return ''
     channel.basic_publish('', 'passmail', message.SerializeToString(),
                           pika.BasicProperties(content_type='text/plain',

@@ -30,4 +30,14 @@ public class StoredData {
     public String email;            // Email of account in question
   }
 
+  // Data Structure to keep track of url's emailed out for password
+  // setting and reseting. The Id (which is a UUID) is part of the URL
+  // that is mailed out.
+  @Unindexed
+  public static final class PWData {
+    @Id public String id;              // "Secret" URL part
+    @Indexed public Date timestamp; // So we know when to expire this objects
+    public String email;            // Email of account in question
+  }
+
 }

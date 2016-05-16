@@ -9,6 +9,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 import java.util.List;
+import javax.servlet.http.HttpSession;
 
 import com.google.appinventor.server.flags.Flag;
 import com.google.appinventor.server.storage.StorageIo;
@@ -31,39 +32,58 @@ public class AdminInfoServiceImpl extends OdeRemoteServiceServlet implements Adm
   // Storage of user settings
   private final transient StorageIo storageIo = StorageIoInstanceHolder.INSTANCE;
 
+  // Access the higher level session object
+  // Note: If we want to do this from any other service, we should move this
+  // to OdeRemoveServiceServlet (our parent class)
+  protected final LocalSession localSession = LocalSession.getInstance();
+
   /**
    * Returns a list of AdminUsers, up to 20, based on the starting
    * point.
    */
 
-    @Override
-    public List<AdminUser> searchUsers(String startingPoint) {
-      if (!userInfoProvider.getIsAdmin()) {
-          throw new IllegalArgumentException("Unauthorized.");
-      }
-      return storageIo.searchUsers(startingPoint);
+  @Override
+  public List<AdminUser> searchUsers(String startingPoint) {
+    if (!userInfoProvider.getIsAdmin()) {
+      throw new IllegalArgumentException("Unauthorized.");
     }
+    return storageIo.searchUsers(startingPoint);
+  }
 
-    @Override
-    public void storeUser(AdminUser user) throws AdminInterfaceException {
-      if (!userInfoProvider.getIsAdmin()) {
-          throw new IllegalArgumentException("Unauthorized.");
-      }
-      // This is a bit of a kludge
-      // We hash the password here, replacing it in place
-      String password = user.getPassword();
-      String hashedPassword = "";
-      if (password != null && !password.equals("")) {
-          try {
-              hashedPassword = PasswordHash.createHash(password);
-              user.setPassword(hashedPassword);
-          } catch (NoSuchAlgorithmException e) {
-              throw new IllegalArgumentException("Error hashing password");
-          } catch (InvalidKeySpecException e) {
-              throw new IllegalArgumentException("Error hashing password");
-          }
-      }
-      storageIo.storeUser(user);
+  @Override
+  public void storeUser(AdminUser user) throws AdminInterfaceException {
+    if (!userInfoProvider.getIsAdmin()) {
+      throw new IllegalArgumentException("Unauthorized.");
     }
+    // This is a bit of a kludge
+    // We hash the password here, replacing it in place
+    String password = user.getPassword();
+    String hashedPassword = "";
+    if (password != null && !password.equals("")) {
+      try {
+        hashedPassword = PasswordHash.createHash(password);
+        user.setPassword(hashedPassword);
+      } catch (NoSuchAlgorithmException e) {
+        throw new IllegalArgumentException("Error hashing password");
+      } catch (InvalidKeySpecException e) {
+        throw new IllegalArgumentException("Error hashing password");
+      }
+    }
+    storageIo.storeUser(user);
+  }
 
+  @Override
+  public void switchUser(AdminUser user) throws AdminInterfaceException {
+    if (!userInfoProvider.getIsAdmin()) {
+      throw new IllegalArgumentException("Unauthorized.");
+    }
+    // BEWARE THIS IS A HACK
+    // We are going to switch users and set the readOnly flag
+    // When this call returns we depend on the client side doing a complete
+    // reload. It will then get a new User object based on these updated
+    // session fields.
+    HttpSession session = localSession.getSession();
+    session.setAttribute("userid", user.getId());
+    session.setAttribute("readonly", true);
+  }
 }

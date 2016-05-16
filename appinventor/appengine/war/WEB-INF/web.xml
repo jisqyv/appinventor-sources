@@ -39,7 +39,7 @@
 
   <!-- Servlets -->
 
-  <!-- Generate Login Page for OpenID -->
+  <!-- Generate Login Page -->
 
   <servlet>
     <servlet-name>LoginServlet</servlet-name>
@@ -49,6 +49,7 @@
     <servlet-name>LoginServlet</servlet-name>
     <url-pattern>/login/*</url-pattern>
   </servlet-mapping>
+
 
   <!-- rendezvious -->
   <servlet>
@@ -135,6 +136,21 @@
     <filter-name>odeAuthFilter</filter-name>
     <servlet-name>uploadServlet</servlet-name>
   </filter-mapping>
+
+  <!-- admininfo -->
+  <servlet>
+    <servlet-name>adminInfoService</servlet-name>
+    <servlet-class>com.google.appinventor.server.AdminInfoServiceImpl</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>adminInfoService</servlet-name>
+    <url-pattern>/ode/admininfo</url-pattern>
+  </servlet-mapping>
+  <filter-mapping>
+    <filter-name>odeAuthFilter</filter-name>
+    <servlet-name>adminInfoService</servlet-name>
+  </filter-mapping>
+
 
   <!-- admininfo -->
   <servlet>

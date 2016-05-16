@@ -146,6 +146,11 @@ public class Ode implements EntryPoint {
   // Nonce Information
   private String nonce;
 
+  // Read Only Flag: If true, the UI will not permit operations which permit
+  // write requests
+
+  private boolean isReadOnly;
+
   private String sessionId = generateUuid(); // Create new session id
 
   private Random random = new Random(); // For generating random nonce
@@ -319,6 +324,15 @@ public class Ode implements EntryPoint {
     // the button). When the person switches to the projects list view again (here)
     // we re-enable it.
     projectToolbar.enableStartButton();
+  }
+
+  /**
+   * Switch to the User Admin Panel
+   */
+
+  public void switchToUserAdminPanel() {
+    currentView = USERADMIN;
+    deckPanel.showWidget(userAdminTabIndex);
   }
 
   /**
@@ -515,8 +529,10 @@ public class Ode implements EntryPoint {
       public void onSuccess(Config result) {
         config = result;
         user = result.getUser();
+        isReadOnly = user.isReadOnly();
+
         // If user hasn't accepted terms of service, ask them to.
-        if (!user.getUserTosAccepted()) {
+        if (!user.getUserTosAccepted() && !isReadOnly) {
           // We expect that the redirect to the TOS page should be handled
           // by the onFailure method below. The server should return a
           // "forbidden" error if the TOS wasn't accepted.
@@ -1299,6 +1315,10 @@ public class Ode implements EntryPoint {
    */
   private void showSurveySplash() {
     // Create the UI elements of the DialogBox
+    if (isReadOnly) {           // Bypass the survey if we are read-only
+      maybeShowSplash();
+      return;
+    }
     final DialogBox dialogBox = new DialogBox(false, true); // DialogBox(autohide, modal)
     dialogBox.setStylePrimaryName("ode-DialogBox");
     dialogBox.setText(MESSAGES.createWelcomeDialogText());
@@ -1359,7 +1379,7 @@ public class Ode implements EntryPoint {
   }
 
   private void maybeShowSplash() {
-    if (AppInventorFeatures.showSplashScreen()) {
+    if (AppInventorFeatures.showSplashScreen() && !isReadOnly) {
       createWelcomeDialog(false);
     } else {
       openProjectsTab();
@@ -1913,6 +1933,16 @@ public class Ode implements EntryPoint {
     return nonce;
   }
 
+  public boolean isReadOnly() {
+    return isReadOnly;
+  }
+
+  // This is called from AdminUserList when we are switching users
+  // See the comment there...
+  public void setReadOnly() {
+    isReadOnly = true;
+  }
+
   // Code to lock out certain screen and project switching code
   // These are locked out while files are being saved
   // lockScreens(true) is called from EditorManager when it
@@ -1987,7 +2017,7 @@ public class Ode implements EntryPoint {
      });
   }-*/;
 
-  private static native void reloadWindow() /*-{
+  public static native void reloadWindow() /*-{
     top.location.reload();
   }-*/;
 

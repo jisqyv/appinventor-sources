@@ -64,6 +64,12 @@ public class OdeAuthFilter implements Filter {
 
     // Use Local Authentication
     String userid = (String) httpRequest.getSession().getAttribute("userid");
+    Object isReadOnlyObject = httpRequest.getSession().getAttribute("readonly");
+    boolean isReadOnly = false;
+    if (isReadOnlyObject != null) {
+      isReadOnly = (boolean) isReadOnlyObject;
+    }
+    LOG.info("isReadOnly = " + isReadOnly);
     if (userid == null) {        // Invalid Login
       LOG.info("userid is null on login.");
       httpResponse.setStatus(HttpServletResponse.SC_PRECONDITION_FAILED);
@@ -75,14 +81,18 @@ public class OdeAuthFilter implements Filter {
       isAdmin = (boolean) oIsAdmin;
     }
 
-    doMyFilter(userid, isAdmin, httpRequest, httpResponse, chain);
+    doMyFilter(userid, isAdmin, isReadOnly, httpRequest, httpResponse, chain);
   }
 
   @VisibleForTesting
-  void doMyFilter(String userid, boolean isAdmin, HttpServletRequest request, HttpServletResponse response, FilterChain chain)
-      throws IOException, ServletException {
+  void doMyFilter(String userid, boolean isAdmin, boolean isReadOnly,
+    HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+    throws IOException, ServletException {
 
-    setUserFromUserId(userid, isAdmin);
+    // Setup the user object for OdeRemoteServiceServlet
+    setUserFromUserId(userid, isAdmin, isReadOnly);
+    // Setup the session object for AdminInfoService
+    LocalSession.getInstance().set(request.getSession());
 
     // If using local login, we *must* have an email address because that is how we
     // find the UserData object.
@@ -101,7 +111,7 @@ public class OdeAuthFilter implements Filter {
       }
       // If user hasn't accepted terms of service, redirect them,
       // unless they're submitting the acceptance request.
-      if (!localUser.getUserTosAccepted() &&
+      if (!localUser.getUserTosAccepted() && !isReadOnly &&
           !request.getRequestURI().endsWith(ServerLayout.ACCEPT_TOS_SERVLET)) {
         // This indicates to the client side code that the user needs to accept
         // the terms of service. We don't send the redirect here because
@@ -137,12 +147,13 @@ public class OdeAuthFilter implements Filter {
    * <p>This method is called from {@link WebStartFileServlet} with the userId
    * that was encrypted in the URL.
    */
-  void setUserFromUserId(String userId, boolean isAdmin) {
+  void setUserFromUserId(String userId, boolean isAdmin, boolean isReadOnly) {
     User user = storageIo.getUser(userId);
     if (!user.getIsAdmin() && isAdmin) {
       user.setIsAdmin(true);    // If session says they are an admin (which is the case
                                 // if they are a Google Account with Developer access
     }
+    user.setReadOnly(isReadOnly);
     localUser.set(user);
   }
 

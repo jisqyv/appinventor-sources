@@ -7,7 +7,7 @@ getmail.fcgi receives that request and queues it using the RabbitMQ
 AMQP server on the “passmail” queue. The request itself is sent in a
 Protocol Buffer. The POST itself is sent via SSL and includes a
 password. This password is known to this code and to the App Engine
-service. This isn’t very security, but its purpose is to just prevent
+service. This isn’t super secure, but its purpose is to just prevent
 people who discover the REST interface from trivially using it to send
 annoying spam.
 

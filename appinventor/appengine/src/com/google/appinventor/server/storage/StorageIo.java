@@ -112,6 +112,28 @@ public interface StorageIo {
   String loadSettings(String userId);
 
   /**
+   * Sets the stored name for user with id userId
+   *
+   */
+  void setUserName(String userId, String name);
+
+  /**
+   * Returns a string with the user's name.
+   *
+   * @param userId user id
+   * @param hashed password
+   */
+  void setUserPassword(String userId, String password);
+
+  /**
+   * Returns a string with the user's settings.
+   *
+   * @param userId user id
+   * @return settings
+   */
+  String loadSettings(String userId);
+
+  /**
    * Stores a string with the user's settings.
    *
    * @param userId user ID

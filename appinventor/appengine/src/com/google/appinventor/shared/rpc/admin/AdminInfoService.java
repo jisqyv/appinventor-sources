@@ -31,6 +31,12 @@ public interface AdminInfoService extends RemoteService {
    * Update or Add a user.
    */
 
-  void storeUser(AdminUser user) throws AdminInterfaceException;;
+  void storeUser(AdminUser user) throws AdminInterfaceException;
+
+  /*
+   * Switch to a different account, but readonly
+   */
+
+  void switchUser(AdminUser user) throws AdminInterfaceException;
 
 }
