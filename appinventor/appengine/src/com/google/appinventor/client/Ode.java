@@ -336,15 +336,6 @@ public class Ode implements EntryPoint {
   }
 
   /**
-   * Switch to the User Admin Panel
-   */
-
-  public void switchToUserAdminPanel() {
-    currentView = USERADMIN;
-    deckPanel.showWidget(userAdminTabIndex);
-  }
-
-  /**
    * Switch to the Designer tab. Shows an error message if there is no currentFileEditor.
    */
   public void switchToDesignView() {
