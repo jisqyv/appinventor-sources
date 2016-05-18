@@ -16,3 +16,21 @@ port = 587
 # when starttls is used, if you care about certificate validate, point this
 # to a local java keystore file with the trusted root certificates you use.
 # keystore = 
+[other]
+require.tos = false
+auth.usegoogle = false
+auth.uselocal = true
+localauth.mailserver = https://osiris.mit.edu/passmail/
+localauth.mailserver.password = secret123
+motd.check.interval.secs = 0
+library.url = http://appinventor.mit.edu/explore/library
+get_started.url = http://appinventor.mit.edu/explore/get-started
+tutorials.url = http://appinventor.mit.edu/explore/ai2/tutorials
+troubleshooting.url = http://appinventor.mit.edu/explore/ai2/support/troubleshooting
+forums.url = https://groups.google.com/forum/#!forum/mitappinventortest
+feedback.url = http://something.example.com
+release.notes.url = http://appinventor.mit.edu/ai2/ReleaseNotes.html
+tos.url = /about/termsofservice.html
+logo.url = http://appinventor.mit.edu
+guide.url = http://appinventor.mit.edu/explore/library
+reference.components.url = /reference/components/

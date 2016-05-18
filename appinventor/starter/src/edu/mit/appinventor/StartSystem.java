@@ -2,18 +2,24 @@ package edu.mit.appinventor;
 
 import org.ini4j.Wini;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
+import java.io.FileOutputStream;
 import java.io.IOException;
 
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class StartSystem {
 
     private static final long expiration = 1441080000000L;  // September 1, 2015 Midnight UTC
 
     private static String storage = null;
+
 
     public static void main(String [] argv) {
       File execDir = new File(new File(StartSystem.class.getProtectionDomain().getCodeSource().getLocation().getPath()).getParent());
@@ -36,6 +42,9 @@ public class StartSystem {
       List<String> pArgs = new ArrayList<String>();
       pArgs.add("java");
 
+      ConfigBuilder config = new ConfigBuilder();
+      Map<String,String> other = null;
+
       try {
           Wini parser = new Wini(new File("appinventor.ini"));
           storage = parser.get("main", "storage");
@@ -46,22 +55,31 @@ public class StartSystem {
           String firebaseURL = parser.get("main", "firebaseurl");
           String firebaseSecret = parser.get("main", "firebasesecret");
           if (firebaseURL != null && firebaseSecret != null) {
-              pArgs.add("-Dfirebase.url=" + firebaseURL);
-              pArgs.add("-Dfirebase.secret=" + firebaseSecret);
+              config.add("firebase.url", firebaseURL);
+              config.add("firebase.secret", firebaseSecret);
           }
           if ((stls != null) && (stls.equals("true"))) {
-              pArgs.add("-Dmail.smtp.starttls.enable=true");
+              config.add("mail.smtp.starttls.enable", "true");
           }
           String smtpport = parser.get("mail", "port");
-          if (port != null) {
-              pArgs.add("-Dmail.smtp.port=" + smtpport);
+          if (smtpport != null) {
+              config.add("mail.smtp.port", smtpport);
           }
           String keystore = parser.get("mail", "keystore");
           if (keystore != null) {
-              pArgs.add("-Djavax.net.ssl.trustStore=" + keystore);
+              config.add("javax.net.ssl.trustStore", keystore);
           }
+          other = parser.get("other"); // Fetch the "other" section
       } catch (IOException e) {
           // Probably don't have ini file, non fatal
+      }
+
+      // Parse the "other" section. We iterate through all of the keys
+
+      Set<String> keys = other.keySet();
+      for (String key : keys) {
+          String value = other.get(key);
+          config.add(key, value);
       }
 
       if (argv.length < 1) {
@@ -73,17 +91,18 @@ public class StartSystem {
           storage = argv[0];    // Command line overrides
       }
 
-      pArgs.add("-Dstorage.root=" + storage);
+      config.add("storage.root", storage);
 
       if (mailhost != null) {
-          pArgs.add("-Dmail.smtp.host=" + mailhost);
+          config.add("mail.smtp.host", mailhost);
       }
       if (mailuser != null) {
-          pArgs.add("-Dmail.smtp.user=" + mailuser);
+          config.add("mail.smtp.user", mailuser);
       }
       if (mailpassword != null) {
-          pArgs.add("-Dmail.smtp.password=" + mailpassword);
+          config.add("mail.smtp.password", mailpassword);
       }
+      config.save();
       pArgs.add("-jar");
       pArgs.add("jetty-runner.jar");
       pArgs.add("--port");
@@ -139,8 +158,76 @@ public class StartSystem {
           build.waitFor();
       } catch (InterruptedException e) {
       }
-
-
     }
 
+    private static class ConfigBuilder {
+
+        private static String footer = " <Get name=\"sessionHandler\">\n" +
+          "     <Set name=\"sessionManager\">\n" +
+          "         <New class=\"org.eclipse.jetty.server.session.HashSessionManager\">\n" +
+          "           <Set name=\"sessionCookie\">AppInventorId</Set>\n" +
+          "           <Set name=\"lazyLoad\">true</Set>\n" +
+          "           <Set name=\"storeDirectory\"><SystemProperty name=\"storage.root\"/>/SESSIONS</Set>\n" +
+          "           <Set name=\"scavengePeriod\">600</Set>\n" +
+          "           <Set name=\"savePeriod\">300</Set>\n" +
+          "         </New>\n" +
+          "     </Set>\n" +
+          "  </Get>\n" +
+          "</Configure>\n";
+
+        // t1, t2 and t3 are template strings for writing out an XML file with the right goop
+        // to set system properties
+
+        private static String t1 = "   <Call class=\"java.lang.System\" name=\"setProperty\">\n" +
+          "      <Arg>";
+        private static String t2 = "</Arg>\n      <Arg>";
+        private static String t3 = "</Arg>\n   </Call>\n";
+        private StringBuffer config;
+
+        ConfigBuilder() {
+          config = new StringBuffer();
+        }
+
+        ConfigBuilder add(String prop, String value) {
+          config.append(t1);
+          config.append(prop);
+          config.append(t2);
+          config.append(value);
+          config.append(t3);
+          return this;
+        }
+
+        void save() {
+          try {
+              FileOutputStream out = new FileOutputStream("appinventor.xml");
+              out.write(readHeader().getBytes());
+              out.write(config.toString().getBytes());
+              out.write(footer.getBytes());
+              out.close();
+          } catch (IOException e) {
+              throw new RuntimeException(e); // XXX
+          }
+        }
+
+        String readHeader() {
+          String line = null;
+          StringBuffer header = new StringBuffer();
+          BufferedReader inr = null;
+          try {
+              inr = new BufferedReader(new FileReader("appinventor.tpl"));
+              while ((line = inr.readLine()) != null) {
+                  header.append(line + "\n");
+              }
+              return header.toString();
+          } catch (IOException e) {
+              throw new RuntimeException(e);
+          } finally {
+              if (inr != null)
+                  try {
+                      inr.close();
+                  } catch (IOException e) {
+                  }
+          }
+        }
+    }
 }
