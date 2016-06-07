@@ -11,6 +11,26 @@
     <filter-class>com.google.appinventor.server.OdeAuthFilter</filter-class>
   </filter>
 
+<!-- The "nonesuch" security role is a role that no one will -->
+<!-- ever have. The purpose is so we can restrict access to -->
+<!-- the keystore file, which should never be served over the -->
+<!-- web. It should really be moved to WEB-INF, but for now we -->
+<!-- want to remain compatible with the App Engine version of -->
+<!-- this code, so we leave it at top level, but protect it -->
+
+  <security-role>
+    <role-name>nonesuch</role-name>
+  </security-role>
+
+  <security-constraint>
+    <web-resource-collection>
+      <url-pattern>/keystore/*</url-pattern>
+    </web-resource-collection>
+    <auth-constraint>
+      <role-name>nonesuch</role-name>
+    </auth-constraint>
+  </security-constraint>
+
   <!-- Security constraints: require login for these urls -->
   <!-- This is how we implement Google Account login -->
 
