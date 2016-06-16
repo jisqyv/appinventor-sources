@@ -15,6 +15,7 @@ import com.google.appinventor.client.TopToolbar;
 import com.google.appinventor.client.TranslationComponentParams;
 import com.google.appinventor.client.TranslationDesignerPallete;
 import com.google.appinventor.client.editor.simple.SimpleComponentDatabase;
+import com.google.appinventor.client.explorer.project.ComponentDatabaseChangeListener;
 import com.google.appinventor.client.output.OdeLog;
 import com.google.appinventor.shared.rpc.project.ProjectServiceAsync;
 import com.google.appinventor.components.common.YaVersion;
@@ -51,7 +52,7 @@ import static com.google.appinventor.client.Ode.MESSAGES;
  *
  * @author sharon@google.com (Sharon Perl)
  */
-public class BlocklyPanel extends HTMLPanel {
+public class BlocklyPanel extends HTMLPanel implements ComponentDatabaseChangeListener{
   public static enum OpType {ADD, REMOVE, RENAME}
 
   // The currently displayed form (project/screen)
@@ -72,8 +73,7 @@ public class BlocklyPanel extends HTMLPanel {
     public boolean error = false;     // true if got an error loading blocks
   }
 
-  private static final SimpleComponentDatabase COMPONENT_DATABASE =
-    SimpleComponentDatabase.getInstance();
+  private final SimpleComponentDatabase COMPONENT_DATABASE;
 
   private static final String EDITOR_HTML =
     "<style>\n" +
@@ -138,6 +138,7 @@ public class BlocklyPanel extends HTMLPanel {
     super(EDITOR_HTML.replace("FORM_NAME", formName));
     this.formName = formName;
     this.myBlocksEditor = blocksEditor;
+    COMPONENT_DATABASE = SimpleComponentDatabase.getInstance(blocksEditor.getProjectId());
     componentOps.put(formName, new ArrayList<ComponentOp>());
     // note: using Maps.newHashMap() gives a type error in Eclipse in the following line
     currentComponents.put(formName, new HashMap<String, ComponentOp>());
@@ -822,10 +823,29 @@ public class BlocklyPanel extends HTMLPanel {
     return TranslationDesignerPallete.getCorrespondingString(key);
   }
 
+  @Override
+  public void onComponentTypeAdded(List<String> componentTypes) {
+    populateComponentTypes(formName);
+  }
+
+  @Override
+  public boolean beforeComponentTypeRemoved(List<String> componentTypes) {
+    return true;
+  }
+
+  @Override
+  public void onComponentTypeRemoved(Map<String, String> componentTypes) {
+    populateComponentTypes(formName);
+  }
+
+  @Override
+  public void onResetDatabase() {
+    populateComponentTypes(formName);
+  }
   // ------------ Native methods ------------
 
   /**
-   * Take a Javascript function, embedded in an opague JavaScriptObject,
+   * Take a Javascript function, embedded in an opaque JavaScriptObject,
    * and call it.
    *
    * @param callback the Javascript callback.
@@ -1028,5 +1048,12 @@ public class BlocklyPanel extends HTMLPanel {
 
   public static native String getURL() /*-{
     return $wnd.location.href;
+  }-*/;
+
+  /*
+   * Update Component Types in Blockly ComponentTypes
+   */
+  public static native void populateComponentTypes(String formName) /*-{
+      $wnd.Blocklies[formName].ComponentTypes.populateTypes();
   }-*/;
 }

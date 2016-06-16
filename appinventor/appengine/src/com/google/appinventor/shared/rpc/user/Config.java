@@ -24,6 +24,7 @@ public class Config implements IsSerializable, Serializable {
   private String libraryUrl;
   private String getStartedUrl;
   private String tutorialsUrl;
+  private String extensionsUrl;
   private String troubleshootingUrl;
   private String forumsUrl;
   private String feedbackUrl;
@@ -93,8 +94,16 @@ public class Config implements IsSerializable, Serializable {
     this.getStartedUrl = getStartedUrl;
   }
 
+  public String getExtensionsUrl() {
+    return extensionsUrl;
+  }
+
   public String getTutorialsUrl() {
     return tutorialsUrl;
+  }
+
+  public void setExtensionsUrl(String extensionsUrl) {
+    this.extensionsUrl = extensionsUrl;
   }
 
   public void setTutorialsUrl(String tutorialsUrl) {

@@ -7,55 +7,54 @@ package com.google.appinventor.server.storage;
 import com.google.appinventor.server.CrashReport;
 import com.google.appinventor.server.FileExporter;
 import com.google.appinventor.server.flags.Flag;
+
 import com.google.appinventor.server.storage.StoredData.PWData;
+
 import com.google.appinventor.server.util.LicenseConfig;
+
+import com.google.appinventor.shared.rpc.AdminInterfaceException;
 import com.google.appinventor.shared.rpc.BlocksTruncatedException;
 import com.google.appinventor.shared.rpc.Motd;
 import com.google.appinventor.shared.rpc.Nonce;
-import com.google.appinventor.shared.rpc.AdminInterfaceException;
 import com.google.appinventor.shared.rpc.admin.AdminUser;
+
 import com.google.appinventor.shared.rpc.project.Project;
 import com.google.appinventor.shared.rpc.project.ProjectSourceZip;
 import com.google.appinventor.shared.rpc.project.RawFile;
 import com.google.appinventor.shared.rpc.project.TextFile;
 import com.google.appinventor.shared.rpc.project.UserProject;
 import com.google.appinventor.shared.rpc.project.youngandroid.YoungAndroidProjectNode;
+
 import com.google.appinventor.shared.rpc.user.SplashConfig;
 import com.google.appinventor.shared.rpc.user.User;
+
 import com.google.appinventor.shared.storage.StorageUtil;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
-import com.google.common.io.ByteStreams;
 
 import java.io.ByteArrayOutputStream;
-
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.PreparedStatement;
 import java.sql.Statement;
-import java.nio.channels.Channels;
-import java.nio.ByteBuffer;
+
 import java.util.ArrayList;
-import java.util.ConcurrentModificationException;
+import java.util.Date;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
-import java.util.Date;
-import java.util.UUID;
 
 import javax.annotation.Nullable;
 
@@ -1163,6 +1162,7 @@ public class LocalStorageIo implements  StorageIo {
                                                  final boolean includeProjectHistory,
                                                  final boolean includeAndroidKeystore,
                                                  @Nullable String zipName, boolean includeYail,
+                                                 boolean forGallery,
                                                  boolean fatalError) throws IOException {
     int fileCount = 0;
     ByteArrayOutputStream zipFile = new ByteArrayOutputStream();
@@ -1733,6 +1733,56 @@ public class LocalStorageIo implements  StorageIo {
       conn = null;
       throw CrashReport.createAndLogError(LOG, null, null, e);
     }
+  }
+
+  @Override
+  public String uploadTempFile(byte [] content) throws IOException {
+    File tempPath = new File(storageRoot.get() + "/__TEMP__");
+    if (!tempPath.exists()) {
+      tempPath.mkdir();
+    } else if (!tempPath.isDirectory()) {
+      try {
+        throw new IOException("tempPath is not a directory!");
+      } catch (IOException e) {
+        throw CrashReport.createAndLogError(LOG, null, null, e);
+      }
+    }
+    String fileName = "__TEMP__/" + UUID.randomUUID().toString();
+    tempPath = new File(storageRoot.get() + "/" + fileName);
+    LOG.log(Level.INFO, "Creating Temp file " + fileName);
+    boolean done = false;
+    try {
+      FileOutputStream fout = new FileOutputStream(tempPath);
+      fout.write(content);
+      fout.close();
+      done = true;
+    } finally {
+      if (!done) {              // Something went wrong, cleanup
+        tempPath.delete();
+      }
+    }
+    return fileName;
+  }
+
+  @Override
+  public InputStream openTempFile(String fileName) throws IOException {
+    File tempPath = new File(storageRoot.get() + "/" + fileName);
+    LOG.log(Level.INFO, "Opening " + tempPath);
+    return new FileInputStream(tempPath);
+  }
+
+  @Override
+  public void deleteTempFile(String fileName) throws IOException {
+    if (fileName.indexOf(".") != -1) {
+      try {
+        throw new IOException("Invalid character in temp file name.");
+      } catch (IOException e) {
+        throw CrashReport.createAndLogError(LOG, null, null, e);
+      }
+    }
+    File tempPath = new File(storageRoot.get() + "/" + fileName);
+    tempPath.delete();
+    LOG.log(Level.INFO, "Deleting " + tempPath);
   }
 
   private static String collectUserErrorInfo(final String userId) {

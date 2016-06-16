@@ -136,6 +136,22 @@ public abstract class CommonProjectService {
   }
 
   /**
+   * Deletes all files and folders that are inside the given directory. The given directory itself is deleted.
+   * @param userId the user Id
+   * @param projectId project ID
+   * @param directoy path of the directory
+   */
+  public void deleteFolder(String userId, long projectId, String directory) {
+    // TODO(user) : This is also not efficient
+    for (String fileId : storageIo.getProjectSourceFiles(userId, projectId)) {
+      if (fileId.startsWith(directory)) {
+        storageIo.deleteFile(userId, projectId, fileId);
+        storageIo.removeSourceFilesFromProject(userId, projectId, false, fileId);
+      }
+    }
+  }
+
+  /**
    * Loads the file information associated with a node in the project tree. The
    * actual return value depends on the file kind. Source (text) files should
    * typically return their contents. Image files will be more likely to return

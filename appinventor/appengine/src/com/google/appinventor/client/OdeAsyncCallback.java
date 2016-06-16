@@ -6,6 +6,8 @@
 
 package com.google.appinventor.client;
 
+import com.google.appinventor.client.output.OdeLog;
+
 import com.google.appinventor.shared.rpc.BlocksTruncatedException;
 import com.google.appinventor.shared.rpc.InvalidSessionException;
 import com.google.appinventor.shared.rpc.project.ChecksumedFileException;
@@ -70,13 +72,12 @@ public abstract class OdeAsyncCallback<T> implements AsyncCallback<T> {
       ErrorReporter.reportError("Caught BlocksTruncatedException");
       return;
     }
-    if (caught instanceof StatusCodeException) {
-      StatusCodeException e = (StatusCodeException) caught;
-      int statusCode = e.getStatusCode();
-      if (statusCode == Response.SC_PRECONDITION_FAILED) { // Session Timeout...
-        Window.Location.replace("/login/");
-        return;                 // Not reached
-      }
+    // SC_PRECONDITION_FAILED if our session has expired or login cookie
+    // has become invalid
+    if ((caught instanceof StatusCodeException) &&
+      ((StatusCodeException)caught).getStatusCode() == Response.SC_PRECONDITION_FAILED) {
+      Ode.getInstance().sessionDead();
+      return;
     }
 
     String errorMessage =
