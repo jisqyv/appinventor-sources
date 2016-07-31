@@ -14,12 +14,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.keyczar.KeyczarTool;
+
 public class StartSystem {
 
-    private static final long expiration = 1441080000000L;  // September 1, 2015 Midnight UTC
-
     private static String storage = null;
-
 
     public static void main(String [] argv) {
       File execDir = new File(new File(StartSystem.class.getProtectionDomain().getCodeSource().getLocation().getPath()).getParent());
@@ -31,13 +30,18 @@ public class StartSystem {
       String mailpassword = null;
       boolean useStartTls = false;
 
-      // Expiration Check
-      // if (System.currentTimeMillis() > expiration) {
-      //     System.err.println("This copy of the Local App Inventor Server has expired, please get an updated version");
-      //     System.exit(1);
-      // } else {
-      //     System.err.println("This copy of MIT App Inventor expires on: " + new java.util.Date(expiration));
-      // }
+      // See if we have the "makeauthkey" argument
+      if (argv.length > 0 && argv[0].equals("makeauthkey")) {
+          System.out.println("Building the AuthKey");
+          makeAuthKey();
+          System.exit(0);
+      } else {
+          System.out.println("Normal Startup");
+          if (!verifyAuthKey()) {
+              System.err.println("authkey is missing, use \"makeauthkey\" argument to create it.");
+              System.exit(1);
+          }
+      }
 
       List<String> pArgs = new ArrayList<String>();
       pArgs.add("java");
@@ -71,7 +75,8 @@ public class StartSystem {
           }
           other = parser.get("other"); // Fetch the "other" section
       } catch (IOException e) {
-          // Probably don't have ini file, non fatal
+          System.err.println("Missing appinventor.ini file. Please create from sample");
+          System.exit(1);
       }
 
       // Parse the "other" section. We iterate through all of the keys
@@ -158,6 +163,31 @@ public class StartSystem {
           build.waitFor();
       } catch (InterruptedException e) {
       }
+    }
+
+    private static boolean verifyAuthKey() {
+      File meta = new File("authkey/meta");
+      if (meta.isFile()) {
+          return true;
+      } else {
+          return false;
+      }
+    }
+
+    private static void makeAuthKey() {
+      if (verifyAuthKey()) {
+          System.err.println("authkey is present, will not over-write.");
+          System.exit(1);
+      }
+      File authkeydir = new File("authkey");
+      authkeydir.mkdirs();
+      runKeyCzar("create", "--location=authkey", "--purpose=crypt");
+      runKeyCzar("addkey", "--location=authkey", "--size=128");
+      runKeyCzar("promote", "--location=authkey", "--version=1");
+    }
+
+    private static void runKeyCzar(String... args) {
+      KeyczarTool.main(args);
     }
 
     private static class ConfigBuilder {

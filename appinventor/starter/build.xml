@@ -22,6 +22,7 @@
       <include name="${starter.pkg}/*.java" />
       <classpath>
         <pathelement location="${locallib.dir}/ini4j-0.5.2.jar" />
+        <pathelement location="${locallib.dir}/KeyczarTool.jar" />
       </classpath>
     </javac>
 
