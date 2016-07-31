@@ -1,5 +1,5 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2014-2015 MIT, All rights reserved.
+// Copyright 2014-2016 MIT, All rights reserved.
 // This is unreleased code.
 
 package com.google.appinventor.server;
@@ -49,9 +49,13 @@ import javax.mail.internet.MimeMessage;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
+import org.owasp.html.HtmlPolicyBuilder;
+import org.owasp.html.PolicyFactory;
 
 /**
  * LoginServlet -- Handle logging someone in using an email address for a login
@@ -73,9 +77,8 @@ public class LoginServlet extends HttpServlet {
   private static final Logger LOG = Logger.getLogger(LoginServlet.class.getName());
   private static final Flag<String> mailServer = Flag.createFlag("localauth.mailserver", "");
   private static final Flag<String> password = Flag.createFlag("localauth.mailserver.password", "");
-  private static final Flag<Boolean> useGoogle = Flag.createFlag("auth.usegoogle", true);
-  private static final Flag<Boolean> useLocal = Flag.createFlag("auth.uselocal", false);
   private static final ExecutorService executorService = Executors.newCachedThreadPool();
+  private final PolicyFactory sanitizer = new HtmlPolicyBuilder().allowElements("p").toFactory();
 
   public void init(ServletConfig config) throws ServletException {
     super.init(config);
@@ -83,35 +86,27 @@ public class LoginServlet extends HttpServlet {
 
   protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     resp.setContentType("text/html; charset=utf-8");
-    PrintWriter out = resp.getWriter();
 
+    PrintWriter out;
     String [] components = req.getRequestURI().split("/");
     LOG.info("requestURI = " + req.getRequestURI());
     String page = getPage(req);
-    String locale = (String) req.getSession().getAttribute("locale");
-    if (locale == null) {       // Default to English
-      locale = "en";
-    }
+
+    OdeAuthFilter.UserInfo userInfo = OdeAuthFilter.getUserInfo(req);
+
     String queryString = req.getQueryString();
     HashMap<String, String> params = getQueryMap(queryString);
-    String pLocale = params.get("locale");
-    if (pLocale != null) {
-      if (!pLocale.equals(locale)) { // Hmmm, changed the locale did we...
-        locale = pLocale;
-        req.getSession().setAttribute("locale", locale);
-      }
+    // These params are passed around so they can take effect even if we
+    // were not logged in.
+    String locale = params.get("locale");
+    if (locale == null) {
+      locale = "en";
     }
+    String repo = params.get("repo");
+    String galleryId = params.get("galleryId");
+
     LOG.info("locale = " + locale + " bundle: " + new Locale(locale));
     ResourceBundle bundle = ResourceBundle.getBundle("com/google/appinventor/server/loginmessages", new Locale(locale));
-
-    if (useLocal.get() == false) {
-      out.println("<html><head><title>Error</title></head>\n");
-      out.println("<body><h1>App Inventor is Mis-Configured</h1>\n");
-      out.println("<p>This instance of App Inventor has no authentication mechanism configured.</p>\n");
-      out.println("</body>\n");
-      out.println("</html>\n");
-      return;
-    }
 
     // If we get here, local accounts are supported
 
@@ -128,7 +123,10 @@ public class LoginServlet extends HttpServlet {
       }
       LOG.info("setpw email = " + data.email);
       User user = storageIo.getUserFromEmail(data.email);
-      req.getSession().setAttribute("userid", user.getUserId()); // This effectively logs us in!
+      userInfo = new OdeAuthFilter.UserInfo(); // Create new userInfo object
+      userInfo.setUserId(user.getUserId()); // This effectively logs us in!
+      out = setCookieOutput(userInfo, resp);
+//      req.getSession().setAttribute("userid", user.getUserId()); // This effectively logs us in!
       out.println("<html><head><title>Set Your Password</title>\n");
       out.println("</head>\n<body>\n");
       out.println("<h1>" + bundle.getString("setyourpassword") + "</h1>\n");
@@ -140,12 +138,14 @@ public class LoginServlet extends HttpServlet {
       storageIo.cleanuppwdata();
       return;
     } else if (page.equals("linksent")) {
+      out = setCookieOutput(userInfo, resp);
       out.println("<html><head><title>" + bundle.getString("linksent") + "</title></head>\n");
       out.println("<body>\n");
       out.println("<h1>" + bundle.getString("linksent") + "</h1>\n");
       out.println("<p>" + bundle.getString("checkemail") + "</p>\n");
       return;
     } else if (page.equals("sendlink")) {
+      out = setCookieOutput(userInfo, resp);
       out.println("<head><title>" + bundle.getString("requestreset") + "</title></head>\n");
       out.println("<body>\n");
       out.println("<h1>" + bundle.getString("requestlink") + "</h1>\n");
@@ -164,11 +164,7 @@ public class LoginServlet extends HttpServlet {
     String passwordclickhere = bundle.getString("passwordclickhere");
 
     req.setCharacterEncoding("UTF-8");
-    if (useGoogle.get()) {
-      req.setAttribute("useGoogleLabel", "true");
-    } else {
-      req.setAttribute("useGoogleLabel", "false");
-    }
+    req.setAttribute("useGoogleLabel", "false");
     req.setAttribute("emailAddressLabel", emailAddress);
     req.setAttribute("passwordLabel", password);
     req.setAttribute("loginLabel", login);
@@ -176,6 +172,9 @@ public class LoginServlet extends HttpServlet {
     req.setAttribute("localeLabel", locale);
     req.setAttribute("pleaselogin", bundle.getString("pleaselogin"));
     req.setAttribute("login", bundle.getString("login"));
+    req.setAttribute("repo", repo);
+    req.setAttribute("locale", locale);
+    req.setAttribute("galleryId", galleryId);
     try {
       req.getRequestDispatcher("/login.jsp").forward(req, resp);
     } catch (ServletException e) {
@@ -186,23 +185,33 @@ public class LoginServlet extends HttpServlet {
   protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     BufferedReader input = new BufferedReader(new InputStreamReader(req.getInputStream()));
     String queryString = input.readLine();
-    PrintWriter out = resp.getWriter();
 
-    String locale = (String) req.getSession().getAttribute("locale");
-    if (locale == null) {
-      locale = "en";
+    PrintWriter out;
+
+    OdeAuthFilter.UserInfo userInfo = OdeAuthFilter.getUserInfo(req);
+
+    if (userInfo == null) {
+      userInfo = new OdeAuthFilter.UserInfo();
     }
 
-    LOG.info("locale = " + locale + " bundle: " + new Locale(locale));
-    ResourceBundle bundle = ResourceBundle.getBundle("com/google/appinventor/server/loginmessages", new Locale(locale));
-
     if (queryString == null) {
+      out = setCookieOutput(userInfo, resp);
       out.println("queryString is null");
       return;
     }
 
     HashMap<String, String> params = getQueryMap(queryString);
     String page = getPage(req);
+    String locale = params.get("locale");
+    if (locale == null) {
+      locale = "en";
+    }
+
+    ResourceBundle bundle = ResourceBundle.getBundle("com/google/appinventor/server/loginmessages", new Locale(locale));
+
+    String repo = params.get("repo");
+    String galleryId = params.get("galleryId");
+    LOG.info("locale = " + locale + " bundle: " + new Locale(locale));
     if (page.equals("sendlink")) {
       String email = params.get("email");
       if (email == null) {
@@ -218,17 +227,14 @@ public class LoginServlet extends HttpServlet {
       String link = trimPage(req) + pwData.id + "/setpw";
       sendmail(email, link, locale);
       resp.sendRedirect("/login/linksent/");
-//      req.getSession().setAttribute("error", link);
-//      resp.sendRedirect("/");
       storageIo.cleanuppwdata();
       return;
     } else if (page.equals("setpw")) {
-      String userid = (String) req.getSession().getAttribute("userid");
-      if (userid == null) {
+      if (userInfo == null || userInfo.getUserId().equals("")) {
         fail(req, resp, "Session Timed Out");
         return;
       }
-      User user = storageIo.getUser(userid);
+      User user = storageIo.getUser(userInfo.getUserId());
       String password = params.get("password");
       if (password == null || password.equals("")) {
         fail(req, resp, bundle.getString("nopassword"));
@@ -246,10 +252,7 @@ public class LoginServlet extends HttpServlet {
       }
 
       storageIo.setUserPassword(user.getUserId(),  hashedPassword);
-      String uri = "/";
-      if (!locale.equals("en")) {
-        uri += "?locale=" + locale;
-      }
+      String uri = buildUri("/", locale, repo, galleryId);
       resp.sendRedirect(uri);   // Logged in, go to service
       return;
     }
@@ -276,12 +279,18 @@ public class LoginServlet extends HttpServlet {
       return;
     }
 
-    req.getSession().setAttribute("userid", user.getUserId());
-
-    String uri = "/";
-    if (!locale.equals("en")) {
-      uri += "?locale=" + locale;
+    LOG.info("userInfo = " + userInfo + " user = " + user);
+    userInfo.setUserId(user.getUserId());
+    userInfo.setIsAdmin(user.getIsAdmin());
+    String newCookie = userInfo.buildCookie(false);
+    LOG.info("newCookie = " + newCookie);
+    if (newCookie != null) {
+      Cookie cook = new Cookie("AppInventor", newCookie);
+      cook.setPath("/");
+      resp.addCookie(cook);
     }
+
+    String uri = buildUri("/", locale, repo, galleryId);
     resp.sendRedirect(uri);
   }
 
@@ -329,9 +338,7 @@ public class LoginServlet extends HttpServlet {
   }
 
   private void fail(HttpServletRequest req, HttpServletResponse resp, String error) throws IOException {
-    req.getSession().setAttribute("error", error);
-    req.getSession().removeAttribute("email"); // Make sure we are not logged in
-    resp.sendRedirect("/login/");
+    resp.sendRedirect("/login/?error=" + sanitizer.sanitize(error));
     return;
   }
 
@@ -429,6 +436,37 @@ public class LoginServlet extends HttpServlet {
           }
         }
       });
+  }
+
+  private PrintWriter setCookieOutput(OdeAuthFilter.UserInfo userInfo, HttpServletResponse resp)
+    throws IOException {
+    if (userInfo != null) {     // if we never had logged in, this will be null!
+      String newCookie = userInfo.buildCookie(true);
+      if (newCookie != null) {
+        Cookie cook = new Cookie("AppInventor", newCookie);
+        cook.setPath("/");
+        resp.addCookie(cook);
+      }
+    }
+    resp.setContentType("text/html; charset=utf-8");
+    PrintWriter out = resp.getWriter();
+    return out;
+  }
+
+  private String buildUri(String uri, String locale, String repo, String galleryId) {
+    String separator = "?";
+    if (locale != null && !locale.equals("")) {
+      uri += separator + "locale=" + locale;
+      separator = "&";
+    }
+    if (repo != null && !repo.equals("")) {
+      uri += separator + "repo=" + repo;
+      separator = "&";
+    }
+    if (galleryId != null && !galleryId.equals("")) {
+      uri += separator + "galleryId=" + galleryId;
+    }
+    return (uri);
   }
 
 }
