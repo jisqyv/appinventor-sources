@@ -1,5 +1,5 @@
 <%@page import="javax.servlet.http.HttpServletRequest"%>
-<%@page contentType="text/html" pageEncoding="UTF-8"%>
+<%@page contentType="text/html" pageEncoding="UTF-8" session="false" %>
 <%!
    public String buildUri(String uri, String locale, String repo, String galleryId) {
      String separator = "?";

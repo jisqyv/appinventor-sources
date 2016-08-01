@@ -288,10 +288,6 @@
     <url-pattern>/ode2/receivebuild/*</url-pattern>
   </servlet-mapping>
 
-  <session-config>
-    <session-timeout>60</session-timeout>
-  </session-config>
-
   <!-- default Firebase authentication -->
   <servlet>
     <servlet-name>firebaseAuthService</servlet-name>
