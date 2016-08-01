@@ -66,7 +66,7 @@ out.println("<center><font color=red><b>" + error + "</b></font></center><br/>")
 <center><input type=Submit value="${login}" style="font-size: 300%;"></center>
 </form>
 <p></p>
-<center><p><a href="/login/sendlink"  style="text-decoration:none;">${passwordclickhereLabel}</a></p></center>
+<center><p><a href="<%= buildUri("/login/sendlink", locale, null, null) %>" style="text-decoration:none;">${passwordclickhereLabel}</a></p></center>
 <%    if (useGoogleLabel != null && useGoogleLabel.equals("true")) { %>
 <center><p><a href="<%= buildUri("/login/google", locale, repo, galleryId) %>" style="text-decoration:none;">Click Here to use your Google Account to login</a></p></center>
 <%    } %>
