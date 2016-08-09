@@ -65,6 +65,7 @@ public class UserInfoServiceImpl extends OdeRemoteServiceServlet implements User
     config.setGuideUrl(Flag.createFlag("guide.url", "").get());
     config.setReferenceComponentsUrl(Flag.createFlag("reference.components.url", "").get());
     config.setFirebaseURL(Flag.createFlag("firebase.url", "").get());
+    config.setNoop(Flag.createFlag("session.noop", 0).get());
 
     return config;
   }
@@ -130,6 +131,15 @@ public class UserInfoServiceImpl extends OdeRemoteServiceServlet implements User
     LicenseConfig conf = storageIo.getLicenseConfig();
     conf.setAuthCode(authCode);
     storageIo.setLicenseConfig(conf);
+  }
+
+  /**
+   * No-Op (No Operation). However because we are going through
+   * OdeAuthFilter to get this far, a session cookie due for renewal
+   * will be renewed.
+   */
+  @Override
+  public void noop() {
   }
 
 }

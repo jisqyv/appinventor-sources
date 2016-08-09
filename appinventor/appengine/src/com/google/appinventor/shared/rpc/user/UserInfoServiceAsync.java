@@ -48,4 +48,9 @@ public interface UserInfoServiceAsync {
 
   void setAuthCode(String authCode, AsyncCallback<Void> callback);
 
+  /**
+   * @see UserInfoService#noop(String)
+   */
+  void noop(AsyncCallback<Void> callback);
+
 }
