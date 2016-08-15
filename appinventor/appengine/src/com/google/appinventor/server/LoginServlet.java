@@ -5,6 +5,16 @@
 package com.google.appinventor.server;
 
 import com.google.appinventor.server.flags.Flag;
+import java.security.GeneralSecurityException;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+
+import com.google.api.client.json.JsonFactory;
+import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.http.HttpTransport;
+import java.util.Arrays;
 
 import com.google.appinventor.server.storage.StorageIo;
 import com.google.appinventor.server.storage.StorageIoInstanceHolder;
@@ -40,6 +50,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import java.util.logging.Logger;
+import java.util.logging.Level;
 
 import javax.mail.Message;
 import javax.mail.MessagingException;
@@ -77,6 +88,8 @@ public class LoginServlet extends HttpServlet {
   private static final Logger LOG = Logger.getLogger(LoginServlet.class.getName());
   private static final Flag<String> mailServer = Flag.createFlag("localauth.mailserver", "");
   private static final Flag<String> password = Flag.createFlag("localauth.mailserver.password", "");
+  private static final boolean useGoogle = Flag.createFlag("auth.usegoogle", false).get();
+  private static final String googleClientId = Flag.createFlag("auth.googleclientid", "").get();
   private static final ExecutorService executorService = Executors.newCachedThreadPool();
   private final PolicyFactory sanitizer = new HtmlPolicyBuilder().allowElements("p").toFactory();
 
@@ -165,7 +178,6 @@ public class LoginServlet extends HttpServlet {
     String passwordclickhere = bundle.getString("passwordclickhere");
 
     req.setCharacterEncoding("UTF-8");
-    req.setAttribute("useGoogleLabel", "false");
     req.setAttribute("emailAddressLabel", emailAddress);
     req.setAttribute("passwordLabel", password);
     req.setAttribute("loginLabel", login);
@@ -202,6 +214,46 @@ public class LoginServlet extends HttpServlet {
     }
 
     HashMap<String, String> params = getQueryMap(queryString);
+
+    if (useGoogle) {
+      String idToken = params.get("idtoken");
+      if (idToken != null) {      // This is an xhr request from login.jsp, a Google Login
+        GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(),
+          new JacksonFactory())
+          .setAudience(Arrays.asList(googleClientId))
+          // If you retrieved the token on Android using the Play
+          // Services 8.3 API or newer, set the issuer to
+          // "https://accounts.google.com". Otherwise, set the issuer to
+          // "accounts.google.com". If you need to verify tokens from
+          // multiple sources, build a GoogleIdTokenVerifier for each
+          // issuer and try them both.
+          .setIssuer("accounts.google.com")
+          .build();
+        GoogleIdToken token = null;
+        try {
+          token = verifier.verify(idToken);
+        } catch (GeneralSecurityException e) {
+          resp.setStatus(resp.SC_FORBIDDEN);
+          LOG.log(Level.WARNING, "Failure with Google Token", e);
+          return;
+        }
+        Payload payload = token.getPayload();
+        String email = payload.getEmail();
+        LOG.info("Google Login, Email = " + email);
+        User user = storageIo.getUserFromEmail(email);
+        userInfo = new OdeAuthFilter.UserInfo();
+        userInfo.setUserId(user.getUserId());
+        userInfo.setIsAdmin(user.getIsAdmin());
+        String newCookie = userInfo.buildCookie(false);
+        if (newCookie != null) {
+          Cookie cook = new Cookie("AppInventor", newCookie);
+          cook.setPath("/");
+          resp.addCookie(cook);
+        }
+        resp.setStatus(resp.SC_OK);
+        return;
+      }
+    }
     String page = getPage(req);
     String locale = params.get("locale");
     if (locale == null) {

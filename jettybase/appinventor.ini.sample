@@ -18,8 +18,12 @@ port = 587
 # keystore = 
 [other]
 require.tos = false
-auth.usegoogle = false
 auth.uselocal = true
+# Set auth.usegoogle to true to use Google Authentication. If set to true
+# you must set auth.googleclientid to the Google issues Client ID that you
+# obtain from the Google Cloud Console (via the API section)
+auth.usegoogle = false
+auth.googleclientid = none
 localauth.mailserver = https://osiris.mit.edu/passmail/
 localauth.mailserver.password = secret123
 motd.check.interval.secs = 0

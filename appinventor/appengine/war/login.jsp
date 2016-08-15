@@ -1,4 +1,5 @@
 <%@page import="javax.servlet.http.HttpServletRequest"%>
+<%@page import="com.google.appinventor.server.flags.Flag"%>
 <%@page contentType="text/html" pageEncoding="UTF-8" session="false" %>
 <%!
    public String buildUri(String uri, String locale, String repo, String galleryId) {
@@ -20,14 +21,14 @@
 <!doctype html>
 <%
    String error = request.getParameter("error");
-   String useGoogleLabel = (String) request.getAttribute("useGoogleLabel");
    String locale = request.getParameter("locale");
    String repo = (String) request.getAttribute("repo");
    String galleryId = (String) request.getAttribute("galleryId");
+   boolean useGoogle = Flag.createFlag("auth.usegoogle", false).get();
+   String googleClientId = Flag.createFlag("auth.googleclientid", "").get();
    if (locale == null) {
        locale = "en";
    }
-
 %>
 <html>
   <head>
@@ -36,7 +37,87 @@
     <meta HTTP-EQUIV="Cache-Control" CONTENT="no-cache, must-revalidate"/>
     <meta HTTP-EQUIV="expires" CONTENT="0"/>
     <title>MIT App Inventor</title>
+    <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet" type="text/css"/>
+<% if (useGoogle) { %>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+    <script src="https://apis.google.com/js/client:platform.js?onload=start" async defer></script>
+    <script language=javascript>
+    // When we load the login page, make sure we start out by being
+    // logged out from Google
+    var auth2;
+    var start = function() {
+      gapi.load('auth2', function() {
+         gapi.auth2.init({ client_id: "<%= googleClientId %>" })
+           .then(function () {
+                  auth2 = gapi.auth2.getAuthInstance();
+                  auth2.signOut();
+                  attachSignin(document.getElementById('customBtn'), auth2);
+           });
+      });
+    };
+    function attachSignin(element, auth2) {
+      console.log(element.id);
+      auth2.attachClickHandler(element, {},
+           function(googleUser) {
+             document.getElementById('name').innerText = "Signed in: " +
+               googleUser.getBasicProfile().getName();
+             SignInCallback(googleUser);
+           }, function(error) {
+             alert(JSON.stringify(error, undefined, 2));
+           });
+    };
+    function SignInCallback(googleUser) {
+       xhr = new XMLHttpRequest();
+       xhr.open('POST', '/login/');
+       xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+       xhr.onreadystatechange = function() {
+            if (this.readyState != 4) return;
+            if (this.status == 200) {
+                // login OK, reload to the index page
+                window.location = "<%= buildUri("/", locale, repo, galleryId) %>";
+            } else {
+              window.alert("Login Incorrect");
+            }
+       }
+       xhr.send('idtoken=' + googleUser.getAuthResponse().id_token);
+    }
+    </script>
+<% } %>
   </head>
+  <style type="text/css">
+    #customBtn {
+      display: inline-block;
+      background: #4285f4;
+      color: white;
+      width: 190px;
+      border-radius: 5px;
+      white-space: nowrap;
+    }
+    #customBtn:hover {
+      cursor: pointer;
+    }
+    span.label {
+      font-weight: bold;
+    }
+    span.icon {
+      background: url('/images/g-normal.png') transparent 5px 50% no-repeat;
+      display: inline-block;
+      vertical-align: middle;
+      width: 42px;
+      height: 42px;
+      border-right: #2265d4 1px solid;
+    }
+    span.buttonText {
+      display: inline-block;
+      vertical-align: middle;
+      padding-left: 42px;
+      padding-right: 42px;
+      font-size: 14px;
+      font-weight: bold;
+      /* Use the Roboto font that is loaded in the <head> */
+      font-family: 'Roboto', sans-serif;
+    }
+  </style>
 <body>
   <center>
     <h1>${pleaselogin}</h1></center>
@@ -67,8 +148,16 @@ out.println("<center><font color=red><b>" + error + "</b></font></center><br/>")
 </form>
 <p></p>
 <center><p><a href="<%= buildUri("/login/sendlink", locale, null, null) %>" style="text-decoration:none;">${passwordclickhereLabel}</a></p></center>
-<%    if (useGoogleLabel != null && useGoogleLabel.equals("true")) { %>
-<center><p><a href="<%= buildUri("/login/google", locale, repo, galleryId) %>" style="text-decoration:none;">Click Here to use your Google Account to login</a></p></center>
+<% if (useGoogle) { %>
+<center>
+  <div id="gSignInWrapper">
+    <span class="label">Sign in with:</span>
+    <div id="customBtn" class="customGPlusSignIn">
+      <span class="icon"></span>
+      <span class="buttonText">Google</span>
+    </div>
+    <div id="name"></div>
+</center>
 <%    } %>
 <footer>
 <center><a href="<%= buildUri("/login", "zh_CN", repo, galleryId) %>"  style="text-decoration:none;" >中文</a>&nbsp;
@@ -88,4 +177,3 @@ out.println("<center><font color=red><b>" + error + "</b></font></center><br/>")
   <a rel="license" href="http://creativecommons.org/licenses/by-sa/3.0/" target="_blank"></a></p>
 </footer>
 </body></html>
-
