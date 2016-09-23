@@ -28,6 +28,7 @@ public class StartSystem {
       String mailhost = null;
       String mailuser = null;
       String mailpassword = null;
+      String mailfrom = null;
       boolean useStartTls = false;
 
       // See if we have the "makeauthkey" argument
@@ -54,6 +55,7 @@ public class StartSystem {
           storage = parser.get("main", "storage");
           mailhost = parser.get("mail", "host");
           mailuser = parser.get("mail", "user");
+          mailfrom = parser.get("mail", "mailfrom");
           mailpassword = parser.get("mail", "password");
           String stls = parser.get("mail", "starttls");
           String firebaseURL = parser.get("main", "firebaseurl");
@@ -103,6 +105,9 @@ public class StartSystem {
       }
       if (mailuser != null) {
           config.add("mail.smtp.user", mailuser);
+      }
+      if (mailfrom != null && !mailfrom.equals("")) {
+          config.add("mail.smtp.mailfrom", mailfrom);
       }
       if (mailpassword != null) {
           config.add("mail.smtp.password", mailpassword);

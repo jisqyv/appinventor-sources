@@ -471,6 +471,10 @@ public class LoginServlet extends HttpServlet {
           if (password != null) {
             props.put("mail.smtp.auth", "true");
           }
+          String mailfrom = System.getProperty("mail.smtp.mailfrom");
+          if (mailfrom == null) {
+            mailfrom = user + '@' + mailhost;
+          }
           String startTls = System.getProperty("mail.smtp.starttls.enable");
           if ((startTls != null) && (startTls.equals("true"))) {
             props.put("mail.smtp.starttls.enable", "true");
@@ -485,7 +489,7 @@ public class LoginServlet extends HttpServlet {
           session.setDebug(true);
           try {
             MimeMessage msg = new MimeMessage(session);
-            msg.setFrom(new InternetAddress("no-reply@" + mailhost));
+            msg.setFrom(new InternetAddress(mailfrom));
             msg.setRecipients(Message.RecipientType.TO, email);
             msg.setSentDate(new Date());
             msg.setSubject(bundle.getString("mailsubject"));

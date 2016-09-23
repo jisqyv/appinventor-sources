@@ -16,6 +16,9 @@ port = 587
 # when starttls is used, if you care about certificate validate, point this
 # to a local java keystore file with the trusted root certificates you use.
 # keystore = 
+# mailfrom is used as the SMTP mail from when sending email. If it is
+# blank, then user@host (above) is used.
+mailfrom = 
 [other]
 require.tos = false
 auth.uselocal = true
