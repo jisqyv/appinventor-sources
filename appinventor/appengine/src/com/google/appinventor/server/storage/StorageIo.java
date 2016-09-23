@@ -186,6 +186,15 @@ public interface StorageIo {
   UserProject getUserProject(String userId, long projectId);
 
   /**
+   * Bulk version of getUserProject.
+   * @param userId a userId
+   * @param projectIds a List of project ids
+   * @return new List of UserProject objects
+   */
+
+  List<UserProject> getUserProjects(String userId, List<Long> projectIds);
+
+  /**
    * Returns a project name.
    *
    * @param userId a user Id (the request is made on behalf of this user)
@@ -486,6 +495,7 @@ public interface StorageIo {
     boolean includeAndroidKeystore,
     @Nullable String zipName,
     final boolean includeYail,
+    final boolean includeScreenShots,
     final boolean forGallery,
     final boolean fatalError) throws IOException;
 

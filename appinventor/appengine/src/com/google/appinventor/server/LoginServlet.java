@@ -21,6 +21,7 @@ import com.google.appinventor.server.storage.StorageIoInstanceHolder;
 import com.google.appinventor.server.storage.StoredData.PWData;
 
 import com.google.appinventor.server.util.PasswordHash;
+import com.google.appinventor.server.util.UriBuilder;
 
 import com.google.appinventor.shared.rpc.user.User;
 
@@ -117,6 +118,7 @@ public class LoginServlet extends HttpServlet {
     }
     String repo = params.get("repo");
     String galleryId = params.get("galleryId");
+    String redirect = params.get("redirect");
 
     LOG.info("locale = " + locale + " bundle: " + new Locale(locale));
     ResourceBundle bundle = ResourceBundle.getBundle("com/google/appinventor/server/loginmessages", new Locale(locale));
@@ -256,14 +258,16 @@ public class LoginServlet extends HttpServlet {
     }
     String page = getPage(req);
     String locale = params.get("locale");
+    String repo = params.get("repo");
+    String galleryId = params.get("galleryId");
+    String redirect = params.get("redirect");
+
     if (locale == null) {
       locale = "en";
     }
 
     ResourceBundle bundle = ResourceBundle.getBundle("com/google/appinventor/server/loginmessages", new Locale(locale));
 
-    String repo = params.get("repo");
-    String galleryId = params.get("galleryId");
     LOG.info("locale = " + locale + " bundle: " + new Locale(locale));
     if (page.equals("sendlink")) {
       String email = params.get("email");
@@ -279,7 +283,8 @@ public class LoginServlet extends HttpServlet {
       }
       String link = trimPage(req) + pwData.id + "/setpw";
       sendmail(email, link, locale);
-      resp.sendRedirect(buildUri("/login/linksent/", locale, null, null));
+      resp.sendRedirect(new UriBuilder("/login/linksent/")
+        .add("locale", locale).build());
       storageIo.cleanuppwdata();
       return;
     } else if (page.equals("setpw")) {
@@ -305,7 +310,10 @@ public class LoginServlet extends HttpServlet {
       }
 
       storageIo.setUserPassword(user.getUserId(),  hashedPassword);
-      String uri = buildUri("/", locale, repo, galleryId);
+      String uri = new UriBuilder("/")
+        .add("locale", locale)
+        .add("repo", repo)
+        .add("galleryId", galleryId).build();
       resp.sendRedirect(uri);   // Logged in, go to service
       return;
     }
@@ -343,7 +351,14 @@ public class LoginServlet extends HttpServlet {
       resp.addCookie(cook);
     }
 
-    String uri = buildUri("/", locale, repo, galleryId);
+    String uri = "/";
+    if (redirect != null && !redirect.equals("")) {
+      uri = redirect;
+    }
+    uri = new UriBuilder(uri)
+      .add("locale", locale)
+      .add("repo", repo)
+      .add("galleryId", galleryId).build();
     resp.sendRedirect(uri);
   }
 
@@ -504,22 +519,6 @@ public class LoginServlet extends HttpServlet {
     resp.setContentType("text/html; charset=utf-8");
     PrintWriter out = resp.getWriter();
     return out;
-  }
-
-  private String buildUri(String uri, String locale, String repo, String galleryId) {
-    String separator = "?";
-    if (locale != null && !locale.equals("")) {
-      uri += separator + "locale=" + locale;
-      separator = "&";
-    }
-    if (repo != null && !repo.equals("")) {
-      uri += separator + "repo=" + repo;
-      separator = "&";
-    }
-    if (galleryId != null && !galleryId.equals("")) {
-      uri += separator + "galleryId=" + galleryId;
-    }
-    return (uri);
   }
 
 }

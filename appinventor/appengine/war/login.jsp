@@ -1,27 +1,12 @@
 <%@page import="javax.servlet.http.HttpServletRequest"%>
 <%@page import="com.google.appinventor.server.flags.Flag"%>
+<%@page import="com.google.appinventor.server.util.UriBuilder"%>
 <%@page contentType="text/html" pageEncoding="UTF-8" session="false" %>
-<%!
-   public String buildUri(String uri, String locale, String repo, String galleryId) {
-     String separator = "?";
-     if (locale != null && !locale.equals("")) {
-       uri += separator + "locale=" + locale;
-       separator = "&";
-     }
-     if (repo != null && !repo.equals("")) {
-       uri += separator + "repo=" + repo;
-       separator = "&";
-     }
-     if (galleryId != null && !galleryId.equals("")) {
-       uri += separator + "galleryId=" + galleryId;
-     }
-     return (uri);
-   }
-%>
 <!doctype html>
 <%
    String error = request.getParameter("error");
    String locale = request.getParameter("locale");
+   String redirect = request.getParameter("redirect");
    String repo = (String) request.getAttribute("repo");
    String galleryId = (String) request.getAttribute("galleryId");
    boolean useGoogle = Flag.createFlag("auth.usegoogle", false).get();
@@ -74,7 +59,10 @@
             if (this.readyState != 4) return;
             if (this.status == 200) {
                 // login OK, reload to the index page
-                window.location = "<%= buildUri("/", locale, repo, galleryId) %>";
+                window.location = "<%= new UriBuilder("/")
+                                              .add("locale", locale)
+                                              .add("repo", repo)
+                                              .add("galleryId", galleryId).build() %>";
             } else {
               window.alert("Login Incorrect");
             }
@@ -143,11 +131,16 @@ out.println("<center><font color=red><b>" + error + "</b></font></center><br/>")
    %>
 <input type=hidden name=galleryId value="<%= galleryId %>">
 <% } %>
+<% if (redirect != null && !redirect.equals("")) {
+   %>
+<input type=hidden name=redirect value="<%= redirect %>">
+<% } %>
 <p></p>
 <center><input type=Submit value="${login}" style="font-size: 300%;"></center>
 </form>
 <p></p>
-<center><p><a href="<%= buildUri("/login/sendlink", locale, null, null) %>" style="text-decoration:none;">${passwordclickhereLabel}</a></p></center>
+<center><p><a href="<%= new UriBuilder("/login/sendlink")
+                              .add("locale", locale).build() %>"  style="text-decoration:none;">${passwordclickhereLabel}</a></p></center>
 <% if (useGoogle) { %>
 <center>
   <div id="gSignInWrapper">
@@ -160,8 +153,16 @@ out.println("<center><font color=red><b>" + error + "</b></font></center><br/>")
 </center>
 <%    } %>
 <footer>
-<center><a href="<%= buildUri("/login", "zh_CN", repo, galleryId) %>"  style="text-decoration:none;" >中文</a>&nbsp;
-<a href="<%= buildUri("/login", "en", repo, galleryId) %>"  style="text-decoration:none;" >English</a></center>
+<center><a href="<%= new UriBuilder("/login")
+                           .add("locale", "zh_CN")
+                           .add("repo", repo)
+                           .add("galleryId", galleryId)
+                           .add("redirect", redirect).build() %>"  style="text-decoration:none;" >中文</a>&nbsp;
+<a href="<%= new UriBuilder("/login")
+                   .add("locale", "en")
+                   .add("repo", repo)
+                   .add("galleryId", galleryId)
+                   .add("redirect", redirect).build() %>"  style="text-decoration:none;" >English</a></center>
 <p></p>
 <center>
 <%    if (locale != null && locale.equals("zh_CN")) { %>

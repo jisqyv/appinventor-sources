@@ -32,7 +32,6 @@ import com.google.appinventor.client.explorer.project.ProjectChangeAdapter;
 import com.google.appinventor.client.explorer.project.ProjectManager;
 import com.google.appinventor.client.explorer.project.ProjectManagerEventAdapter;
 import com.google.appinventor.client.explorer.youngandroid.ProjectToolbar;
-import com.google.appinventor.client.jsonp.JsonpConnection;
 import com.google.appinventor.client.output.OdeLog;
 import com.google.appinventor.client.settings.Settings;
 import com.google.appinventor.client.settings.user.UserSettings;
@@ -50,13 +49,12 @@ import com.google.appinventor.shared.rpc.component.ComponentService;
 import com.google.appinventor.shared.rpc.component.ComponentServiceAsync;
 import com.google.appinventor.shared.rpc.GetMotdService;
 import com.google.appinventor.shared.rpc.GetMotdServiceAsync;
+import com.google.appinventor.shared.rpc.RpcResult;
 import com.google.appinventor.shared.rpc.ServerLayout;
 import com.google.appinventor.shared.rpc.admin.AdminInfoService;
 import com.google.appinventor.shared.rpc.admin.AdminInfoServiceAsync;
 import com.google.appinventor.shared.rpc.help.HelpService;
 import com.google.appinventor.shared.rpc.help.HelpServiceAsync;
-import com.google.appinventor.shared.rpc.launch.LaunchService;
-import com.google.appinventor.shared.rpc.launch.LaunchServiceAsync;
 import com.google.appinventor.shared.rpc.project.FileNode;
 import com.google.appinventor.shared.rpc.project.ProjectRootNode;
 import com.google.appinventor.shared.rpc.project.ProjectService;
@@ -68,6 +66,7 @@ import com.google.appinventor.shared.rpc.user.User;
 import com.google.appinventor.shared.rpc.user.UserInfoService;
 import com.google.appinventor.shared.rpc.user.UserInfoServiceAsync;
 import com.google.appinventor.shared.settings.SettingsConstants;
+import com.google.gwt.core.client.Callback;
 import com.google.gwt.core.client.EntryPoint;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.event.dom.client.ClickEvent;
@@ -216,9 +215,6 @@ public class Ode implements EntryPoint {
   // Web service for user related information
   private final UserInfoServiceAsync userInfoService = GWT.create(UserInfoService.class);
 
-  // Web service for launch related services
-  private final LaunchServiceAsync launchService = GWT.create(LaunchService.class);
-
   // Web service for get motd information
   private final GetMotdServiceAsync getMotdService = GWT.create(GetMotdService.class);
 
@@ -317,18 +313,31 @@ public class Ode implements EntryPoint {
    * Switch to the Projects tab
    */
   public void switchToProjectsView() {
-    if(currentView != PROJECTS) { //If we are switching to projects view from somewhere else, clear all of the previously selected projects.
-      ProjectListBox.getProjectListBox().getProjectList().getSelectedProjects().clear();
-      ProjectListBox.getProjectListBox().getProjectList().refreshTable(false);
+    // We may need to pass the code below as a runnable to
+    // screenShotMaybe() so build the runnable now
+    Runnable next = new Runnable() {
+        @Override
+        public void run() {
+          if(currentView != PROJECTS) { //If we are switching to projects view from somewhere else, clear all of the previously selected projects.
+            ProjectListBox.getProjectListBox().getProjectList().getSelectedProjects().clear();
+            ProjectListBox.getProjectListBox().getProjectList().refreshTable(false);
+          }
+          currentView = PROJECTS;
+          getTopToolbar().updateFileMenuButtons(currentView);
+          deckPanel.showWidget(projectsTabIndex);
+          // If we started a project, then the start button was disabled (to avoid
+          // a second press while the new project wizard was starting (aka we "debounce"
+          // the button). When the person switches to the projects list view again (here)
+          // we re-enable it.
+          projectToolbar.enableStartButton();
+        }
+      };
+    if (designToolbar.getCurrentView() != DesignToolbar.View.BLOCKS) {
+      next.run();
+    } else {
+      // maybe take a screenshot, second argument is true so we wait for i/o to complete
+      screenShotMaybe(next, true);
     }
-    currentView = PROJECTS;
-    getTopToolbar().updateFileMenuButtons(currentView);
-    deckPanel.showWidget(projectsTabIndex);
-    // If we started a project, then the start button was disabled (to avoid
-    // a second press while the new project wizard was starting (aka we "debounce"
-    // the button). When the person switches to the projects list view again (here)
-    // we re-enable it.
-    projectToolbar.enableStartButton();
   }
 
   /**
@@ -502,9 +511,6 @@ public class Ode implements EntryPoint {
         }
       }
     });
-
-    // Define bridge methods to Javascript
-    JsonpConnection.defineBridgeMethod();
 
     // Initialize global Ode instance
     instance = this;
@@ -1034,15 +1040,6 @@ public class Ode implements EntryPoint {
   }
 
   /**
-   * Get an instance of the launch RPC service.
-   *
-   * @return launch service instance
-   */
-  public LaunchServiceAsync getLaunchService() {
-    return launchService;
-  }
-
-  /**
    * Get an instance of the component web service.
    *
    * @return component web service instance
@@ -1179,6 +1176,16 @@ public class Ode implements EntryPoint {
 
     // Save all unsaved editors.
     editorManager.saveDirtyEditors(null);
+
+    // Not sure if this will get to do its work...
+    // We purposely do this after saving dirty
+    // editors because saving work is more important then
+    // getting this screenshot!
+    screenShotMaybe(new Runnable() {
+        @Override
+        public void run() {
+        }
+      }, true);                 // Wait for i/o!!!
   }
 
   /**
@@ -2067,6 +2074,75 @@ public class Ode implements EntryPoint {
       hexChars[j * 2 + 1] = hexArray[v & 0x0F];
     }
     return new String(hexChars);
+  }
+
+  /**
+   * Take a screenshot when the user leaves a blocks editor
+   *
+   * Take note of the "deferred" flag. If set, we run the runnable
+   * after i/o is finished. Otherwise we run it immediately while i/o
+   * may still be happening. We wait in the case of logout or window
+   * closing, where we want to hold things up until i/o is done.
+   *
+   * @param next a runnable to run when we are finished
+   * @param deferred whether to run the runnable immediately or after i/o is finished
+   */
+
+  public void screenShotMaybe(final Runnable next, final boolean deferred) {
+    // Only take screenshots if we are an enabled feature
+    if (!AppInventorFeatures.takeScreenShots()) {
+      next.run();
+      return;
+    }
+    // If we are not in the blocks editor, we do nothing
+    // but we do run our callback
+    if (designToolbar.getCurrentView() != DesignToolbar.View.BLOCKS) {
+      next.run();
+      return;
+    }
+    String image = "";
+    FileEditor editor = Ode.getInstance().getCurrentFileEditor();
+    final long projectId = editor.getProjectId();
+    final FileNode fileNode = editor.getFileNode();
+    currentFileEditor.getBlocksImage(new Callback<String,String>() {
+        @Override
+        public void onSuccess(String result) {
+          int comma = result.indexOf(",");
+          if (comma < 0) {
+            OdeLog.log("screenshot invalid");
+            next.run();
+            return;
+          }
+          result = result.substring(comma+1); // Strip off url header
+          String screenShotName = fileNode.getName();
+          int period = screenShotName.lastIndexOf(".");
+          screenShotName = "screenshots/" + screenShotName.substring(0, period) + ".png";
+          OdeLog.log("ScreenShotName = " + screenShotName);
+          projectService.screenshot(sessionId, projectId, screenShotName, result,
+            new OdeAsyncCallback<RpcResult>() {
+              @Override
+              public void onSuccess(RpcResult result) {
+                if (deferred) {
+                  next.run();
+                }
+              }
+              public void OnFailure(Throwable caught) {
+                super.onFailure(caught);
+                if (deferred) {
+                  next.run();
+                }
+              }
+            });
+          if (!deferred) {
+            next.run();
+          }
+        }
+        @Override
+        public void onFailure(String error) {
+          OdeLog.log("Screenshot failed: " + error);
+          next.run();
+        }
+      });
   }
 
   // Native code to set the top level rendezvousServer variable

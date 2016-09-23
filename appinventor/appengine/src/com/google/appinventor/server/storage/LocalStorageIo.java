@@ -724,6 +724,46 @@ public class LocalStorageIo implements  StorageIo {
     }
   }
 
+  @Override
+  public List<UserProject> getUserProjects(final String userId, final List<Long> projectIds) {
+    Connection conn = null;
+    List<UserProject> retval = new ArrayList();
+    try {
+      conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
+      Statement statement = conn.createStatement();
+      ResultSet rs = statement.executeQuery("select rowid,* from projects");
+      while (rs.next()) {
+        java.sql.Date created = rs.getDate("created");
+        java.sql.Date modified = rs.getDate("modified");
+        long cmillis = 0;
+        long mmillis = 0;
+        if (created != null) {
+          cmillis = created.getTime();
+        }
+        if (modified != null) {
+          mmillis = modified.getTime();
+        }
+        UserProject proj = new UserProject(rs.getInt("rowid"), rs.getString("name"),
+          YoungAndroidProjectNode.YOUNG_ANDROID_PROJECT_TYPE,
+          cmillis,
+          mmillis);
+        retval.add(proj);
+      }
+      statement.close();
+      return retval;
+    } catch (SQLException e) {
+      throw CrashReport.createAndLogError(LOG, null,
+        collectUserErrorInfo(userId), e);
+    } finally {
+      if (conn != null) {
+        try {
+          conn.close();
+        } catch (Exception e) {
+        }
+      }
+    }
+  }
+
   private String getProjectStrings(String userId, long projectId, String field) {
     Connection conn = null;
     try {
@@ -1162,6 +1202,7 @@ public class LocalStorageIo implements  StorageIo {
                                                  final boolean includeProjectHistory,
                                                  final boolean includeAndroidKeystore,
                                                  @Nullable String zipName, boolean includeYail,
+                                                 boolean includeScreenShots,
                                                  boolean forGallery,
                                                  boolean fatalError) throws IOException {
     int fileCount = 0;
@@ -1180,6 +1221,10 @@ public class LocalStorageIo implements  StorageIo {
         // rather not have leak into an export .aia file or into the Gallery
         // NOTE: Standalone code doesn't include a Gallery, but will likely
         // include one in the future.
+        continue;
+      }
+      if (fileName.startsWith("screenshots") && !includeScreenShots) {
+        // Only include screenshots if asked...
         continue;
       }
       out.putNextEntry(new ZipEntry(fileName));
