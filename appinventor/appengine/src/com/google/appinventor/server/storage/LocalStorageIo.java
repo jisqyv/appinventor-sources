@@ -731,7 +731,7 @@ public class LocalStorageIo implements  StorageIo {
     try {
       conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
       Statement statement = conn.createStatement();
-      ResultSet rs = statement.executeQuery("select rowid,* from projects");
+      ResultSet rs = statement.executeQuery("select rowid,* from projects where deleted = 0");
       while (rs.next()) {
         java.sql.Date created = rs.getDate("created");
         java.sql.Date modified = rs.getDate("modified");
