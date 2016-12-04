@@ -22,6 +22,13 @@ mailfrom =
 [other]
 require.tos = false
 auth.uselocal = true
+# Which buildserver to use (default to localhost:9990)
+build.server.host = localhost:9990
+# Our address for returning from the buildserver (default localhost:8888)
+build.server.return = localhost:8888
+# Set to true to enforce strict compatiblity with the buildserver
+# (the system and the buildserver must have the same git version number)
+build.send.git.version = false
 # Set auth.usegoogle to true to use Google Authentication. If set to true
 # you must set auth.googleclientid to the Google issues Client ID that you
 # obtain from the Google Cloud Console (via the API section)

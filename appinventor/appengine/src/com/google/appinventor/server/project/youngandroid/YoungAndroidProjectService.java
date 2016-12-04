@@ -114,6 +114,10 @@ public final class YoungAndroidProjectService extends CommonProjectService {
   // host[:port] to use for connecting to the build server
   private static final Flag<String> buildServerHost =
       Flag.createFlag("build.server.host", "localhost:9990");
+  // host[:port] to use to contact us from the buildserver to return apk
+  // and build.out
+  private static final Flag<String> buildServerReturn =
+      Flag.createFlag("build.server.return", "localhost:8888");
   // host[:port] to tell build server app host url
   private static final Flag<String> appengineHost =
       Flag.createFlag("appengine.host", "");
@@ -670,7 +674,7 @@ public final class YoungAndroidProjectService extends CommonProjectService {
   }
 
   private String getCurrentHost() {
-    return "localhost:8888";
+    return buildServerReturn.get();
   }
 
   /*
