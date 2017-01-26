@@ -59,6 +59,31 @@
 
   <!-- Servlets -->
 
+  <servlet>
+    <servlet-name>nocache</servlet-name>
+    <servlet-class>org.eclipse.jetty.servlet.DefaultServlet</servlet-class>
+    <load-on-startup>1</load-on-startup>
+    <init-param>
+      <param-name>cacheControl</param-name>
+      <param-value>no-cache, must-revalidate</param-value>
+    </init-param>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>nocache</servlet-name>
+    <url-pattern>/ode/ode.nocache.js</url-pattern>
+    <url-pattern>/blocklyframe.html</url-pattern>
+  </servlet-mapping>
+
+  <servlet>
+    <servlet-name>default</servlet-name>
+    <servlet-class>org.eclipse.jetty.servlet.DefaultServlet</servlet-class>
+    <load-on-startup>1</load-on-startup>
+    <init-param>
+      <param-name>cacheControl</param-name>
+      <param-value>public, max-age=3600</param-value>
+    </init-param>
+  </servlet>
+
   <!-- Generate Login Page -->
 
   <servlet>
