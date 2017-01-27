@@ -93,6 +93,7 @@ public class LoginServlet extends HttpServlet {
   private static final String googleClientId = Flag.createFlag("auth.googleclientid", "").get();
   private static final ExecutorService executorService = Executors.newCachedThreadPool();
   private final PolicyFactory sanitizer = new HtmlPolicyBuilder().allowElements("p").toFactory();
+  private static final boolean DEBUG = Flag.createFlag("appinventor.debugging", false).get();
 
   public void init(ServletConfig config) throws ServletException {
     super.init(config);
@@ -103,7 +104,9 @@ public class LoginServlet extends HttpServlet {
 
     PrintWriter out;
     String [] components = req.getRequestURI().split("/");
-    LOG.info("requestURI = " + req.getRequestURI());
+    if (DEBUG) {
+      LOG.info("requestURI = " + req.getRequestURI());
+    }
     String page = getPage(req);
 
     OdeAuthFilter.UserInfo userInfo = OdeAuthFilter.getUserInfo(req);
@@ -120,7 +123,9 @@ public class LoginServlet extends HttpServlet {
     String galleryId = params.get("galleryId");
     String redirect = params.get("redirect");
 
-    LOG.info("locale = " + locale + " bundle: " + new Locale(locale));
+    if (DEBUG) {
+      LOG.info("locale = " + locale + " bundle: " + new Locale(locale));
+    }
     ResourceBundle bundle = ResourceBundle.getBundle("com/google/appinventor/server/loginmessages", new Locale(locale));
 
     // If we get here, local accounts are supported
@@ -136,7 +141,9 @@ public class LoginServlet extends HttpServlet {
         fail(req, resp, "Invalid Set Password Link");
         return;
       }
-      LOG.info("setpw email = " + data.email);
+      if (DEBUG) {
+        LOG.info("setpw email = " + data.email);
+      }
       User user = storageIo.getUserFromEmail(data.email);
       userInfo = new OdeAuthFilter.UserInfo(); // Create new userInfo object
       userInfo.setUserId(user.getUserId()); // This effectively logs us in!
@@ -268,7 +275,9 @@ public class LoginServlet extends HttpServlet {
 
     ResourceBundle bundle = ResourceBundle.getBundle("com/google/appinventor/server/loginmessages", new Locale(locale));
 
-    LOG.info("locale = " + locale + " bundle: " + new Locale(locale));
+    if (DEBUG) {
+      LOG.info("locale = " + locale + " bundle: " + new Locale(locale));
+    }
     if (page.equals("sendlink")) {
       String email = params.get("email");
       if (email == null) {
@@ -340,11 +349,15 @@ public class LoginServlet extends HttpServlet {
       return;
     }
 
-    LOG.info("userInfo = " + userInfo + " user = " + user);
+    if (DEBUG) {
+      LOG.info("userInfo = " + userInfo + " user = " + user);
+    }
     userInfo.setUserId(user.getUserId());
     userInfo.setIsAdmin(user.getIsAdmin());
     String newCookie = userInfo.buildCookie(false);
-    LOG.info("newCookie = " + newCookie);
+    if (DEBUG) {
+      LOG.info("newCookie = " + newCookie);
+    }
     if (newCookie != null) {
       Cookie cook = new Cookie("AppInventor", newCookie);
       cook.setPath("/");

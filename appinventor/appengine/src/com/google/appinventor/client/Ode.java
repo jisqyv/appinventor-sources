@@ -359,7 +359,7 @@ public class Ode implements EntryPoint {
     getTopToolbar().updateFileMenuButtons(currentView);
     if (currentFileEditor != null) {
       deckPanel.showWidget(designTabIndex);
-    } else {
+    } else if (!editorManager.hasOpenEditor()) {  // is there a project editor pending visibility?
       OdeLog.wlog("No current file editor to show in designer");
       ErrorReporter.reportInfo(MESSAGES.chooseProject());
     }
@@ -427,6 +427,13 @@ public class Ode implements EntryPoint {
               projectManager.removeProjectManagerEventListener(this);
               openYoungAndroidProjectInDesigner(project);
             }
+          }
+          @Override
+          public void onProjectsLoaded() {
+            // we only get here iff onProjectAdded is never called with the target project id
+            projectManager.removeProjectManagerEventListener(this);
+            switchToProjectsView();  // the user will need to select a project...
+            ErrorReporter.reportInfo(MESSAGES.chooseProject());
           }
         });
       }
@@ -1267,7 +1274,7 @@ public class Ode implements EntryPoint {
    */
   private void createWelcomeDialog(boolean force) {
     if (!shouldShowWelcomeDialog() && !force) {
-      openProjectsTab();
+      maybeShowNoProjectsDialog();
       return;
     }
     // Create the UI elements of the DialogBox
@@ -1294,7 +1301,7 @@ public class Ode implements EntryPoint {
                 "" + splashConfig.version);
             userSettings.saveSettings(null);
           }
-          openProjectsTab();
+          maybeShowNoProjectsDialog();
         }
       });
     holder.add(ok);
@@ -1306,22 +1313,19 @@ public class Ode implements EntryPoint {
   }
 
   /**
-   * Load and open the projects tab.
+   * Check the number of projects for the user and show the "no projects" dialog if no projects
+   * are present.
    */
-  private void openProjectsTab() {
-    getProjectService().getProjects(new AsyncCallback<long[]>() {
-        @Override
-          public void onSuccess(long [] projectIds) {
-          if (projectIds.length == 0 && !templateLoadingFlag) {
-            createNoProjectsDialog(true);
-          }
+  private void maybeShowNoProjectsDialog() {
+    projectManager.addProjectManagerEventListener(new ProjectManagerEventAdapter() {
+      @Override
+      public void onProjectsLoaded() {
+        if (projectManager.projectCount() == 0 && !templateLoadingFlag) {
+          ErrorReporter.hide();  // hide the "Please choose a project" message
+          createNoProjectsDialog(true);
         }
-
-        @Override
-          public void onFailure(Throwable projectIds) {
-          OdeLog.elog("Could not get project list");
-        }
-      });
+      }
+    });
   }
 
   /*
@@ -1421,7 +1425,7 @@ public class Ode implements EntryPoint {
     if (AppInventorFeatures.showSplashScreen() && !isReadOnly) {
       createWelcomeDialog(false);
     } else {
-      openProjectsTab();
+      maybeShowNoProjectsDialog();
     }
   }
 
@@ -1905,46 +1909,6 @@ public class Ode implements EntryPoint {
     } catch (Exception e) {     // Number format, null, who knows
       return false;             // if we get one, no valid license!
     }
-  }
-
-  /**
-   * Display a generic warning dialog box.
-   * This method is public because it is intended to be used from other
-   * parts of the client GWT side system.
-   *
-   * Note: We expect our caller to internationalize the messages to be
-   * displayed.
-   *
-   * @param title The title for the dialog box
-   * @param message The message to display
-   * @param buttonString the name of the button, i.e., "OK"
-   */
-
-  public void warningDialog(String title, String messageString, String buttonString) {
-    // Create the UI elements of the DialogBox
-    final DialogBox dialogBox = new DialogBox(false, true); // DialogBox(autohide, modal)
-    dialogBox.setStylePrimaryName("ode-DialogBox");
-    dialogBox.setText(title);
-    dialogBox.setHeight("100px");
-    dialogBox.setWidth("400px");
-    dialogBox.setGlassEnabled(true);
-    dialogBox.setAnimationEnabled(true);
-    dialogBox.center();
-    VerticalPanel DialogBoxContents = new VerticalPanel();
-    HTML message = new HTML("<p>" + messageString + "</p>");
-    message.setStyleName("DialogBox-message");
-    FlowPanel holder = new FlowPanel();
-    Button okButton = new Button(buttonString);
-    okButton.addClickListener(new ClickListener() {
-        public void onClick(Widget sender) {
-          dialogBox.hide();
-        }
-      });
-    holder.add(okButton);
-    DialogBoxContents.add(message);
-    DialogBoxContents.add(holder);
-    dialogBox.setWidget(DialogBoxContents);
-    dialogBox.show();
   }
 
   /**

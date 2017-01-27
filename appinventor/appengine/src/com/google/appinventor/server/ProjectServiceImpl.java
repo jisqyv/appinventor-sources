@@ -59,6 +59,8 @@ public class ProjectServiceImpl extends OdeRemoteServiceServlet implements Proje
   private final transient YoungAndroidProjectService youngAndroidProject =
       new YoungAndroidProjectService(storageIo);
 
+  private static final boolean DEBUG = Flag.createFlag("appinventor.debugging", false).get();
+
   @Override public void init() {
     Encryptor encryptor = EncryptionStrategy.WRITE;
     encryptor.setKeyPath(getServletContext().getRealPath("keystore"));
@@ -596,15 +598,12 @@ public class ProjectServiceImpl extends OdeRemoteServiceServlet implements Proje
 
   private void validateSessionId(String sessionId) throws InvalidSessionException {
     String storedSessionId = userInfoProvider.getSessionId();
-    if (storedSessionId == null) {
-      LOG.info("storedSessionId is null");
-    } else {
-      LOG.info("storedSessionId = " + storedSessionId);
-    }
-    if (sessionId == null) {
-      LOG.info("sessionId is null");
-    } else {
-      LOG.info("sessionId = " + sessionId);
+    if (DEBUG) {
+      if (storedSessionId == null) {
+        LOG.info("storedSessionId is null");
+      } else {
+        LOG.info("storedSessionId = " + storedSessionId);
+      }
     }
     if (sessionId.equals("force")) { // If we are forcing our way -- no check
       return;

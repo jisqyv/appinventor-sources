@@ -30,6 +30,11 @@ public final class ProjectManager {
   private final List<ProjectManagerEventListener> projectManagerEventListeners;
 
   /**
+   * Flag indicating whether the project infos have all loaded.
+   */
+  private volatile boolean projectsLoaded = false;
+
+  /**
    * Creates a new projects manager.
    */
   public ProjectManager() {
@@ -150,6 +155,10 @@ public final class ProjectManager {
    */
   public void addProjectManagerEventListener(ProjectManagerEventListener listener) {
     projectManagerEventListeners.add(listener);
+    if (projectsLoaded) {
+      // inform the listener that projects have already been loaded
+      listener.onProjectsLoaded();
+    }
   }
 
   /**
@@ -159,6 +168,10 @@ public final class ProjectManager {
    */
   public void removeProjectManagerEventListener(ProjectManagerEventListener listener) {
     projectManagerEventListeners.remove(listener);
+  }
+
+  public int projectCount() {
+    return projectsMap.size();
   }
 
   private List<ProjectManagerEventListener> copyProjectManagerEventListeners() {
@@ -187,6 +200,7 @@ public final class ProjectManager {
    * Triggers a 'projects loaded' event to be sent to the listener on the listener list.
    */
   private void fireProjectsLoaded() {
+    projectsLoaded = true;
     for (ProjectManagerEventListener listener : copyProjectManagerEventListeners()) {
       listener.onProjectsLoaded();
     }
