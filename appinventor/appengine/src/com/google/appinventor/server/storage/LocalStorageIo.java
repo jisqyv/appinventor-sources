@@ -45,6 +45,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -839,7 +840,8 @@ public class LocalStorageIo implements  StorageIo {
     final List<String> fileList = new ArrayList<String>();
     File userDir = new File(storageRoot.get() + "/" + userId);
     for (String fileName : userDir.list()) {
-      if (fileName.equals("android.keystore")) { // We only support android.keystore for now
+      if (fileName.equals(StorageUtil.ANDROID_KEYSTORE_FILENAME) ||
+        fileName.equals(StorageUtil.USER_BACKPACK_FILENAME)) {
         fileList.add(fileName);
       }
     }
@@ -849,22 +851,35 @@ public class LocalStorageIo implements  StorageIo {
   @Override
   public void uploadUserFile(final String userId, final String fileName,
       final String content, final String encoding) {
-    // Not Implemented
-    // This code was used by the old blocks editor and isn't used in App Inventor 2
-    // we should remove it and its callers as they are defunct.
+    try {
+      uploadRawUserFile(userId, fileName, content.getBytes(encoding));
+    } catch (UnsupportedEncodingException e) {
+      // XXX
+    }
   }
 
   @Override
   public void uploadRawUserFile(String userId, String fileName,
       final byte[] content) {
     FileOutputStream out = null;
-    if (!fileName.equals("android.keystore")) {
+    byte [] empty = new byte[] { (byte)0x5b, (byte)0x5d }; // "[]" in bytes
+    if (!fileName.equals(StorageUtil.ANDROID_KEYSTORE_FILENAME) && !fileName.equals(StorageUtil.USER_BACKPACK_FILENAME)) {
       throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId, fileName),
           new RuntimeException("Only android keystores are supported"));
     }
     try {
-      File keystore = new File(storageRoot.get() + "/" + userId + "/android.keystore");
-      out = new FileOutputStream(keystore);
+      File fileObject = new File(storageRoot.get() + "/" + userId + "/" + fileName);
+      if (fileName.equals(StorageUtil.USER_BACKPACK_FILENAME)) {
+        if (Arrays.equals(empty, content)) {
+          // We are storing the backpack and the contents are the empty JSON array
+          // then we just delete the file, if it exists
+          if (fileObject.exists()) {
+            fileObject.delete();
+          }
+          return;
+        }
+      }
+      out = new FileOutputStream(fileObject);
       out.write(content);
       out.close();
       out = null;
@@ -894,21 +909,25 @@ public class LocalStorageIo implements  StorageIo {
 
   @Override
   public byte[] downloadRawUserFile(final String userId, final String fileName) {
-    // Only support android.keystore
+    // Only support android.keystore and backpack.xml
     LOG.log(Level.INFO, "downloadRawUserFile: fileName = " + fileName);
-    if (!fileName.equals("android.keystore"))
+    if (!fileName.equals(StorageUtil.ANDROID_KEYSTORE_FILENAME) &&
+      !fileName.equals(StorageUtil.USER_BACKPACK_FILENAME)) {
       throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId, fileName),
-          new RuntimeException("Only android keystores are supported"));
-    File keystore = new File(storageRoot.get() + "/" + userId + "/android.keystore");
+          new RuntimeException("Only android keystores and backpack are supported"));
+    }
+    File fileObject = new File(storageRoot.get() + "/" + userId + "/" + fileName);
     FileInputStream in = null;
     byte [] result;
     try {
-      if (!keystore.exists()) {
+      if (!fileObject.exists()) {
+        if (fileName.equals(StorageUtil.USER_BACKPACK_FILENAME)) {
+        }
         return null;
       }
-      int fileLength = (int)keystore.length();
+      int fileLength = (int)fileObject.length();
       result = new byte[fileLength];
-      in = new FileInputStream(keystore);
+      in = new FileInputStream(fileObject);
       int dataToRead = fileLength;
       int dataRead = 0;
       int chunkLen = 0;
