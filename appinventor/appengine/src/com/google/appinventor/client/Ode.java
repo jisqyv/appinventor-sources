@@ -674,6 +674,20 @@ public class Ode implements EntryPoint {
 
     userInfoService.getSystemConfig(sessionId, callback);
 
+    // We fetch the user's backpack here. This runs asynchronously with the rest
+    // of the system initialization.
+
+    userInfoService.getUserBackpack(new AsyncCallback<String>() {
+        @Override
+        public void onSuccess(String backpack) {
+          BlocklyPanel.setBackpack(backpack, false);
+        }
+        @Override
+        public void onFailure(Throwable caught) {
+          OdeLog.log("Fetching backpack failed");
+        }
+      });
+
     History.addValueChangeHandler(new ValueChangeHandler<String>() {
       @Override
       public void onValueChange(ValueChangeEvent<String> event) {
@@ -2136,6 +2150,26 @@ public class Ode implements EntryPoint {
     } else {
       top.location.reload();
     }
+  }-*/;
+
+  private static native boolean finish(String userId) /*-{
+    var delete_cookie = function(name) {
+       document.cookie = name + '=;Path=/;expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+    };
+    var retval = {
+       "type": "closeApp",
+       "uuid" : userId }
+    if (top.opener) {
+      delete_cookie("AppInventor"); // This ends our authentication
+      top.opener.postMessage(retval, "*");
+      return true;
+    } else {
+      return false;
+    }
+  }-*/;
+
+  public static native void CLog(String message) /*-{
+    console.log(message);
   }-*/;
 
 }
