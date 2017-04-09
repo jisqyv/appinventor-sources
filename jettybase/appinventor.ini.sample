@@ -37,6 +37,10 @@ auth.googleclientid = none
 localauth.mailserver = https://osiris.mit.edu/passmail/
 localauth.mailserver.password = secret123
 motd.check.interval.secs = 0
+# public non-https port for App Inventor to use for itself
+# This may be different then the port we are actually listening on
+# because there may be a port mapping NAT in front of us
+port.public = 8888
 library.url = http://appinventor.mit.edu/explore/library
 get_started.url = http://appinventor.mit.edu/explore/get-started
 tutorials.url = http://appinventor.mit.edu/explore/ai2/tutorials

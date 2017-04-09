@@ -282,11 +282,30 @@ public class TopPanel extends Composite {
   private static class SignOutAction implements Command {
     @Override
     public void execute() {
+      final ProjectRootNode projectRootNode = Ode.getInstance().getCurrentYoungAndroidProjectRootNode();
+      final ChainableCommand cmd = new SaveAllEditorsCommand(null);
+      final Command finalCommand = new Command() {
+          @Override
+          public void execute() {
+            Ode.getInstance().displayRevisitCodes(true, new Runnable() {
+                @Override
+                public void run() {
+                  Window.Location.replace(TopPanel.SIGNOUT_URL);
+                }
+              });
+          }
+        };
+
+      if (projectRootNode == null) { // No selected project or no projects at all!
+        finalCommand.execute();      // Execute the final command
+        return;                      // And we are done
+      }
+
       // Maybe take a screenshot
       Ode.getInstance().screenShotMaybe(new Runnable() {
           @Override
           public void run() {
-            Window.Location.replace(SIGNOUT_URL);
+            cmd.startExecuteChain(Tracking.PROJECT_ACTION_SAVE_YA, projectRootNode, finalCommand);
           }
         }, true);               // Wait for i/o
     }

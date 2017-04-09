@@ -40,6 +40,7 @@ import com.google.appinventor.shared.rpc.project.ProjectRootNode;
 import com.google.appinventor.shared.rpc.project.youngandroid.YoungAndroidProjectNode;
 import com.google.appinventor.shared.rpc.user.Config;
 import com.google.appinventor.shared.storage.StorageUtil;
+import com.google.appinventor.shared.util.AccountUtil;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.gwt.user.client.Command;
@@ -728,6 +729,12 @@ public class TopToolbar extends Composite {
         html += "<BR/><BR/><a href=\"" + tosUrl +
             "\" target=\"_blank\">" + MESSAGES.privacyTermsLink() + "</a>";
       }
+      Ode ode = Ode.getInstance();
+      if (ode.isAnonUser()) {
+        html += "<BR/><BR/>Your Code to Re-enter is: " +
+          AccountUtil.accountToCode(ode.getUser().getUserId());
+      }
+
       HTML message = new HTML(html);
 
       SimplePanel holder = new SimplePanel();

@@ -24,6 +24,7 @@ import com.google.appinventor.server.util.PasswordHash;
 import com.google.appinventor.server.util.UriBuilder;
 
 import com.google.appinventor.shared.rpc.user.User;
+import com.google.appinventor.shared.util.AccountUtil;
 
 import com.sun.mail.smtp.SMTPTransport;
 
@@ -89,7 +90,9 @@ public class LoginServlet extends HttpServlet {
   private static final Logger LOG = Logger.getLogger(LoginServlet.class.getName());
   private static final Flag<String> mailServer = Flag.createFlag("localauth.mailserver", "");
   private static final Flag<String> password = Flag.createFlag("localauth.mailserver.password", "");
+  private static final Flag<String> publicPort = Flag.createFlag("port.public", "8888");
   private static final boolean useGoogle = Flag.createFlag("auth.usegoogle", false).get();
+  private static final boolean anonOK = Flag.createFlag("auth.useanon", false).get();
   private static final String googleClientId = Flag.createFlag("auth.googleclientid", "").get();
   private static final ExecutorService executorService = Executors.newCachedThreadPool();
   private final PolicyFactory sanitizer = new HtmlPolicyBuilder().allowElements("p").toFactory();
@@ -319,12 +322,94 @@ public class LoginServlet extends HttpServlet {
       }
 
       storageIo.setUserPassword(user.getUserId(),  hashedPassword);
-      String uri = new UriBuilder("/")
+      String uri = "http://" + req.getServerName();
+      if (!publicPort.get().equals("80")) {
+        uri += ":" + publicPort.get();
+      }
+      uri += "/";
+      uri = new UriBuilder(uri)
         .add("locale", locale)
         .add("repo", repo)
         .add("galleryId", galleryId).build();
       resp.sendRedirect(uri);   // Logged in, go to service
       return;
+    }
+
+    if (anonOK) {
+      String noAccount = params.get("noaccount");
+      String reVisit = params.get("revisit");
+      if (noAccount != null) {  // Anonymous Login
+        User user = storageIo.createAnonymousAccount();
+        userInfo = new OdeAuthFilter.UserInfo();
+        userInfo.setUserId(user.getUserId());
+        String newCookie = userInfo.buildCookie(false);
+        if (newCookie != null) {
+          Cookie cook = new Cookie("AppInventor", newCookie);
+          cook.setPath("/");
+          resp.addCookie(cook);
+        }
+        String uri = "http://" + req.getServerName();
+        if (!publicPort.get().equals("80")) {
+          uri += ":" + publicPort.get();
+        }
+        uri += "/";
+        if (redirect != null && !redirect.equals("")) {
+          uri = redirect;
+        }
+        uri = new UriBuilder(uri)
+          .add("locale", locale)
+          .add("repo", repo)
+          .add("galleryId", galleryId).build();
+        resp.sendRedirect(uri);
+        return;
+      } else if (reVisit != null) {
+        String A = params.get("A");
+        String B = params.get("B");
+        String C = params.get("C");
+        String D = params.get("D");
+        if (A == null || B == null || C == null || D == null ||
+            A.isEmpty() || B.isEmpty() || C.isEmpty() || D.isEmpty()) {
+          fail(req, resp, "Invalid Code");
+          return;
+        }
+        String code = A.toUpperCase() + "-" + B.toUpperCase() + "-" +
+          C.toUpperCase() + "-" + D.toUpperCase();
+        String accountId;
+        try {
+          accountId = AccountUtil.codeToAccount(code);
+        } catch (IllegalArgumentException e) {
+          fail(req, resp, "Invalid Code");
+          return;
+        }
+        User user = storageIo.getUser(accountId);
+        if (user == null) {
+          fail(req, resp, "Invalid Code");
+          return;
+        }
+        // At this point we are logged in!
+        userInfo = new OdeAuthFilter.UserInfo();
+        userInfo.setUserId(user.getUserId());
+        String newCookie = userInfo.buildCookie(false);
+        if (newCookie != null) {
+          Cookie cook = new Cookie("AppInventor", newCookie);
+          cook.setPath("/");
+          resp.addCookie(cook);
+        }
+        String uri = "http://" + req.getServerName();
+        if (!publicPort.get().equals("80")) {
+          uri += ":" + publicPort.get();
+        }
+        uri += "/";
+        if (redirect != null && !redirect.equals("")) {
+          uri = redirect;
+        }
+        uri = new UriBuilder(uri)
+          .add("locale", locale)
+          .add("repo", repo)
+          .add("galleryId", galleryId).build();
+        resp.sendRedirect(uri);
+        return;
+      }
     }
 
     String email = params.get("email");
@@ -364,7 +449,11 @@ public class LoginServlet extends HttpServlet {
       resp.addCookie(cook);
     }
 
-    String uri = "/";
+    String uri = "http://" + req.getServerName();
+    if (!publicPort.get().equals("80")) {
+      uri += ":" + publicPort.get();
+    }
+    uri += "/";
     if (redirect != null && !redirect.equals("")) {
       uri = redirect;
     }

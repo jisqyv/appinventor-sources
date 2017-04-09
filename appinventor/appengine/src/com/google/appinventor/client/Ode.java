@@ -66,6 +66,7 @@ import com.google.appinventor.shared.rpc.user.User;
 import com.google.appinventor.shared.rpc.user.UserInfoService;
 import com.google.appinventor.shared.rpc.user.UserInfoServiceAsync;
 import com.google.appinventor.shared.settings.SettingsConstants;
+import com.google.appinventor.shared.util.AccountUtil;
 import com.google.gwt.core.client.Callback;
 import com.google.gwt.core.client.EntryPoint;
 import com.google.gwt.core.client.GWT;
@@ -166,6 +167,11 @@ public class Ode implements EntryPoint {
   private FileEditor currentFileEditor;
 
   private AssetManager assetManager;
+  private boolean isAnon = false;
+  private boolean displayedCodes = false; // True means we have displayed the dialog box
+                                          // with the four word codes for an anonymous account
+                                          // to revisit us. Only used if we are an anonymous
+                                          // account. I.e. isAnon is true
 
   // Remembers the current View
   static final int DESIGNER = 0;
@@ -539,6 +545,9 @@ public class Ode implements EntryPoint {
         config = result;
         user = result.getUser();
         isReadOnly = user.isReadOnly();
+        if (user.getUserId().startsWith("anon-")) { // We are a anonymous user
+          isAnon = true;
+        }
 
         // Setup noop timer (if enabled)
         int noop = config.getNoop();
@@ -617,7 +626,11 @@ public class Ode implements EntryPoint {
         // Initialize UI
         initializeUi();
 
-        topPanel.showUserEmail(user.getUserEmail());
+        if (isAnon) {
+          topPanel.showUserEmail("Anonymous");
+        } else {
+          topPanel.showUserEmail(user.getUserEmail());
+        }
       }
 
       @Override
@@ -1158,6 +1171,15 @@ public class Ode implements EntryPoint {
     return user;
   }
 
+  /** Returns whether or not this is an anonymous user
+   *
+   *  @return true if this is an anonymous user
+   */
+
+  public boolean isAnonUser() {
+    return isAnon;
+  }
+
   /**
    * Helper method to create push buttons.
    *
@@ -1286,7 +1308,16 @@ public class Ode implements EntryPoint {
    *
    * @param force Bypass the check to see if they have dimissed this version
    */
-  private void createWelcomeDialog(boolean force) {
+  private void createWelcomeDialog(final boolean force) {
+    if (isAnon && !displayedCodes) { // First display the revisit codes if we
+      displayRevisitCodes(false, new Runnable() {
+          @Override public void run() {
+            displayedCodes = true;
+            createWelcomeDialog(force);
+          }
+        });         // if we are an anonymous account
+      return;
+    }
     if (!shouldShowWelcomeDialog() && !force) {
       maybeShowNoProjectsDialog();
       return;
@@ -1321,6 +1352,50 @@ public class Ode implements EntryPoint {
     holder.add(ok);
     holder.add(noshow);
     DialogBoxContents.add(message);
+    DialogBoxContents.add(holder);
+    dialogBox.setWidget(DialogBoxContents);
+    dialogBox.show();
+  }
+
+  public void displayRevisitCodes(boolean leaving, final Runnable next) {
+    if (!isAnon) {                                          // We are not anonymous so don't
+      next.run();                                           // show the dialog
+      return;
+    }
+    final DialogBox dialogBox = new DialogBox(false, true); // DialogBox(autohide, modal)
+    dialogBox.setStylePrimaryName("ode-DialogBox");
+    dialogBox.setText(MESSAGES.createWelcomeDialogText());
+    dialogBox.setHeight("200px");
+    dialogBox.setWidth("400px");
+    dialogBox.setGlassEnabled(true);
+    dialogBox.setAnimationEnabled(true);
+    dialogBox.center();
+    VerticalPanel DialogBoxContents = new VerticalPanel();
+    String code = AccountUtil.accountToCode(getUser().getUserId());
+    String message;
+    if (leaving) {
+      message = "You are leaving MIT App Inventor. If you wish to " +
+        " access any projects you created here in the future, be sure " +
+        " to write down the code below and use it to re-enter MIT App " +
+        "Inventor.<br/><br/>Your Code: " + code;
+    } else {
+      message = "You are logged in without an account.<br/>\n" +
+        "You can use the code below to re-enter MIT App Inventor and work " +
+        "on your projects again.<br/><br/>\n" +
+        "Your Code is: " + code + "<br/>\n";
+    }
+    HTML htmlmessage = new HTML(message);
+    htmlmessage.setStyleName("DialogBox-message");
+    FlowPanel holder = new FlowPanel();
+    Button ok = new Button(MESSAGES.createWelcomeDialogButton());
+    ok.addClickListener(new ClickListener() {
+        public void onClick(Widget sender) {
+          dialogBox.hide();
+          next.run();
+        }
+      });
+    holder.add(ok);
+    DialogBoxContents.add(htmlmessage);
     DialogBoxContents.add(holder);
     dialogBox.setWidget(DialogBoxContents);
     dialogBox.show();

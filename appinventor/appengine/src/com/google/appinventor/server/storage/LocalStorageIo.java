@@ -9,7 +9,6 @@ import com.google.appinventor.server.FileExporter;
 import com.google.appinventor.server.flags.Flag;
 
 import com.google.appinventor.server.storage.StoredData.PWData;
-
 import com.google.appinventor.server.util.LicenseConfig;
 
 import com.google.appinventor.shared.rpc.AdminInterfaceException;
@@ -29,6 +28,8 @@ import com.google.appinventor.shared.rpc.user.SplashConfig;
 import com.google.appinventor.shared.rpc.user.User;
 
 import com.google.appinventor.shared.storage.StorageUtil;
+
+import com.google.appinventor.shared.util.AccountUtil;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -252,7 +253,7 @@ public class LocalStorageIo implements  StorageIo {
       } else {
         if (userId == null) {   // Only create user if lookup was by email address
           if (create) {
-            User retval = createUser(email, conn);
+            User retval = createUser(email, null, conn);
             return retval;
           }
           else {
@@ -277,8 +278,13 @@ public class LocalStorageIo implements  StorageIo {
   /*
    * Note: We are passed in the SQL Connection to the User Database.
    */
-  private User createUser(String email, Connection conn) throws SQLException {
-    String newId = UUID.randomUUID().toString();
+  private User createUser(String email, String userId, Connection conn) throws SQLException {
+    String newId;
+    if (userId != null) {       // Used passed in userId (for anon account creation)
+      newId = userId;
+    } else {                    // If we weren't passed in a userId, create one here
+      newId = UUID.randomUUID().toString();
+    }
     PreparedStatement prep = conn.prepareStatement("insert into users (uuid, email, emaillower, visited," +
       " settings, tosaccepted, isadmin, sessionid, password, templatepath) " +
       "values (?, ?, ?, ?, ?, ?,?, ?, ?, ?)");
@@ -1779,7 +1785,7 @@ public class LocalStorageIo implements  StorageIo {
         }
         // Got this far, we can really add them
         prep.close();
-        userData= createUser(user.getEmail(), conn);
+        userData= createUser(user.getEmail(), null, conn);
         prep = conn.prepareStatement("update users set isadmin = ?, password = ? where uuid = ?");
         prep.setBoolean(1, user.getIsAdmin());
         prep.setString(2, user.getPassword());
@@ -1847,6 +1853,35 @@ public class LocalStorageIo implements  StorageIo {
     File tempPath = new File(storageRoot.get() + "/" + fileName);
     tempPath.delete();
     LOG.log(Level.INFO, "Deleting " + tempPath);
+  }
+
+  @Override
+  public User createAnonymousAccount() {
+    Connection conn = null;
+    ResultSet rs;
+    try {
+      conn = userConn.get();
+      if (conn == null) {
+        conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
+        userConn.set(conn);
+      }
+
+      String userId;
+      User user;
+      while (true) {
+        userId = AccountUtil.generateAccountId();
+        user = getUser(userId, null, false);
+        if (user != null)         // Already have one with this Id
+          continue;               // Loop around, try a different random Id
+        // At this point we have an unused userId. Note: There is a race here
+        // but it is low probability.
+        createUser(userId, userId, conn);
+        user = getUser(userId);
+        return user;
+      }
+    } catch (SQLException ee) {
+      throw CrashReport.createAndLogError(LOG, null, null, ee);
+    }
   }
 
   private static String collectUserErrorInfo(final String userId) {

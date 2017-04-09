@@ -563,4 +563,11 @@ public interface StorageIo {
   List<AdminUser> searchUsers(String partialEmail);
   void storeUser(AdminUser user) throws AdminInterfaceException;
 
+
+  // Generate an anonymous account
+  // Anonymous accounts have an account id of the form
+  // anon-<long>
+
+  User createAnonymousAccount();
+
 }

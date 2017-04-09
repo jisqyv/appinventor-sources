@@ -11,6 +11,8 @@
    String galleryId = (String) request.getAttribute("galleryId");
    boolean useGoogle = Flag.createFlag("auth.usegoogle", false).get();
    String googleClientId = Flag.createFlag("auth.googleclientid", "").get();
+   boolean anonOK = Flag.createFlag("auth.useanon", false).get();
+   boolean showLogin = Flag.createFlag("auth.showlogin", true).get();
    if (locale == null) {
        locale = "en";
    }
@@ -113,6 +115,7 @@
 <% if (error != null) {
 out.println("<center><font color=red><b>" + error + "</b></font></center><br/>");
    } %>
+<% if (showLogin) { %>
 <form method=POST action="/login">
 <center><table>
 <tr><td>${emailAddressLabel}</td><td><input type=text name=email value="" size="35"></td></tr>
@@ -141,10 +144,33 @@ out.println("<center><font color=red><b>" + error + "</b></font></center><br/>")
 <p></p>
 <center><p><a href="<%= new UriBuilder("/login/sendlink")
                               .add("locale", locale).build() %>"  style="text-decoration:none;">${passwordclickhereLabel}</a></p></center>
+<% } %> <!-- End of showLogin block -->
+<% if (anonOK) { %>
+<center>
+<center>
+<form method=POST action="/login">
+<input type=hidden name=noaccount value=true>
+<input type=submit style="font-size: 20px" value="Continue Without An Account">
+</form>
+</center>
+<br/><br/>or<br/><br/>
+<table border=1 cellpadding=10>
+<tr><td><center>
+<form method=POST action="/login">
+<input type=hidden name=revisit value=true>
+Your Revisit Code:&nbsp;<input type=text name=A value="" size=4 maxlength=4>-<input type=text name=B value="" size=4 maxlength=4>-<input type=text name=C size=4 maxlength=4 value="">-
+<input type=text name=D size=4 maxlength=4 value=""><br/><br/>
+<input type=submit value="Enter with Revisit Code">
+</form>
+</center>
+</td></tr></table>
+</center>
+<% } %>
 <% if (useGoogle) { %>
+<br/><br/>
 <center>
   <div id="gSignInWrapper">
-    <span class="label">Sign in with:</span>
+    <span class="label">Or sign in with:</span>
     <div id="customBtn" class="customGPlusSignIn">
       <span class="icon"></span>
       <span class="buttonText">Google</span>
