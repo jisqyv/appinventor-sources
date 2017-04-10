@@ -113,6 +113,7 @@ public class StartSystem {
           config.add("mail.smtp.password", mailpassword);
       }
       config.save();
+      pArgs.add("-XX:+UseG1GC");
       pArgs.add("-jar");
       pArgs.add("jetty-runner.jar");
       pArgs.add("--port");
