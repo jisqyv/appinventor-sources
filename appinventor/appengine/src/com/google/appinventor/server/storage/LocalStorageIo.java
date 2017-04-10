@@ -604,6 +604,7 @@ public class LocalStorageIo implements  StorageIo {
         try {
           conn.close();
         } catch (Exception e) {
+          CrashReport.createAndLogError(LOG, null, collectUserProjectErrorInfo(userId, projectId), e);
         }
       }
     }
@@ -627,6 +628,7 @@ public class LocalStorageIo implements  StorageIo {
         try {
           conn.close();
         } catch (Exception e) {
+          CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId), e);
         }
       }
     }
@@ -656,6 +658,7 @@ public class LocalStorageIo implements  StorageIo {
         try {
           conn.close();
         } catch (Exception e) {
+          CrashReport.createAndLogError(LOG, null, collectUserProjectErrorInfo(userId, projectId), e);
         }
       }
     }
@@ -680,6 +683,7 @@ public class LocalStorageIo implements  StorageIo {
         try {
           conn.close();
         } catch (Exception e) {
+          CrashReport.createAndLogError(LOG, null, collectUserProjectErrorInfo(userId, projectId), e);
         }
       }
     }
@@ -726,6 +730,7 @@ public class LocalStorageIo implements  StorageIo {
         try {
           conn.close();
         } catch (Exception e) {
+          CrashReport.createAndLogError(LOG, null, collectUserProjectErrorInfo(userId, projectId), e);
         }
       }
     }
@@ -766,6 +771,7 @@ public class LocalStorageIo implements  StorageIo {
         try {
           conn.close();
         } catch (Exception e) {
+          CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId), e);
         }
       }
     }
@@ -791,6 +797,7 @@ public class LocalStorageIo implements  StorageIo {
         try {
           conn.close();
         } catch (Exception e) {
+          CrashReport.createAndLogError(LOG, null, collectUserProjectErrorInfo(userId, projectId), e);
         }
       }
     }
@@ -816,6 +823,7 @@ public class LocalStorageIo implements  StorageIo {
         try {
           conn.close();
         } catch (Exception e) {
+          CrashReport.createAndLogError(LOG, null, collectUserProjectErrorInfo(userId, projectId), e);
         }
       }
     }
@@ -1095,6 +1103,14 @@ public class LocalStorageIo implements  StorageIo {
       prep.executeUpdate();
     } catch (SQLException e) {
       throw CrashReport.createAndLogError(LOG, null, null, e);
+    } finally {
+      if (conn != null) {
+        try {
+          conn.close();
+        } catch (Exception e) {
+          CrashReport.createAndLogError(LOG, null, collectUserProjectErrorInfo(userId, projectId), e);
+        }
+      }
     }
   }
 
