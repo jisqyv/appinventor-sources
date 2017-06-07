@@ -117,6 +117,7 @@ import com.google.gwt.user.client.ui.DeckPanel;
 import com.google.gwt.user.client.ui.DialogBox;
 import com.google.gwt.user.client.ui.DockPanel;
 import com.google.gwt.user.client.ui.FlowPanel;
+import com.google.gwt.user.client.ui.Frame;
 import com.google.gwt.user.client.ui.Grid;
 import com.google.gwt.user.client.ui.HTML;
 import com.google.gwt.user.client.ui.HasHorizontalAlignment;
@@ -212,15 +213,17 @@ public class Ode implements EntryPoint {
    *  |+-- topPanel -------------------------------+|
    *  ||                                           ||
    *  |+-------------------------------------------+|
-   *  |+-- deckPanel ------------------------------+|
-   *  ||                                           ||
-   *  |+-------------------------------------------+|
+   *  |+-- overDeckPanel --+-----------------------+|
+   *  || tutorialPanel     |  deckPanel            ||
+   *  |+-------------------+-----------------------+|
    *  |+-- statusPanel ----------------------------+|
    *  ||                                           ||
    *  |+-------------------------------------------+|
    *  +---------------------------------------------+
    */
   private DeckPanel deckPanel;
+  private HorizontalPanel overDeckPanel;
+  private Frame tutorialPanel;
   private int projectsTabIndex;
   private int designTabIndex;
   private int debuggingTabIndex;
@@ -233,6 +236,9 @@ public class Ode implements EntryPoint {
   private AdminUserListBox uaListBox;
   private DesignToolbar designToolbar;
   private TopToolbar topToolbar;
+
+  // Is the tutorial toolbar currently displayed?
+  private boolean tutorialVisible = false;
 
   // Popup that indicates that an asynchronous request is pending. It is visible
   // initially, and will be hidden automatically after the first RPC completes.
@@ -259,9 +265,26 @@ public class Ode implements EntryPoint {
   private boolean screensLocked;
 
   // Licensing related variables
-
   private String licenseCode;
   private String systemId;
+
+  /**
+   * Flag set if we may need to show the splash screen based on
+   * current user settings.
+   */
+  private boolean mayNeedSplash = false;
+
+  /**
+   * Flag to inidcate that we have already transitioned away from the
+   * project list to a project (auto-open feature).
+   */
+  private boolean didTransitionFromProjectList = false;
+
+  /**
+   * Flag indicating that we have shown the splash screens.
+   */
+  private boolean didShowSplash = false;
+
   private SplashConfig splashConfig; // Splash Screen Configuration
 
   /**
@@ -347,6 +370,7 @@ public class Ode implements EntryPoint {
   public void switchToProjectsView() {
     // We may need to pass the code below as a runnable to
     // screenShotMaybe() so build the runnable now
+    hideTutorials();
     Runnable next = new Runnable() {
         @Override
         public void run() {
@@ -377,6 +401,7 @@ public class Ode implements EntryPoint {
    */
 
   public void switchToUserAdminPanel() {
+    hideTutorials();
     currentView = USERADMIN;
     deckPanel.showWidget(userAdminTabIndex);
   }
@@ -387,6 +412,7 @@ public class Ode implements EntryPoint {
   public void switchToDesignView() {
     // Only show designer if there is a current editor.
     // ***** THE DESIGNER TAB DOES NOT DISPLAY CORRECTLY IF THERE IS NO CURRENT EDITOR. *****
+    showTutorials();
     currentView = DESIGNER;
     getTopToolbar().updateFileMenuButtons(currentView);
     if (currentFileEditor != null) {
@@ -401,6 +427,7 @@ public class Ode implements EntryPoint {
    * Switch to the Debugging tab
    */
   public void switchToDebuggingView() {
+    hideTutorials();
     deckPanel.showWidget(debuggingTabIndex);
 
     // NOTE(lizlooney) - Calling resizeWorkArea for debuggingTab prevents the
@@ -763,6 +790,15 @@ public class Ode implements EntryPoint {
     DockPanel mainPanel = new DockPanel();
     mainPanel.add(topPanel, DockPanel.NORTH);
 
+    // Create the Tutorial Panel
+    tutorialPanel = new Frame("");
+    tutorialPanel.setWidth("100%");
+    tutorialPanel.setHeight("100%");
+    // Initially we do not display it. If the project we load has
+    // a tutorial URL, then we will set this visible when we load
+    // the project
+    tutorialPanel.setVisible(false);
+
     // Create tab panel for subsequent tabs
     deckPanel = new DeckPanel() {
       @Override
@@ -780,7 +816,27 @@ public class Ode implements EntryPoint {
     deckPanel.setStyleName("ode-DeckPanel");
 
     // Projects tab
-    VerticalPanel pVertPanel = new VerticalPanel();
+    VerticalPanel pVertPanel = new VerticalPanel() {
+        /**
+         * Flag to indicate the project list has been rendered at least once.
+         */
+        private boolean rendered = false;
+
+        // Override to add splash screen behavior after leaving the project list
+        @Override
+        public void setVisible(boolean visible) {
+          super.setVisible(visible);
+          if (visible && !rendered) {
+            // setVisible(false) will be called during UI initialization.
+            // this flag indicates we are now being shown (possibly again...)
+            rendered = true;
+            maybeShowSplash2();  // in case of new user; they have no projects!
+          } else if (rendered && !visible && (mayNeedSplash || shouldShowWelcomeDialog())
+                     && !didShowSplash) {
+            showSplashScreens();
+          }
+        }
+      };
     pVertPanel.setWidth("100%");
     pVertPanel.setSpacing(0);
     HorizontalPanel projectListPanel = new HorizontalPanel();
@@ -915,9 +971,15 @@ public class Ode implements EntryPoint {
     // ***** THE DESIGNER TAB DOES NOT DISPLAY CORRECTLY IF THERE IS NO CURRENT PROJECT. *****
     deckPanel.showWidget(projectsTabIndex);
 
-    mainPanel.add(deckPanel, DockPanel.CENTER);
-    mainPanel.setCellHeight(deckPanel, "100%");
-    mainPanel.setCellWidth(deckPanel, "100%");
+    overDeckPanel = new HorizontalPanel();
+    overDeckPanel.setHeight("100%");
+    overDeckPanel.setWidth("100%");
+    overDeckPanel.add(tutorialPanel);
+    overDeckPanel.setCellWidth(tutorialPanel, "0%");
+    overDeckPanel.add(deckPanel);
+    mainPanel.add(overDeckPanel, DockPanel.CENTER);
+    mainPanel.setCellHeight(overDeckPanel, "100%");
+    mainPanel.setCellWidth(overDeckPanel, "100%");
 
 //    mainPanel.add(switchToDesignerButton, DockPanel.WEST);
 //    mainPanel.add(switchToBlocksButton, DockPanel.EAST);
@@ -1542,10 +1604,29 @@ public class Ode implements EntryPoint {
     }
   }
 
+  private void maybeShowSplash2() {
+    projectManager.addProjectManagerEventListener(new ProjectManagerEventAdapter() {
+      @Override
+      public void onProjectsLoaded() {
+        if (projectManager.projectCount() == 0 && !templateLoadingFlag) {
+          ErrorReporter.hide();  // hide the "Please choose a project" message
+          showSplashScreens();
+        }
+      }
+    });
+  }
+
+  public void requestShowSplashScreens() {
+    mayNeedSplash = true;
+    if (didTransitionFromProjectList) {  // do immediately
+      showSplashScreens();
+    }
+  }
+
   // Display the Survey and/or Normal Splash Screens
   // (if enabled). This function is called out of SplashSettings.java
   // after the userSettings object is loaded (above) and parsed.
-  public void showSplashScreens() {
+  private void showSplashScreens() {
 
     // Timer t = new Timer() {
     //     @Override
@@ -1585,6 +1666,7 @@ public class Ode implements EntryPoint {
     if (showSplash) {
       maybeShowSplash();
     }
+    didShowSplash = true;
   }
 
   /**
@@ -2220,6 +2302,59 @@ public class Ode implements EntryPoint {
           next.run();
         }
       });
+  }
+
+  // Used internally here so that the tutorial panel is only shown on
+  // the blocks or designer view, not the gallery or projects (or
+  // other) views. unlike setTutorialVisible, we do not side effect
+  // the instance variable tutorialVisible, so we can use it in showTutorials()
+  // (below) to put back the tutorial frame when we revisit the project
+  private void hideTutorials() {
+    tutorialPanel.setVisible(false);
+    overDeckPanel.setCellWidth(tutorialPanel, "0%");
+  }
+
+  private void showTutorials() {
+    if (tutorialVisible) {
+      tutorialPanel.setVisible(true);
+    }
+  }
+
+  public void setTutorialVisible(boolean visible) {
+    tutorialVisible = visible;
+    if (visible) {
+      tutorialPanel.setVisible(true);
+      tutorialPanel.setWidth("300px");
+    } else {
+      tutorialPanel.setVisible(false);
+      overDeckPanel.setCellWidth(tutorialPanel, "0%");
+    }
+  }
+
+  /**
+   * Indicate if the tutorial panel is currently visible.
+   * @return true if the tutorial panel is visible.
+   *
+   * Note: This value is only valid if in the blocks editor or the designer.
+   * As of this note this routine is called when the "Toogle Tutorial" button
+   * is clicked, and it is only displayed when in the Designer of the Blocks
+   * Editor.
+   */
+
+  public boolean isTutorialVisible() {
+    return tutorialVisible;
+  }
+
+  public void setTutorialURL(String newURL) {
+    if (newURL.isEmpty() || (!newURL.startsWith("http://appinventor.mit.edu/")
+        && !newURL.startsWith("http://appinv.us/"))) {
+      designToolbar.setTutorialToggleVisible(false);
+      setTutorialVisible(false);
+    } else {
+      tutorialPanel.setUrl(newURL);
+      designToolbar.setTutorialToggleVisible(true);
+      setTutorialVisible(true);
+    }
   }
 
   // Native code to set the top level rendezvousServer variable
