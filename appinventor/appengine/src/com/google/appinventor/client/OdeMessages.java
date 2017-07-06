@@ -434,6 +434,14 @@ public interface OdeMessages extends Messages {
   @Description("Confirmation message for deleting component(s)")
   String confirmDeleteComponents(String componentNames);
 
+  @DefaultMessage("From my computer")
+  @Description("")
+  String componentImportFromComputer();
+
+  @DefaultMessage("URL")
+  @Description("For importing from a URL")
+  String componentImportFromURL();
+
   //Connect
   @DefaultMessage("Connect")
   @Description("Label of the button leading to Connect related cascade items")
@@ -2068,6 +2076,10 @@ public interface OdeMessages extends Messages {
   @Description("")
   String gameClientComponentPallette();
 
+  @DefaultMessage("password")
+  @Description("")
+  String passwordParams();
+
   @DefaultMessage("SoundRecorder")
   @Description("")
   String soundRecorderComponentPallette();
@@ -2352,6 +2364,10 @@ public interface OdeMessages extends Messages {
   @DefaultMessage("PhoneNumber")
   @Description("")
   String PhoneNumberProperties();
+
+  @DefaultMessage("PhoneNumber")
+  @Description("")
+  String phoneNumberParams();
 
   @DefaultMessage("PhoneNumberList")
   @Description("")
@@ -2973,6 +2989,10 @@ public interface OdeMessages extends Messages {
   @Description("")
   String UsernameProperties();
 
+  @DefaultMessage("username")
+  @Description("")
+  String usernameParams();
+
   @DefaultMessage("XAccel")
   @Description("")
   String XAccelProperties();
@@ -3398,10 +3418,6 @@ public interface OdeMessages extends Messages {
   @Description("")
   String providerParams();
 
-  @DefaultMessage("phoneNumber")
-  @Description("")
-  String phoneNumberParams();
-
   @DefaultMessage("status")
   @Description("")
   String statusParams();
@@ -3682,7 +3698,7 @@ public interface OdeMessages extends Messages {
   @Description("")
   String queryParams();
 
-  @DefaultMessage("ImagePath")
+  @DefaultMessage("imagePath")
   @Description("")
   String imagePathParams();
 
@@ -5704,6 +5720,10 @@ public interface OdeMessages extends Messages {
   @DefaultMessage("Português do Brasil")
   @Description("")
   String switchToPortugueseBR();
+
+  @DefaultMessage("Nederlands")
+  @Description("")
+  String switchToDutch();
 
   @DefaultMessage("Progress Bar")
   @Description("")
