@@ -5540,11 +5540,7 @@ public interface OdeMessages extends Messages {
 
   @DefaultMessage("Welcome to App Inventor!")
   @Description("")
-  String createWelcomeDialogText(); 
-  
-  @DefaultMessage("<iframe src=\"http://dl.qyv.me/mit1/\" style=\"border: 0; width: 400px; height: 370px;\"></iframe>")
-  @Description("")
-  String createWelcomeDialogMessage();
+  String createWelcomeDialogText();
 
   @DefaultMessage("Continue")
   @Description("")
