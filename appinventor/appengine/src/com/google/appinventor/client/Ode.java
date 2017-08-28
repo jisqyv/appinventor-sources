@@ -1345,7 +1345,7 @@ public class Ode implements EntryPoint {
         HasHorizontalAlignment.ALIGN_RIGHT,
         HasVerticalAlignment.ALIGN_MIDDLE);
 
-    Image dialogImage = new Image(Ode.getImageBundle().androidGreenSmall());
+    Image dialogImage = new Image(Ode.getImageBundle().codiVert());
 
     Grid messageGrid = new Grid(2, 1);
     messageGrid.getCellFormatter().setAlignment(0,
