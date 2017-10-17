@@ -123,12 +123,15 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
                                                  // where variables are kept when an app exits
                                                  // when off-line
 
+  private String defaultRedisServer = null;
+  private boolean useDefault = true;
+
   private Handler androidUIHandler;
   private final Activity activity;
   private CloudDBJedisListener childListener;
 
   private Jedis INSTANCE = null;
-  private String redisServer;
+  private String redisServer = "DEFAULT";
   private int redisPort;
   private volatile boolean LISTENERSTOPPING = false;
   private JobManager jobManager;
@@ -194,7 +197,6 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     projectID = ""; // set in Designer
     token = ""; //set in Designer
 
-    redisServer = "jis.csail.mit.edu";
     redisPort = 9001;
 
     Log.d(LOG_TAG, "JobManager created");
@@ -222,6 +224,10 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     } catch (Exception e) {
       Log.e(LOG_TAG, "in stop listener", e);
       flushJedis();
+    }
+    if (INSTANCE != null) {     // Close the default instance for non-pubsub
+      INSTANCE.quit();          // because we always call this when we are likely
+      INSTANCE = null;          // to change the redis server we are using
     }
   }
 
@@ -269,21 +275,55 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   }
 
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_STRING,
-    defaultValue = "jis.csail.mit.edu")
+    defaultValue = "DEFAULT")
   public void RedisServer(String servername) {
-    stopListener();
-    redisServer = servername;
-    if (INSTANCE != null) {
-      INSTANCE.quit();
-      INSTANCE = null;
+    if (servername.equals("DEFAULT")) {
+      if (!useDefault) {
+        stopListener();
+        useDefault = true;
+        if (defaultRedisServer == null) { // Not setup yet
+          Log.d(LOG_TAG, "RedisServer called default defaultServer (should not happen!)");
+        } else {
+          redisServer = defaultRedisServer;
+          startListener();
+        }
+      }
+    } else {
+      useDefault = false;
+      if (!servername.equals(redisServer)) {
+        stopListener();
+        redisServer = servername;
+        startListener();
+      }
     }
-    startListener();
   }
 
   @SimpleProperty(category = PropertyCategory.BEHAVIOR,
       description = "The Redis Server to use.")
   public String RedisServer() {
-    return redisServer;
+    if (redisServer.equals(defaultRedisServer)) {
+      return "DEFAULT";
+    } else {
+      return redisServer;
+    }
+  }
+
+  // This is a non-documented property because it is hidden in the
+  // UI. Its purpose in life is to transmit the default redis server
+  // from the system into the Companion or packaged app. The Default
+  // server is set in appengine-web.xml (the clouddb.server property). It
+  // is sent to the client from the server via the system config call.
+
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_STRING)
+  @SimpleProperty(category = PropertyCategory.BEHAVIOR,
+    description = "The Default Redis Server to use.",
+    userVisible = false)
+  public void DefaultRedisServer(String server) {
+    defaultRedisServer = server;
+    if (useDefault) {
+      redisServer = server;
+//      stopListener();
+    }
   }
 
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_INTEGER,
@@ -291,10 +331,6 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   public void RedisPort(int port) {
     stopListener();
     redisPort = port;
-    if (INSTANCE != null) {
-      INSTANCE.quit();
-      INSTANCE = null;
-    }
     startListener();
   }
 
@@ -315,7 +351,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     Log.d(CloudDB.LOG_TAG,"Sync called with sync = " + sync);
     this.sync = sync;
     Log.d(LOG_TAG, "About to add job creator");
-    JobManager.instance().getConfig().setAllowSmallerIntervalsForMarshmallow(true); // For debugging
+//    JobManager.instance().getConfig().setAllowSmallerIntervalsForMarshmallow(true); // For debugging
     Log.d(CloudDB.LOG_TAG,"JobManager for SyncJob added...");
     SyncJob.scheduleSync(this.syncPeriod);
 
@@ -394,7 +430,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
    *
    * @return the authTokenSignature for this CloudDB project
    */
-  @SimpleProperty(category = PropertyCategory.BEHAVIOR,
+  @SimpleProperty(category = PropertyCategory.BEHAVIOR, userVisible = false,
           description = "Gets the token for this CloudDB project.")
   public String Token() {
     checkProjectIDNotBlank();

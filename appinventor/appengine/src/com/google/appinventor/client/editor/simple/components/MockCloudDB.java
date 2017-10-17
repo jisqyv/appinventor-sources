@@ -9,11 +9,13 @@ import com.google.appinventor.client.DesignToolbar;
 import com.google.appinventor.client.Ode;
 import com.google.appinventor.client.OdeAsyncCallback;
 import com.google.appinventor.client.editor.simple.SimpleEditor;
-import com.google.appinventor.shared.rpc.cloudDB.CloudDBAuthServiceAsync;
-import com.google.appinventor.shared.rpc.user.UserInfoServiceAsync;
+
+import com.google.appinventor.client.output.OdeLog;
+
+import com.google.appinventor.client.widgets.properties.EditableProperty;
+
 import com.google.gwt.user.client.ui.Image;
 import com.google.gwt.user.client.ui.Widget;
-
 
 /**
  * Mock for the non-visible CloudDB component. This needs a separate mock
@@ -28,9 +30,9 @@ public class MockCloudDB extends MockNonVisibleComponent {
   private static final String PROPERTY_NAME_PROJECT_ID = "ProjectID";
   private static final String PROPERTY_NAME_ACCOUNT_NAME = "AccountName";
   private static final String PROPERTY_NAME_TOKEN = "Token";
-  //private static final String PROPERTY_NAME_HUUID = "Huuid";
+  private static final String PROPERTY_NAME_REDIS_SERVER = "RedisServer";
+  private static final String PROPERTY_NAME_DEFAULT_REDISSERVER = "DefaultRedisServer";
 
-  //Persist feature to be implemented
   private boolean persistToken = false;
 
   /**
@@ -54,6 +56,95 @@ public class MockCloudDB extends MockNonVisibleComponent {
   public final void initComponent(Widget widget) {
     super.initComponent(widget);
     String accName = Ode.getInstance().getUser().getUserEmail() + "";
+    DesignToolbar.DesignProject currentProject = Ode.getInstance().getDesignToolbar().getCurrentProject();
+    String projectID = "";
+    if (currentProject != null) {
+      projectID = currentProject.name;
+    }
+
+    changeProperty(PROPERTY_NAME_PROJECT_ID, projectID);
+    changeProperty(PROPERTY_NAME_ACCOUNT_NAME, accName);
+    String defaultRedisServer = Ode.getInstance().getSystemConfig().getDefaultCloudDBserver();
+    changeProperty(PROPERTY_NAME_DEFAULT_REDISSERVER, defaultRedisServer);
+    OdeLog.log("Default Redis Server = " + defaultRedisServer);
+  }
+
+  @Override
+  public boolean isPropertyforYail(String propertyName) {
+    if (propertyName.equals(PROPERTY_NAME_ACCOUNT_NAME) ||
+      (propertyName.equals(PROPERTY_NAME_PROJECT_ID)) ||
+        (propertyName.equals(PROPERTY_NAME_DEFAULT_REDISSERVER)) ||
+        (propertyName.equals(PROPERTY_NAME_TOKEN))) {
+      return true;
+    }
+    return super.isPropertyforYail(propertyName);
+  }
+
+  @Override
+  protected boolean isPropertyVisible(String propertyName) {
+    return !propertyName.equals(PROPERTY_NAME_DEFAULT_REDISSERVER)
+      && super.isPropertyVisible(propertyName);
+  }
+
+  @Override
+  public boolean isPropertyPersisted(String propertyName) {
+    if (propertyName.equals(PROPERTY_NAME_DEFAULT_REDISSERVER)) {
+      return false;             // We don't persist the default server as it is really
+                                // a property of the service, not the project per se
+    } else if (propertyName.equals(PROPERTY_NAME_TOKEN)) {
+      return persistToken;
+    } else {
+      return super.isPropertyPersisted(propertyName);
+    }
+  }
+
+  // We provide our own onPropertyChange to catch the case
+  // where the RedisServer is changed to/from the DEFAULT value.
+  // This effects the persistability (is that a word?) of the Token
+  // property. If we are using a private redis server, we want to persist
+  // the Token. Otherwise we do not.
+
+  @Override
+  public void onPropertyChange(String propertyName, String newValue) {
+    if (propertyName.equals(PROPERTY_NAME_REDIS_SERVER)) {
+      // If this is the default server, then make the Token property
+      // non-persistent, but output it in YAIL
+      EditableProperty token = properties.getProperty(PROPERTY_NAME_TOKEN);
+      if (token == null) {      // First pass through and "Token" isn't set yet
+        super.onPropertyChange(propertyName, newValue);
+        return;
+      }
+      int tokenType = token.getType();
+      if (newValue.equals("DEFAULT")) {
+        persistToken = false;
+        tokenType |= EditableProperty.TYPE_NONPERSISTED;
+        tokenType |= EditableProperty.TYPE_DOYAIL;
+        getTokenFromServer();
+      } else {
+        tokenType &= ~EditableProperty.TYPE_NONPERSISTED;
+        persistToken = true;
+      }
+      token.setType(tokenType);
+      onPropertyChange(PROPERTY_NAME_TOKEN, token.getValue());
+    } else if (propertyName.equals(PROPERTY_NAME_TOKEN)) {
+      EditableProperty serverProperty = properties.getProperty(PROPERTY_NAME_REDIS_SERVER);
+      // if the Redis Server property is "DEFAULT" we don't persist the
+      // Token property
+      if (serverProperty == null) { // Nothing we can do here
+        super.onPropertyChange(propertyName, newValue);
+        return;
+      }
+      String server = serverProperty.getValue();
+      if (server.equals("DEFAULT")) {
+        persistToken = false;
+      } else {
+        persistToken = true;
+      }
+    }
+    super.onPropertyChange(propertyName, newValue);
+  }
+
+  private void getTokenFromServer() {
     Ode.getInstance().getCloudDBAuthService().getToken(new OdeAsyncCallback<String>() {
       @Override
       public void onSuccess(String token) {
@@ -65,34 +156,6 @@ public class MockCloudDB extends MockNonVisibleComponent {
         super.onFailure(t);
       }
     });
-    /*Ode.getInstance().getUserInfoService().gethuuid(new OdeAsyncCallback<String>() {
-      @Override
-      public void onSuccess(String huuid) {
-        changeProperty(PROPERTY_NAME_HUUID,huuid);
-      }
-      @Override
-      public void onFailure(Throwable t){
-        changeProperty(PROPERTY_NAME_HUUID,"ERROR : huuid could not be created");
-        super.onFailure(t);
-      }
-    });*/
-    DesignToolbar.DesignProject currentProject = Ode.getInstance().getDesignToolbar().getCurrentProject();
-    String projectID = "";
-    if (currentProject != null) {
-      projectID = currentProject.name;
-    }
-
-    changeProperty(PROPERTY_NAME_PROJECT_ID, projectID);
-    changeProperty(PROPERTY_NAME_ACCOUNT_NAME, accName);
-  }
-
-  @Override
-  public boolean isPropertyforYail(String propertyName) {
-    if (propertyName.equals(PROPERTY_NAME_ACCOUNT_NAME) ||
-      (propertyName.equals(PROPERTY_NAME_PROJECT_ID))) {
-      return true;
-    }
-    return super.isPropertyforYail(propertyName);
   }
 
 }

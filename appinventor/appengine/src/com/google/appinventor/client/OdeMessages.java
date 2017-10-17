@@ -6492,6 +6492,10 @@ public interface OdeMessages extends Messages {
   @Description("")
   String RedisServerProperties();
 
+  @DefaultMessage("DefaultRedisServer")
+  @Description("")
+  String DefaultRedisServerProperties();
+
   @DefaultMessage("RedisPort")
   @Description("")
   String RedisPortProperties();
