@@ -256,7 +256,13 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
                 } catch (Exception ee) {
                   // XXX
                 }
-                startListener(); // Make a new attempt...
+                try {
+                  Thread.sleep(1000);
+                } catch (InterruptedException ee) {
+                  // XXX
+                }
+                startListener(); // Make a new attempt...(in a new thread)
+                return;          // Done with this thread
               }
             } else {
               // Could not connect to the Redis server. Sleep for
@@ -511,7 +517,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
             } catch (NullPointerException e) {
               Log.d(CloudDB.LOG_TAG,"error while zrange...");
               flushJedis();
-              throw new YailRuntimeError("zrange threw a runtime exception.", "Redis runtime exception.");
+              throw new YailRuntimeError("set threw a runtime exception.", "Redis runtime exception.");
             } catch (JedisException e) {
               CloudDBError(e.getMessage());
               flushJedis();
@@ -650,6 +656,13 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   public void GotValue(String tag, Object value) {
     Log.d(CloudDB.LOG_TAG, "GotValue: tag = " + tag + " value = " + (String) value);
     checkProjectIDNotBlank();
+
+    // We can get a null value is the Jedis connection failed in some way.
+    // not sure what to do here, so we'll signal an error for now.
+    if (value == null) {
+      CloudDBError("Trouble getting " + tag + " from the server.");
+      return;
+    }
 
     try {
       Log.d(LOG_TAG, "GotValue: Class of value = " + value.getClass().getName());
@@ -806,8 +819,11 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   private Jedis getJedis(boolean createNew) {
     Jedis jedis;
     try {
+      Log.d(LOG_TAG, "getJedis(true): Attempting a new connection.");
       jedis = new Jedis(redisServer, redisPort);
+      Log.d(LOG_TAG, "getJedis(true): Have new connection.");
       jedis.auth(token);
+      Log.d(LOG_TAG, "getJedis(true): Authentication complete.");
     } catch (JedisConnectionException e) {
       CloudDBError(e.getMessage());
       return null;
@@ -840,6 +856,8 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
       // XXX
     }
     INSTANCE = null;
+    stopListener();             // This is probably hosed to, so restart
+    startListener();
   }
 
  /**
