@@ -133,7 +133,6 @@
         <pathelement location="${public.build.dir}/CommonConstants.jar" />
         <pathelement location="${build.dir}/common/CommonVersion.jar" />
         <pathelement location="${lib.dir}/android/5.1.1/android.jar" />
-        <pathelement location="${lib.dir}/android/support/support-v4-22.2.1.jar" />
         <pathelement location="${lib.dir}/kawa/kawa-1.11-modified.jar" />
         <pathelement location="${lib.dir}/acra/acra-4.4.0.jar" />
         <pathelement location="${lib.dir}/guava/guava-14.0.1.jar" />
@@ -144,7 +143,6 @@
         <pathelement location="${lib.dir}/apache-http/httpmime-4.3.4.jar" />
         <pathelement location="${lib.dir}/fusiontables/fusiontables.jar" />
         <pathelement location="${lib.dir}/firebase/firebase-client-android-2.5.0.jar" />
-        <pathelement location="${lib.dir}/evernote/android-job-1.1.11.jar" />
         <pathelement location="${lib.dir}/oauth/google-api-client-1.10.3-beta.jar" />
         <pathelement location="${lib.dir}/oauth/google-api-client-android2-1.10.3-beta.jar" />
         <pathelement location="${lib.dir}/oauth/google-http-client-1.10.3-beta.jar" />
@@ -256,7 +254,6 @@
           <pathelement location="${lib.dir}/apache-http/httpmime-4.3.4.jar" />
           <pathelement location="${lib.dir}/fusiontables/fusiontables.jar" />
           <pathelement location="${lib.dir}/firebase/firebase-client-android-2.5.0.jar" />
-          <pathelement location="${lib.dir}/evernote/android-job-1.1.11.jar" />
           <pathelement location="${lib.dir}/oauth/google-api-client-1.10.3-beta.jar" />
           <pathelement location="${lib.dir}/oauth/google-api-client-android2-1.10.3-beta.jar" />
           <pathelement location="${lib.dir}/oauth/google-http-client-1.10.3-beta.jar" />
@@ -344,7 +341,6 @@
   </target>
 
   <!-- =====================================================================
-       JsonComponentDescription: create simple_components.json.
        JsonComponentDescription: create simple_components.json.
        ===================================================================== -->
   <target name="JsonComponentDescription"

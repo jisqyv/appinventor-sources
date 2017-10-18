@@ -7,58 +7,65 @@
 package com.google.appinventor.components.runtime;
 
 import android.app.Activity;
+
 import android.content.ContentValues;
+
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+
 import android.os.Environment;
 import android.os.Handler;
+
 import android.util.Base64;
 import android.util.Log;
-import com.evernote.android.job.JobManager;
-import com.google.appinventor.components.annotations.SimpleFunction;
-import com.google.appinventor.components.annotations.DesignerProperty;
+
 import com.google.appinventor.components.annotations.DesignerComponent;
-import com.google.appinventor.components.annotations.UsesPermissions;
+import com.google.appinventor.components.annotations.DesignerProperty;
+import com.google.appinventor.components.annotations.PropertyCategory;
+import com.google.appinventor.components.annotations.SimpleEvent;
+import com.google.appinventor.components.annotations.SimpleFunction;
+import com.google.appinventor.components.annotations.SimpleProperty;
 import com.google.appinventor.components.annotations.UsesBroadcastReceivers;
 import com.google.appinventor.components.annotations.UsesLibraries;
-import com.google.appinventor.components.annotations.SimpleEvent;
-import com.google.appinventor.components.annotations.SimpleProperty;
-import com.google.appinventor.components.annotations.PropertyCategory;
+import com.google.appinventor.components.annotations.UsesPermissions;
 import com.google.appinventor.components.annotations.androidmanifest.ActionElement;
 import com.google.appinventor.components.annotations.androidmanifest.IntentFilterElement;
 import com.google.appinventor.components.annotations.androidmanifest.ReceiverElement;
+
 import com.google.appinventor.components.common.ComponentCategory;
 import com.google.appinventor.components.common.PropertyTypeConstants;
+
 import com.google.appinventor.components.runtime.errors.YailRuntimeError;
-import com.google.appinventor.components.runtime.util.JsonUtil;
-import com.google.appinventor.components.runtime.util.SyncJob;
-import com.google.appinventor.components.runtime.util.YailList;
-import com.google.appinventor.components.runtime.util.CloudDBCache;
-import com.google.appinventor.components.runtime.util.CloudDBCacheHelper;
+
 import com.google.appinventor.components.runtime.util.CloudDBJedisListener;
+import com.google.appinventor.components.runtime.util.JsonUtil;
+import com.google.appinventor.components.runtime.util.YailList;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
+
 import org.json.JSONArray;
 import org.json.JSONException;
+
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.exceptions.JedisConnectionException;
 import redis.clients.jedis.exceptions.JedisDataException;
 import redis.clients.jedis.exceptions.JedisException;
-
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.util.Set;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicReference;
-
 
 /**
  * The CloudDB component stores and retrieves information in the Cloud using Redis, an
@@ -79,13 +86,14 @@ import java.util.concurrent.atomic.AtomicReference;
     category = ComponentCategory.EXPERIMENTAL,
     nonVisible = true,
     iconName = "images/cloudDB.png")
-@UsesBroadcastReceivers(receivers = {
-        /*@ReceiverElement(name = "com.google.appinventor.components.runtime.util.AddReceiver",
+// Commented out by JIS 10/18/2017 -- First Version of CloudDB will not have offline support
+/* @UsesBroadcastReceivers(receivers = {
+        @ReceiverElement(name = "com.google.appinventor.components.runtime.util.AddReceiver",
                 intentFilters = {
                         @IntentFilterElement(actionElements = {
                                 @ActionElement(name = "com.evernote.android.job.ADD_JOB_CREATOR")})
                 },
-                exported = "false"),*/
+                exported = "false"),
         @ReceiverElement(name = "com.evernote.android.job.v14.PlatformAlarmReceiver",
                 intentFilters = {
                         @IntentFilterElement(actionElements = {
@@ -102,11 +110,12 @@ import java.util.concurrent.atomic.AtomicReference;
                                 @ActionElement(name = "android.intent.action.MY_PACKAGE_REPLACED")})
                 },
                 exported = "false")
-})
+}) */
 @UsesPermissions(permissionNames = "android.permission.INTERNET," +
-                 "android.permission.ACCESS_NETWORK_STATE," +
-                 "android.permission.RECEIVE_BOOT_COMPLETED," +
-                 "android.permission.WAKE_LOCK")
+//                 "android.permission.WAKE_LOCK," +
+//                 "android.permission.RECEIVE_BOOT_COMPLETED," +
+                   "android.permission.ACCESS_NETWORK_STATE")
+
 @UsesLibraries(libraries = "jedis.jar")
 public final class CloudDB extends AndroidNonvisibleComponent implements Component {
   private static final String LOG_TAG = "CloudDB";
@@ -134,7 +143,6 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   private String redisServer = "DEFAULT";
   private int redisPort;
   private volatile boolean LISTENERSTOPPING = false;
-  private JobManager jobManager;
 
   // To avoid blocking the UI thread, we do most Jedis operations in the background.
   // Rather then spawning a new thread for each request, we use an ExcutorService with
@@ -198,9 +206,6 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     token = ""; //set in Designer
 
     redisPort = 9001;
-
-    Log.d(LOG_TAG, "JobManager created");
-
     cm = (ConnectivityManager) form.$context().getSystemService(android.content.Context.CONNECTIVITY_SERVICE);
   }
 
@@ -341,46 +346,6 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   }
 
   /**
-   * Indicates whether CloudDB needs to be synced.
-   * @param sync
-   */
-  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN,
-      defaultValue = "false")
-  @SimpleProperty(description = "Specifies if data stored in CloudDB needs to be synced", userVisible = false)
-  public void Sync(boolean sync){
-    Log.d(CloudDB.LOG_TAG,"Sync called with sync = " + sync);
-    this.sync = sync;
-    Log.d(LOG_TAG, "About to add job creator");
-//    JobManager.instance().getConfig().setAllowSmallerIntervalsForMarshmallow(true); // For debugging
-    Log.d(CloudDB.LOG_TAG,"JobManager for SyncJob added...");
-    SyncJob.scheduleSync(this.syncPeriod);
-
-  }
-
-  /**
-   * Specifies the periodic interval in ms in which the sync job will run.
-   * @param period
-   */
-  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_INTEGER,
-          defaultValue = "900000")
-  public void SyncPeriod(long period){
-    Log.d(CloudDB.LOG_TAG,"SyncPeriod called with period = " + sync);
-    this.syncPeriod = period;
-    SyncJob.scheduleSync(this.syncPeriod);
-  }
-
-  /**
-   * Getter for the sync period.
-   *
-   * @return the syncPeriod for the Sync Job.
-   */
-  @SimpleProperty(category = PropertyCategory.BEHAVIOR,
-          description = "Gets the sync period of the SyncJob.")
-  public long SyncPeriod() {
-    return this.syncPeriod;
-  }
-
-  /**
    * Getter for the ProjectID.
    *
    * @return the ProjectID for this CloudDB project
@@ -418,7 +383,6 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   public void Token(String authToken) {
     if (!token.equals(authToken)) {
       token = authToken;
-      saveToken(token);
     }
     if (token.equals("")){
       throw new RuntimeException("CloudDB Token property cannot be blank.");
@@ -437,10 +401,10 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     return token;
   }
 
-  @SimpleFunction
-  public void PerformSyncNow(){
-    SyncJob.scheduleSync();
-  }
+  // @SimpleFunction
+  // public void PerformSyncNow(){
+  //   SyncJob.scheduleSync();
+  // }
 
   /**
    * Asks CloudDB to store the given value under the given tag.
@@ -483,9 +447,8 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
             try {
               Jedis jedis = getJedis();
               Log.i("CloudDB", "Before set is called...");
-              long statusCodeReply = jedis.zadd(projectID+tag, System.currentTimeMillis(),value);
+              String statusCodeReply = jedis.set(projectID+tag,value);
               Log.i("CloudDB", "Jedis Key = " + projectID+tag);
-              Log.i("CloudDB", "Jedis TS = " + System.currentTimeMillis());
               Log.i("CloudDB", "Jedis Val = " + value);
             } catch (JedisException e) {
               CloudDBError(e.getMessage());
@@ -493,11 +456,8 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
             }
           }
         });
-    }
-    else if(sync){
-      Log.i("CloudDB","Device is offline...");
-      Log.i("CloudDB","Proceed to cache data locally...");
-      sendValueTocache(tag,value);
+    } else {
+      CloudDBError("Cannot store values off-line.");
     }
     Log.i("CloudDB", "End of StoreValue...");
   }
@@ -521,54 +481,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     NetworkInfo networkInfo = cm.getActiveNetworkInfo();
     boolean isConnected = networkInfo != null && networkInfo.isConnected();
 
-    if(!isConnected && sync){
-      /*
-      read from cache
-       */
-      Log.d(CloudDB.LOG_TAG,"reading from cache ...");
-      try {
-        //CloudDBCacheHelper cloudDBCacheHelper = new CloudDBCacheHelper(form.$context());
-        db = CloudDBCacheHelper.getInstance(form.$context()).getWritableDatabase();
-
-        String[] projection = {CloudDBCache.Table1.COLUMN_NAME_VALUE, CloudDBCache.Table1.COLUMN_TIMESTAMP};
-        String selection = CloudDBCache.Table1.COLUMN_NAME_KEY + " = ? ";
-        String[] selectionArgs = {this.projectID+tag};
-        String orderby = CloudDBCache.Table1.COLUMN_TIMESTAMP + " DESC";
-        cursor = db.query(CloudDBCache.Table1.TABLE_NAME, projection, selection, selectionArgs, null, null, orderby);
-        String val;
-        if (cursor != null && cursor.moveToNext()) {
-          Log.d(CloudDB.LOG_TAG,"cursor has values");
-          val = cursor.getString(cursor.getColumnIndex(CloudDBCache.Table1.COLUMN_NAME_VALUE));
-          Log.d(CloudDB.LOG_TAG,"value retrieved = " + val + " from cache");
-          String jsonVal = this.getJsonRepresenationIfValueFileName(val);
-          if(jsonVal != null) value.set(jsonVal);
-          else value.set(val);
-        }
-        else {
-          Log.d(CloudDB.LOG_TAG,"cursor has no values");
-          value.set(JsonUtil.getJsonRepresentation(valueIfTagNotThere));
-        }
-        Log.d(CloudDB.LOG_TAG,"value set successfully");
-        androidUIHandler.post(new Runnable() {
-          public void run() {
-            // Signal an event to indicate that the value was
-            // Signal an event to indicate that the value was
-            // received.  We post this to run in the Application's main
-            // UI thread.
-            GotValue(tag, value.get());
-          }
-        });
-      } catch (Exception e) {
-        //Log.d(CloudDB.LOG_TAG, "Error occurred while reading from cache...");
-        Log.e(CloudDB.LOG_TAG,"Error occurred while reading from cache",e);
-        //e.printStackTrace();
-      }
-      finally {
-        if(cursor != null) cursor.close();
-        if(db != null) db.close();
-      }
-    }
-    else if(isConnected){
+    if (isConnected) {
       // Set value to either the JSON from the CloudDB
       // or the JSON representation of valueIfTagNotThere
       background.submit(new Runnable() {
@@ -576,12 +489,13 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
             Jedis jedis = getJedis();
             try {
               Log.d(CloudDB.LOG_TAG,"reading from Redis ...");
-              Set<String> returnValues = jedis.zrange(projectID+tag,0,-1);
-              Log.d(CloudDB.LOG_TAG,"zrange success ...");
-              String returnValue = null;
-              if(returnValues != null && !returnValues.isEmpty()){
-                returnValue = returnValues.toArray()[returnValues.size()-1].toString();
-              }
+              String returnValue = jedis.get(projectID+tag);
+              // Set<String> returnValues = jedis.zrange(projectID+tag,0,-1);
+              // Log.d(CloudDB.LOG_TAG,"zrange success ...");
+              // String returnValue = null;
+              // if(returnValues != null && !returnValues.isEmpty()){
+              //   returnValue = returnValues.toArray()[returnValues.size()-1].toString();
+              // }
               Log.d(CloudDB.LOG_TAG,"Device is online = " + returnValue);
               if (returnValue != null) {
                 String val = getJsonRepresenationIfValueFileName(returnValue);
@@ -613,112 +527,8 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
               });
           }
         });
-    }
-  }
-
-  /**
-   * GetValues asks CloudDB to get a list of values stored under the given tag.
-   * It will pass valueIfTagNotThere to GotValue if there is no value stored
-   * under the tag.
-   *
-   * @param tag The tag whose values is to be retrieved.
-   * @param valueIfTagNotThere The value to pass to the event if the tag does
-   *                           not exist.
-   */
-  @SimpleFunction
-  public void GetValues(final String tag, final Object valueIfTagNotThere) {
-    checkProjectIDNotBlank();
-    Log.d(CloudDB.LOG_TAG,"getting value ...");
-    final AtomicReference<Object> value = new AtomicReference<Object>();
-    Cursor cursor = null;
-    SQLiteDatabase db = null;
-    NetworkInfo networkInfo = cm.getActiveNetworkInfo();
-    boolean isConnected = networkInfo != null && networkInfo.isConnected();
-
-    if(!isConnected && sync){
-      /*
-      read from cache
-       */
-      Log.d(CloudDB.LOG_TAG,"reading from cache ...");
-      try {
-        //CloudDBCacheHelper cloudDBCacheHelper = new CloudDBCacheHelper(form.$context());
-        db = CloudDBCacheHelper.getInstance(form.$context()).getWritableDatabase();
-        final List<String> values = new ArrayList<>();
-
-        String[] projection = {CloudDBCache.Table1.COLUMN_NAME_VALUE, CloudDBCache.Table1.COLUMN_TIMESTAMP};
-        String selection = CloudDBCache.Table1.COLUMN_NAME_KEY + " = ? ";
-        String[] selectionArgs = {this.projectID+tag};
-        String orderby = CloudDBCache.Table1.COLUMN_TIMESTAMP + " DESC";
-        cursor = db.query(CloudDBCache.Table1.TABLE_NAME, projection, selection, selectionArgs, null, null, orderby);
-        if (cursor != null){
-          while(cursor.moveToNext()) {
-            Log.d(CloudDB.LOG_TAG, "cursor has values");
-            String val = cursor.getString(cursor.getColumnIndex(CloudDBCache.Table1.COLUMN_NAME_VALUE));
-            values.add(val);
-            Log.d(CloudDB.LOG_TAG, "value retrieved = " + val);
-          }
-        }
-        else {
-          Log.d(CloudDB.LOG_TAG,"cursor has no values");
-          values.add(JsonUtil.getJsonRepresentation(valueIfTagNotThere));
-        }
-        Log.d(CloudDB.LOG_TAG,"value set successfully");
-        androidUIHandler.post(new Runnable() {
-          public void run() {
-            // Signal an event to indicate that the value was
-            // received.  We post this to run in the Application's main
-            // UI thread.
-            GotValue(tag, values);
-          }
-        });
-      } catch (Exception e) {
-        //Log.d(CloudDB.LOG_TAG, "Error occurred while reading from cache...");
-        Log.e(CloudDB.LOG_TAG,"Error occurred while reading from cache",e);
-        //e.printStackTrace();
-      }
-      finally {
-        if(cursor != null) cursor.close();
-        if(db != null) db.close();
-      }
-    } else if (isConnected) {
-      // Set value to either the JSON from the CloudDB
-      // or the JSON representation of valueIfTagNotThere
-      background.submit(new Runnable() {
-          public void run() {
-            Jedis jedis = getJedis();
-            final List<String> returnValuesList;
-            try {
-              Log.d(CloudDB.LOG_TAG,"reading from Redis ...");
-              Set<String> returnValues = jedis.zrange(projectID+tag,0,-1);
-              Log.d(CloudDB.LOG_TAG,"zrange success ...");
-
-              if (returnValues != null && !returnValues.isEmpty()) {
-                returnValuesList = new ArrayList<>(returnValues);
-              } else {
-                returnValuesList = new ArrayList<>();
-                returnValuesList.add(JsonUtil.getJsonRepresentation(valueIfTagNotThere));
-              }
-              androidUIHandler.post(new Runnable() {
-                  public void run() {
-                    // Signal an event to indicate that the value was
-                    // received.  We post this to run in the Application's main
-                    // UI thread.
-                    GotValue(tag, returnValuesList);
-                  }
-                });
-            } catch (JSONException e) {
-              Log.e(CloudDB.LOG_TAG,"error while converting to JSON...",e);
-            } catch (NullPointerException e) {
-              Log.e(CloudDB.LOG_TAG,"error while zrange...",e);
-              flushJedis();
-              throw new YailRuntimeError("zrange threw a runtime exception.", "Redis runtime exception.");
-            } catch (Exception e) {
-              Log.e(CloudDB.LOG_TAG,"error while making list...",e);
-              CloudDBError(e.getMessage());
-              flushJedis();
-            }
-          }
-        });
+    } else {
+      CloudDBError("Cannot fetch variables while off-line.");
     }
   }
 
@@ -1140,74 +950,6 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   }
 
   /*
-  Written by joymitro@gmail.com (Joydeep Mitra)
-  saves data to a local SQLiteDb when device is offline
-   */
-  public void sendValueTocache(final String tag, final String value) {
-    Cursor cursor = null;
-    SQLiteDatabase db = null;
-
-      try {
-          //CloudDBCacheHelper cloudDBCacheHelper = new CloudDBCacheHelper(form.$context());
-          db = CloudDBCacheHelper.getInstance(form.$context()).getWritableDatabase();
-
-          //insert new key
-          ContentValues contentValues = new ContentValues();
-          contentValues.put(CloudDBCache.Table1.COLUMN_NAME_KEY, this.projectID + tag);
-          contentValues.put(CloudDBCache.Table1.COLUMN_NAME_VALUE, value);
-          contentValues.put(CloudDBCache.Table1.COLUMN_UPLOAD_FLAG,0);
-          contentValues.put(CloudDBCache.Table1.COLUMN_TIMESTAMP,System.currentTimeMillis());
-          db.insert(CloudDBCache.Table1.TABLE_NAME, null, contentValues);
-
-      } catch (Exception e) {
-          Log.d("CloudDB", "Error occurred while caching data locally...");
-          e.printStackTrace();
-      }
-      finally {
-        if(cursor !=null) cursor.close();
-        if(db != null) db.close();
-      }
-
-  }
-
-  /*
-  Written by joymitro@gmail.com (Joydeep Mitra)
-  saves the token to a local SQLiteDb
-   */
-  private void saveToken(final String token) {
-    Cursor cursor = null;
-    SQLiteDatabase db = null;
-    Log.d(CloudDB.LOG_TAG,"saving token in cache ...");
-    try {
-      //CloudDBCacheHelper cloudDBCacheHelper = new CloudDBCacheHelper(form.$context());
-      db = CloudDBCacheHelper.getInstance(form.$context()).getWritableDatabase();
-
-      String[] projection = {CloudDBCache.Table2.COLUMN_TOKEN};
-      cursor = db.query(CloudDBCache.Table2.TABLE_NAME, projection, null, null, null, null, null);
-      if (cursor != null && cursor.getCount() == 1) {
-        //update existing token
-        ContentValues values = new ContentValues();
-        values.put(CloudDBCache.Table2.COLUMN_TOKEN, token);
-        db.update(CloudDBCache.Table2.TABLE_NAME, values, null, null);
-      }
-      else {
-        //insert new key
-        ContentValues contentValues = new ContentValues();
-        contentValues.put(CloudDBCache.Table2.COLUMN_TOKEN, token);
-        db.insert(CloudDBCache.Table2.TABLE_NAME, null, contentValues);
-      }
-    } catch (Exception e) {
-      Log.d("CloudDB", "Error occurred while caching token locally...");
-      e.printStackTrace();
-    }
-    finally {
-      if(cursor !=null) cursor.close();
-      if(db != null) db.close();
-    }
-
-  }
-
-  /*
   * Written by joymitro@gmail.com (Joydeep Mitra)
   * This method converts a file path to a JSON representation.
   * The code in the method was part of GetValue. For better modularity and reusability
@@ -1239,35 +981,3 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   }
 
 }
-
-
-/*private String getToken(){
-    SQLiteDatabase db = null;
-    Cursor cursor = null;
-    Log.d(CloudDB.LOG_TAG,"getting token from cache...");
-    try {
-      db = CloudDBCacheHelper.getInstance(form.$context()).getWritableDatabase();
-      String[] projection = {CloudDBCache.Table2.COLUMN_TOKEN};
-      cursor = db.query(CloudDBCache.Table2.TABLE_NAME, projection, null, null, null, null, null);
-      String val;
-      if (cursor != null && cursor.moveToNext()) {
-        Log.d(CloudDB.LOG_TAG,"Token found");
-        val = cursor.getString(cursor.getColumnIndex(CloudDBCache.Table2.COLUMN_TOKEN));
-        Log.d(CloudDB.LOG_TAG,"token retrieved = " + val + " from cache");
-        return val;
-      }
-      else {
-        Log.d(CloudDB.LOG_TAG,"token not found in cache");
-        return null;
-      }
-    } catch (Exception e) {
-      //Log.d(CloudDB.LOG_TAG, "Error occurred while reading from cache...");
-      Log.e(CloudDB.LOG_TAG,"Error occurred while reading token from cache",e);
-      return null;
-      //e.printStackTrace();
-    }
-    finally {
-      if(cursor !=null) cursor.close();
-      if(db != null) db.close();
-    }
-  }*/

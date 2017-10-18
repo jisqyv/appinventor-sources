@@ -6467,18 +6467,6 @@ public interface OdeMessages extends Messages {
   @Description("")
   String CloudDBErrorEvents();
 
-  @DefaultMessage("Sync Scheduler Component")
-  @Description("")
-  String syncSchedulerComponentPallette();
-
-  @DefaultMessage("Sync Scheduler Component")
-  @Description("")
-  String SyncSchedulerHelpStringComponentPallette();
-
-  @DefaultMessage("Sync Scheduler Component")
-  @Description("")
-  String scheduleSyncMethods();
-
   @DefaultMessage("CloudDB")
   @Description("")
   String cloudDBComponentPallette();
@@ -6500,21 +6488,9 @@ public interface OdeMessages extends Messages {
   @Description("")
   String RedisPortProperties();
 
-  @DefaultMessage("Sync")
-  @Description("")
-  String SyncProperties();
-
-  @DefaultMessage("SyncPeriod")
-  @Description("")
-  String SyncPeriodProperties();
-
   @DefaultMessage("Token")
   @Description("")
   String TokenProperties();
-
-  @DefaultMessage("PerformSyncNow")
-  @Description("")
-  String PerformSyncNowMethods();
 
   @DefaultMessage("GetValues")
   @Description("")

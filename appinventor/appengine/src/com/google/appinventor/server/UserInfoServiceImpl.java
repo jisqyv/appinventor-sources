@@ -14,11 +14,6 @@ import com.google.appinventor.shared.rpc.user.User;
 import com.google.appinventor.shared.rpc.user.UserInfoService;
 import com.google.appinventor.shared.storage.StorageUtil;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-
 /**
  * Implementation of the user information service.
  *
@@ -32,12 +27,6 @@ public class UserInfoServiceImpl extends OdeRemoteServiceServlet implements User
   private final transient StorageIo storageIo = StorageIoInstanceHolder.INSTANCE;
 
   private static final long serialVersionUID = -7316312435338169166L;
-
-  private static final String SECRET_KEY_UUID = "sjahyqhskakslAsahskAJH";
-
-  private static final String SECRET_KEY_CLOUD_DB = "hSknJHaslJKLsdLhhdsTYjskk";
-
-  private static final String HMAC_ALGORITHM = "HmacSHA256";
 
   /**
    * Returns System Config, including user information record

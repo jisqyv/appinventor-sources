@@ -31,11 +31,11 @@ public class CloudDBJedisListener extends JedisPubSub {
   @Override
   public void onPMessage(String pattern, String channel, String message) {
     Log.i("CloudDB","onPMessage pattern "+pattern+", channel: "+channel+", message: "+message);
+    String retval = null;
     if (message.equals("zadd")) {
       Log.i("CloudDB", "onMessage tag = " + channel);
       Jedis jedis = cloudDB.getJedis();
       Set<String> retvals = null;
-      String retval = null;
       try {
         retvals = jedis.zrange(channel, 0, -1);
       } catch (JedisException e) {
@@ -44,6 +44,14 @@ public class CloudDBJedisListener extends JedisPubSub {
       if (retvals != null && !retvals.isEmpty()) {
         retval = retvals.toArray()[retvals.size()-1].toString();
         Log.i("CloudDB", "onPMessage: DataChanged tag = " + channel + " value = " + retval);
+        cloudDB.DataChanged(channel, retval);
+      }
+    } else if (message.equals("set")) {
+      Jedis jedis = cloudDB.getJedis();
+      retval = jedis.get(channel);
+      if (retval == null) {
+        Log.i("CloudDB", "onPMessage: DataChanged tag = " + channel + " received a null pointer.");
+      } else {
         cloudDB.DataChanged(channel, retval);
       }
     }

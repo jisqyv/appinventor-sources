@@ -7,17 +7,18 @@ package com.google.appinventor.server.cloudDBAuth;
 
 import com.google.appinventor.server.OdeRemoteServiceServlet;
 import com.google.appinventor.server.flags.Flag;
+
 import com.google.appinventor.shared.rpc.cloudDB.CloudDBAuthService;
+
 import com.google.appinventor.shared.util.Base58Util;
+
 import com.google.protobuf.ByteString;
+
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 
 /**
  * CloudDB Authentication Service implementation
