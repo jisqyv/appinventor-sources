@@ -213,5 +213,4 @@ public class Camera extends AndroidNonvisibleComponent
   public void AfterPicture(String image) {
     EventDispatcher.dispatchEvent(this, "AfterPicture", image);
   }
-
 }
