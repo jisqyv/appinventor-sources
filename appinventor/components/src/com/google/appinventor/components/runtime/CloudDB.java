@@ -142,7 +142,8 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   private Jedis INSTANCE = null;
   private String redisServer = "DEFAULT";
   private int redisPort;
-  private volatile boolean LISTENERSTOPPING = false;
+  private volatile CloudDBJedisListener currentListener;
+  private volatile boolean listenerRunning = false;
 
   // To avoid blocking the UI thread, we do most Jedis operations in the background.
   // Rather then spawning a new thread for each request, we use an ExcutorService with
@@ -150,7 +151,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   // also means that we can share a single Jedis connection and not worry about thread
   // synchronization.
 
-  private ExecutorService background = Executors.newSingleThreadExecutor();
+  private volatile ExecutorService background = Executors.newSingleThreadExecutor();
 
   //added by Joydeep Mitra
   private boolean sync = false;
@@ -222,64 +223,50 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     // We do this on the UI thread to make sure it is complete
     // before we repoint the redis server (or port)
     Log.i(LOG_TAG, "Listener stopping!");
-    LISTENERSTOPPING = true;
-    Jedis jedis = getJedis();
-    try {
-      jedis.psubscribe(new CloudDBJedisListener(CloudDB.this), "__key*__:*");
-    } catch (Exception e) {
-      Log.e(LOG_TAG, "in stop listener", e);
-      flushJedis();
-    }
-    if (INSTANCE != null) {     // Close the default instance for non-pubsub
-      INSTANCE.quit();          // because we always call this when we are likely
-      INSTANCE = null;          // to change the redis server we are using
-    }
+    currentListener.terminate();
   }
 
-  private void startListener() {
+  private synchronized void startListener() {
     // Retrieve new posts as they are added to the CloudDB.
     // Note: We use a real thread here rather then the background executor
     // because this thread will run effectively forever
-    LISTENERSTOPPING = false;
+    if (listenerRunning) {
+      Log.d(LOG_TAG, "StartListener while already running, no action taken");
+      return;
+    }
+    listenerRunning = true;
     Log.i(LOG_TAG, "Listener starting!");
     Thread t = new Thread() {
         public void run() {
-          while (true) {
-            Jedis jedis = getJedis(true);
-            if (jedis != null) {
+          Jedis jedis = getJedis(true);
+          if (jedis != null) {
+            try {
+              currentListener = new CloudDBJedisListener(CloudDB.this);
+              jedis.psubscribe(currentListener, "__key*__:*");
+            } catch (Exception e) {
+              Log.e(LOG_TAG, "Error in listener thread", e);
               try {
-                jedis.psubscribe(new CloudDBJedisListener(CloudDB.this), "__key*__:*");
-              } catch (Exception e) {
-                Log.e(LOG_TAG, "Error in listener thread", e);
-                try {
-                  jedis.close();
-                } catch (Exception ee) {
-                  // XXX
-                }
-                try {
-                  Thread.sleep(1000);
-                } catch (InterruptedException ee) {
-                  // XXX
-                }
-                startListener(); // Make a new attempt...(in a new thread)
-                return;          // Done with this thread
-              }
-            } else {
-              // Could not connect to the Redis server. Sleep for
-              // a minute and try again. Note: We can sleep because
-              // we are in a separate thread.
-              Log.i(LOG_TAG, "Cannot connect to Redis server, sleeping 1 minute...");
-              try {
-                Thread.sleep(60*1000);
-              } catch (InterruptedException e) {
+                jedis.close();
+              } catch (Exception ee) {
                 // XXX
               }
+              Log.i(LOG_TAG, "Listener: connection to Redis failed, sleeping 3 seconds.");
+              try {
+                Thread.sleep(3*1000);
+              } catch (InterruptedException ee) {
+              }
+              Log.i(LOG_TAG, "Woke up!");
             }
-            if (LISTENERSTOPPING) {
-              break;
+          } else {
+            Log.i(LOG_TAG, "Listener: getJedis(true) returned null, retry in 3...");
+            try {
+              Thread.sleep(3*1000);
+            } catch (InterruptedException e) {
             }
+            Log.i(LOG_TAG, "Woke up! (2)");
           }
-          Log.d(LOG_TAG, "Listener existing");
+          listenerRunning = false;
+          startListener();
         }
       };
     t.start();
@@ -494,15 +481,15 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
           public void run() {
             Jedis jedis = getJedis();
             try {
-              Log.d(CloudDB.LOG_TAG,"reading from Redis ...");
+              Log.d(LOG_TAG,"about to call jedis.get()");
               String returnValue = jedis.get(projectID+tag);
+              Log.d(LOG_TAG, "finished call jedis.get()");
               // Set<String> returnValues = jedis.zrange(projectID+tag,0,-1);
               // Log.d(CloudDB.LOG_TAG,"zrange success ...");
               // String returnValue = null;
               // if(returnValues != null && !returnValues.isEmpty()){
               //   returnValue = returnValues.toArray()[returnValues.size()-1].toString();
               // }
-              Log.d(CloudDB.LOG_TAG,"Device is online = " + returnValue);
               if (returnValue != null) {
                 String val = getJsonRepresenationIfValueFileName(returnValue);
                 if(val != null) value.set(val);
@@ -515,12 +502,14 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
             } catch (JSONException e) {
               throw new YailRuntimeError("Value failed to convert to JSON.", "JSON Creation Error.");
             } catch (NullPointerException e) {
-              Log.d(CloudDB.LOG_TAG,"error while zrange...");
+              Log.d(CloudDB.LOG_TAG,"error while get...");
               flushJedis();
               throw new YailRuntimeError("set threw a runtime exception.", "Redis runtime exception.");
             } catch (JedisException e) {
+              Log.e(LOG_TAG, "Exception in GetValue", e);
               CloudDBError(e.getMessage());
               flushJedis();
+              return;
             }
 
             androidUIHandler.post(new Runnable() {
@@ -534,6 +523,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
           }
         });
     } else {
+      Log.d(LOG_TAG, "GetValue(): We're offline");
       CloudDBError("Cannot fetch variables while off-line.");
     }
   }
@@ -825,13 +815,14 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
       jedis.auth(token);
       Log.d(LOG_TAG, "getJedis(true): Authentication complete.");
     } catch (JedisConnectionException e) {
+      Log.e(LOG_TAG, "in getJedis()", e);
       CloudDBError(e.getMessage());
       return null;
     }
     return jedis;
   }
 
-  public Jedis getJedis() {
+  public synchronized Jedis getJedis() {
     if (INSTANCE == null) {
       INSTANCE = getJedis(true);
     }
@@ -856,6 +847,17 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
       // XXX
     }
     INSTANCE = null;
+    // We are now going to kill the executor, as it may
+    // have hung tasks. We do this on the UI thread as a
+    // way to synchronize things.
+    androidUIHandler.post(new Runnable() {
+        public void run() {
+          List <Runnable> tasks = background.shutdownNow();
+          Log.d(LOG_TAG, "Killing background executor, returned tasks = " + tasks);
+          background = Executors.newSingleThreadExecutor();
+        }
+      });
+
     stopListener();             // This is probably hosed to, so restart
     startListener();
   }

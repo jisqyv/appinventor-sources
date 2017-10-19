@@ -19,8 +19,11 @@ import redis.clients.jedis.exceptions.JedisException;
 
 public class CloudDBJedisListener extends JedisPubSub {
   public CloudDB cloudDB;
+  private Thread myThread;
+
   public CloudDBJedisListener(CloudDB thisCloudDB){
     cloudDB = thisCloudDB;
+    myThread = Thread.currentThread();
   }
 
   @Override
@@ -55,6 +58,10 @@ public class CloudDBJedisListener extends JedisPubSub {
         cloudDB.DataChanged(channel, retval);
       }
     }
+  }
+
+  public void terminate() {
+    myThread.interrupt();
   }
 
   //add other Unimplemented methods
