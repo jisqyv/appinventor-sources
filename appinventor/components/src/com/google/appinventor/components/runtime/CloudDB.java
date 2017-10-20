@@ -812,7 +812,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     Jedis jedis;
     try {
       Log.d(LOG_TAG, "getJedis(true): Attempting a new connection.");
-      jedis = new Jedis(redisServer, redisPort);
+      jedis = new Jedis(redisServer, redisPort, true);
       Log.d(LOG_TAG, "getJedis(true): Have new connection.");
       jedis.auth(token);
       Log.d(LOG_TAG, "getJedis(true): Authentication complete.");
