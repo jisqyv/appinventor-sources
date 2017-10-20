@@ -4525,10 +4525,6 @@ public interface OdeMessages extends Messages {
   @Description("")
   String FirebaseErrorEvents();
 
-  @DefaultMessage("FusionTablesError")
-  @Description("")
-  String FusionTablesErrorEvents();
-
   @DefaultMessage("LocationChanged")
   @Description("")
   String LocationChangedEvents();
