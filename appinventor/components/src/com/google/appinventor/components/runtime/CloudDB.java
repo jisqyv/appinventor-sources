@@ -223,7 +223,9 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     // We do this on the UI thread to make sure it is complete
     // before we repoint the redis server (or port)
     Log.i(LOG_TAG, "Listener stopping!");
-    currentListener.terminate();
+    if (currentListener != null) {
+      currentListener.terminate();
+    }
   }
 
   private synchronized void startListener() {
