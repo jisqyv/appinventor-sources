@@ -206,7 +206,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     projectID = ""; // set in Designer
     token = ""; //set in Designer
 
-    redisPort = 9001;
+    redisPort = 6381;
     cm = (ConnectivityManager) form.$context().getSystemService(android.content.Context.CONNECTIVITY_SERVICE);
   }
 
@@ -327,7 +327,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   }
 
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_INTEGER,
-    defaultValue = "9001")
+    defaultValue = "6381")
   public void RedisPort(int port) {
     stopListener();
     redisPort = port;
