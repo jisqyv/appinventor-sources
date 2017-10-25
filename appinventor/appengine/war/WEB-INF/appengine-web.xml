@@ -164,8 +164,8 @@
 
     <!-- CloudDB secret keys -->
     <property name="clouddb.server" value="jis.csail.mit.edu"/>
-    <property name="clouddb.uuid.secret" value="hudh76eJjs723djsbEDxksiw"/>
-    <property name="clouddb.secret" value="icdndsh373jJKhs7eub34oickcdi320fnKasgDS" />
+    <property name="clouddb.uuid.secret" value=""/>
+    <property name="clouddb.secret" value="" />
 
   </system-properties>
 

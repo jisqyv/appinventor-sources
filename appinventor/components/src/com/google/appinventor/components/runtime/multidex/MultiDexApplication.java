@@ -37,11 +37,6 @@ public class MultiDexApplication extends Application {
   public static boolean installed = false;
 
   @Override
-  public void onCreate() {
-    super.onCreate();
-  }
-
-  @Override
   protected void attachBaseContext(Context base) {
     super.attachBaseContext(base);
     // Note: We call this with "true" which will force the

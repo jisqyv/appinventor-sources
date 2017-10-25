@@ -316,7 +316,7 @@ public final class SimpleComponentDescriptor {
         return new MockFirebaseDB(editor, name,
           getImageFromPath(SimpleComponentDatabase.getInstance(editor.getProjectId()).getIconName(name),
               null, editor.getProjectId()));
-      } 
+      }
       else if(name.equals(MockCloudDB.TYPE)) {
         return new MockCloudDB(editor, name,
                 getImageFromPath(SimpleComponentDatabase.getInstance(editor.getProjectId()).getIconName(name),
