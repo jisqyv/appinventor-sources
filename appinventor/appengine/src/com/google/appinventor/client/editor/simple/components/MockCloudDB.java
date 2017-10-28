@@ -67,6 +67,7 @@ public class MockCloudDB extends MockNonVisibleComponent {
     String defaultRedisServer = Ode.getInstance().getSystemConfig().getDefaultCloudDBserver();
     changeProperty(PROPERTY_NAME_DEFAULT_REDISSERVER, defaultRedisServer);
     OdeLog.log("Default Redis Server = " + defaultRedisServer);
+    getTokenFromServer();       // Get Token from the server
   }
 
   @Override
@@ -119,7 +120,8 @@ public class MockCloudDB extends MockNonVisibleComponent {
         persistToken = false;
         tokenType |= EditableProperty.TYPE_NONPERSISTED;
         tokenType |= EditableProperty.TYPE_DOYAIL;
-        getTokenFromServer();
+        token.setValue("");   // Set it to empty so getTokenFromServer
+        getTokenFromServer(); // will fill it in.
       } else {
         tokenType &= ~EditableProperty.TYPE_NONPERSISTED;
         persistToken = true;
@@ -148,6 +150,13 @@ public class MockCloudDB extends MockNonVisibleComponent {
     Ode.getInstance().getCloudDBAuthService().getToken(new OdeAsyncCallback<String>() {
       @Override
       public void onSuccess(String token) {
+        EditableProperty tokenProperty = MockCloudDB.this.properties.getProperty(PROPERTY_NAME_TOKEN);
+        if (tokenProperty != null) {
+          String existingToken = tokenProperty.getValue();
+          if (!existingToken.isEmpty()) {
+            return;             // If we have a value, don't over-write it
+          }
+        }
         changeProperty(PROPERTY_NAME_TOKEN,token);
       }
       @Override
