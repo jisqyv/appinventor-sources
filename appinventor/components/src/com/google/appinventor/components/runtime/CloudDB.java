@@ -1006,4 +1006,8 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     }
   }
 
+  public ExecutorService getBackground() {
+    return background;
+  }
+
 }

@@ -11,6 +11,7 @@ import android.util.Log;
 import com.google.appinventor.components.runtime.CloudDB;
 
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPubSub;
@@ -32,7 +33,7 @@ public class CloudDBJedisListener extends JedisPubSub {
   }
 
   @Override
-  public void onPMessage(String pattern, String channel, String message) {
+  public void onPMessage(String pattern, final String channel, String message) {
     Log.i("CloudDB","onPMessage pattern "+pattern+", channel: "+channel+", message: "+message);
     String retval = null;
     if (message.equals("zadd")) {
@@ -50,13 +51,21 @@ public class CloudDBJedisListener extends JedisPubSub {
         cloudDB.DataChanged(channel, retval);
       }
     } else if (message.equals("set")) {
-      Jedis jedis = cloudDB.getJedis();
-      retval = jedis.get(channel);
-      if (retval == null) {
-        Log.i("CloudDB", "onPMessage: DataChanged tag = " + channel + " received a null pointer.");
-      } else {
-        cloudDB.DataChanged(channel, retval);
-      }
+      ExecutorService background = cloudDB.getBackground();
+      // We have to run this via the background ExecutorService to ensure
+      // only one thread is accessing the Redis server.
+      background.submit(new Runnable() {
+          @Override
+          public void run() {
+            Jedis jedis = cloudDB.getJedis();
+            String retval = jedis.get(channel);
+            if (retval == null) {
+              Log.i("CloudDB", "onPMessage: DataChanged tag = " + channel + " received a null pointer.");
+            } else {
+              cloudDB.DataChanged(channel, retval);
+            }
+          }
+        });
     }
   }
 
