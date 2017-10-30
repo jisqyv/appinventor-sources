@@ -21,6 +21,7 @@ import redis.clients.jedis.exceptions.JedisException;
 public class CloudDBJedisListener extends JedisPubSub {
   public CloudDB cloudDB;
   private Thread myThread;
+  private Jedis myJedis = null;
 
   public CloudDBJedisListener(CloudDB thisCloudDB){
     cloudDB = thisCloudDB;
@@ -51,21 +52,30 @@ public class CloudDBJedisListener extends JedisPubSub {
         cloudDB.DataChanged(channel, retval);
       }
     } else if (message.equals("set")) {
-      ExecutorService background = cloudDB.getBackground();
-      // We have to run this via the background ExecutorService to ensure
-      // only one thread is accessing the Redis server.
-      background.submit(new Runnable() {
-          @Override
-          public void run() {
-            Jedis jedis = cloudDB.getJedis();
-            String retval = jedis.get(channel);
-            if (retval == null) {
-              Log.i("CloudDB", "onPMessage: DataChanged tag = " + channel + " received a null pointer.");
-            } else {
-              cloudDB.DataChanged(channel, retval);
-            }
-          }
-        });
+      if (myJedis == null) {
+        try {
+          myJedis = cloudDB.getJedis(true);
+        } catch (JedisException e) {
+          Log.e("CloudDB", "creating redis connection failed", e);
+          return;
+        }
+      }
+      try {
+        retval = myJedis.get(channel);
+        if (retval == null) {
+          Log.i("CloudDB", "onPMessage: DataChanged tag = " + channel + " received a null pointer.");
+        } else {
+          cloudDB.DataChanged(channel, retval);
+        }
+      } catch (JedisException e) {
+        try {
+          Log.e("CloudDB", "Error on listeners private connection", e);
+          myJedis.close();
+        } catch (Exception ee) {
+          // XXX
+        }
+        myJedis = null;
+      }
     }
   }
 

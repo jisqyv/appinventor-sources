@@ -52,6 +52,7 @@ import java.io.IOException;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -153,12 +154,37 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
 
   private volatile ExecutorService background = Executors.newSingleThreadExecutor();
 
+  // Store can be called frequenly and quickly in some situations. For example
+  // using store inside of a Canvas Drag event (for realtime updating of a remote
+  // canvas). Or in a handler for the Accelerometer (gasp!). To make storing as
+  // effecient as possible, we have a queue of pending store requests and we
+  // have a background task that drains this queue as fast as possible and
+  // iterates over the queue until it is drained.
+  private List<storedValue> storeQueue = Collections.synchronizedList(new ArrayList());
+
   //added by Joydeep Mitra
   private boolean sync = false;
   private long syncPeriod = 9_00_000;
   private ConnectivityManager cm;
   //private CloudDBCacheHelper cloudDBCacheHelper;
   //-------------------------
+
+  private static class storedValue {
+    private String tag;
+    private String value;
+    storedValue(String tag, String value) {
+      this.tag = tag;
+      this.value = value;
+    }
+
+    public String getTag() {
+      return tag;
+    }
+
+    public String getValue() {
+      return value;
+    }
+  }
 
   // ReturnVal -- Holder which can be used as a final value but whose content
   //              remains mutable.
@@ -244,7 +270,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
           if (jedis != null) {
             try {
               currentListener = new CloudDBJedisListener(CloudDB.this);
-              jedis.psubscribe(currentListener, "__key*__:*");
+              jedis.psubscribe(currentListener, "__keyevent*__:*");
             } catch (Exception e) {
               Log.e(LOG_TAG, "Error in listener thread", e);
               try {
@@ -437,20 +463,60 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     //valueToStore is always converted to JSON (String);
     if (isConnected) {
       Log.i("CloudDB","Device is online...");
-      background.submit(new Runnable() {
-          public void run() {
-            try {
-              Jedis jedis = getJedis();
-              Log.i("CloudDB", "Before set is called...");
-              String statusCodeReply = jedis.set(projectID+tag,value);
-              Log.i("CloudDB", "Jedis Key = " + projectID+tag);
-              Log.i("CloudDB", "Jedis Val = " + value);
-            } catch (JedisException e) {
-              CloudDBError(e.getMessage());
-              flushJedis();
-            }
-          }
-        });
+      synchronized(storeQueue) {
+        boolean kickit = false;
+        if (storeQueue.size() == 0) { // Need to kick off the background task
+          Log.d("CloudDB", "storeQueue is zero length, kicking background");
+          kickit = true;
+        } else {
+          Log.d("CloudDB", "storeQueue has " + storeQueue.size() + " entries");
+        }
+        storedValue work  = new storedValue(tag, value);
+        storeQueue.add(work);
+        if (kickit) {
+          background.submit(new Runnable() {
+              public void run() {
+                try {
+                  storedValue work;
+                  Log.d("CloudDB", "store background task running.");
+                  while (true) {
+                    synchronized(storeQueue) {
+                      Log.d("CloudDB", "store: In background synchronized block");
+                      int size = storeQueue.size();
+                      if (size == 0) {
+                        Log.d("CloudDB", "store background task exiting.");
+                        return;
+                      }
+                      Log.d("CloudDB", "store: storeQueue.size() == " + size);
+                      work = storeQueue.remove(0);
+                      Log.d("CloudDB", "store: got work.");
+                    }
+                    Log.d("CloudDB", "store: left synchronized block");
+                    String tag = work.getTag();
+                    String value = work.getValue();
+                    if (tag == null || value == null) {
+                      Log.d("CloudDB", "Either tag or value is null!");
+                    } else {
+                      Log.d("CloudDB", "Got Work: tag = " + tag + " value = " + value);
+                    }
+                    try {
+                      Jedis jedis = getJedis();
+                      Log.i("CloudDB", "Before set is called...");
+                      String statusCodeReply = jedis.set(projectID+tag,value);
+                      Log.i("CloudDB", "Jedis Key = " + projectID+tag);
+                      Log.i("CloudDB", "Jedis Val = " + value);
+                    } catch (JedisException e) {
+                      CloudDBError(e.getMessage());
+                      flushJedis();
+                    }
+                  }
+                } catch (Exception e) {
+                Log.e("CloudDB", "Exception in store worker!", e);
+                }
+              }
+            });
+        }
+      }
     } else {
       CloudDBError("Cannot store values off-line.");
     }
@@ -812,7 +878,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     }
   }
 
-  private Jedis getJedis(boolean createNew) {
+  public Jedis getJedis(boolean createNew) {
     Jedis jedis;
     try {
       Log.d(LOG_TAG, "getJedis(true): Attempting a new connection.");
