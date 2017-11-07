@@ -9,19 +9,19 @@ package com.google.appinventor.components.runtime.util;
 import android.util.Log;
 
 import com.google.appinventor.components.runtime.CloudDB;
+import com.google.appinventor.components.runtime.util.JsonUtil;
 
+import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
+
+import org.json.JSONException;
 
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPubSub;
-import redis.clients.jedis.exceptions.JedisException;
-
 
 public class CloudDBJedisListener extends JedisPubSub {
   public CloudDB cloudDB;
   private Thread myThread;
-  private Jedis myJedis = null;
 
   public CloudDBJedisListener(CloudDB thisCloudDB){
     cloudDB = thisCloudDB;
@@ -29,54 +29,22 @@ public class CloudDBJedisListener extends JedisPubSub {
   }
 
   @Override
-  public void onPSubscribe(String pattern, int subscribedChannels) {
-    Log.i("CloudDB", "onPSubscribe "+pattern+" "+subscribedChannels);
+  public void onSubscribe(String channel, int subscribedChannels) {
+    Log.i("CloudDB", "onSubscribe " + channel + " " + subscribedChannels);
   }
 
   @Override
-  public void onPMessage(String pattern, final String channel, String message) {
-    Log.i("CloudDB","onPMessage pattern "+pattern+", channel: "+channel+", message: "+message);
-    String retval = null;
-    if (message.equals("zadd")) {
-      Log.i("CloudDB", "onMessage tag = " + channel);
-      Jedis jedis = cloudDB.getJedis();
-      Set<String> retvals = null;
-      try {
-        retvals = jedis.zrange(channel, 0, -1);
-      } catch (JedisException e) {
-        cloudDB.flushJedis();
-      }
-      if (retvals != null && !retvals.isEmpty()) {
-        retval = retvals.toArray()[retvals.size()-1].toString();
-        Log.i("CloudDB", "onPMessage: DataChanged tag = " + channel + " value = " + retval);
-        cloudDB.DataChanged(channel, retval);
-      }
-    } else if (message.equals("set")) {
-      if (myJedis == null) {
-        try {
-          myJedis = cloudDB.getJedis(true);
-        } catch (JedisException e) {
-          Log.e("CloudDB", "creating redis connection failed", e);
-          return;
-        }
-      }
-      try {
-        retval = myJedis.get(channel);
-        if (retval == null) {
-          Log.i("CloudDB", "onPMessage: DataChanged tag = " + channel + " received a null pointer.");
-        } else {
-          cloudDB.DataChanged(channel, retval);
-        }
-      } catch (JedisException e) {
-        try {
-          Log.e("CloudDB", "Error on listeners private connection", e);
-          myJedis.close();
-        } catch (Exception ee) {
-          // XXX
-        }
-        myJedis = null;
-      }
+  public void onMessage(String channel, String message) {
+    Log.i("CloudDB", "onMessage channel " + channel + ", message: " + message);
+    // Message is a JSON encoded list of the tag that was just set and its value
+    List<Object> data = null;
+    try {
+      data = (List<Object>) JsonUtil.getObjectFromJson((String) message);
+      Log.i("CloudDB", "onMessage: data = " + data);
+    } catch (JSONException e) {
+      Log.e("CloudDB", "onMessage: JSONException", e);
     }
+    cloudDB.DataChanged((String) data.get(0), data.get(1));
   }
 
   public void terminate() {

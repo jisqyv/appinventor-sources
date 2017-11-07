@@ -67,6 +67,7 @@ import redis.clients.jedis.Jedis;
 import redis.clients.jedis.exceptions.JedisConnectionException;
 import redis.clients.jedis.exceptions.JedisDataException;
 import redis.clients.jedis.exceptions.JedisException;
+import redis.clients.jedis.exceptions.JedisNoScriptException;
 
 /**
  * The CloudDB component stores and retrieves information in the Cloud using Redis, an
@@ -143,6 +144,8 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   private Jedis INSTANCE = null;
   private String redisServer = "DEFAULT";
   private int redisPort;
+  private boolean useSSL = true;
+
   private volatile CloudDBJedisListener currentListener;
   private volatile boolean listenerRunning = false;
 
@@ -270,7 +273,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
           if (jedis != null) {
             try {
               currentListener = new CloudDBJedisListener(CloudDB.this);
-              jedis.psubscribe(currentListener, "__keyevent*__:*");
+              jedis.subscribe(currentListener, projectID);
             } catch (Exception e) {
               Log.e(LOG_TAG, "Error in listener thread", e);
               try {
@@ -422,10 +425,29 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     return token;
   }
 
-  // @SimpleFunction
-  // public void PerformSyncNow(){
-  //   SyncJob.scheduleSync();
-  // }
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN,
+           defaultValue = "True")
+  public void UseSSL(boolean useSSL) {
+    this.useSSL = useSSL;
+  }
+
+  @SimpleProperty(category = PropertyCategory.BEHAVIOR, userVisible = false,
+          description = "Set to true to use SSL to talk to CloudDB server.")
+  public boolean UseSSL() {
+    return useSSL;
+  }
+
+  private static final String SET_SUB_SCRIPT =
+    "local key = KEYS[1];" +
+    "local value = ARGV[1];" +
+    "local project = ARGV[2];" +
+    "local newtable = {};" +
+    "table.insert(newtable, key);" +
+    "table.insert(newtable, value);" +
+    "redis.call(\"publish\", project, cjson.encode(newtable));" +
+    "return redis.call('set', project .. key, value);";
+
+  private static final String SET_SUB_SCRIPT_SHA1 = "50bccd05391a07a21edf86f22ff921d9e96bf1c1";
 
   /**
    * Asks CloudDB to store the given value under the given tag.
@@ -500,9 +522,8 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
                       Log.d("CloudDB", "Got Work: tag = " + tag + " value = " + value);
                     }
                     try {
-                      Jedis jedis = getJedis();
                       Log.i("CloudDB", "Before set is called...");
-                      String statusCodeReply = jedis.set(projectID+tag,value);
+                      jEval(SET_SUB_SCRIPT, SET_SUB_SCRIPT_SHA1, 1, tag, value, projectID);
                       Log.i("CloudDB", "Jedis Key = " + projectID+tag);
                       Log.i("CloudDB", "Jedis Val = " + value);
                     } catch (JedisException e) {
@@ -632,6 +653,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
       "else " +
       "  return error('You can only remove elements from a list');" +
       "end";
+  private static final String POP_FIRST_SCRIPT_SHA1 = "adf754512e77760b80b6476e400711c5a29992a0";
 
   @SimpleFunction(description = "Return the first element of a list and atomically remove it. " +
     "If two devices use this function simultaneously, one will get the first element and the " +
@@ -646,7 +668,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
         public void run() {
           Jedis jedis = getJedis();
           try {
-            FirstRemoved(jedis.eval(POP_FIRST_SCRIPT, 1, key));
+            FirstRemoved(jEval(POP_FIRST_SCRIPT, POP_FIRST_SCRIPT_SHA1, 1, key));
           } catch (JedisException e) {
             CloudDBError(e.getMessage());
             flushJedis();
@@ -673,6 +695,8 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
       "redis.call('set', key, newValue);" +
       "return redis.call('get', key);";
 
+  private static final String APPEND_SCRIPT_SHA1 = "1b68d470c265b6730fcde3e7ceda5567de9c9117";
+
   @SimpleFunction(description = "Append a value to the end of a list atomically. " +
     "If two devices use this function simultaneously, both will be appended and no " +
     "data lost.")
@@ -695,7 +719,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
         public void run() {
           Jedis jedis = getJedis();
           try {
-            jedis.eval(APPEND_SCRIPT, 1, key, item);
+            jEval(APPEND_SCRIPT, APPEND_SCRIPT_SHA1, 1, key, item);
           } catch(JedisException e) {
             CloudDBError(e.getMessage());
             flushJedis();
@@ -821,26 +845,20 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
    */
   @SimpleEvent
   public void DataChanged(final String tag, final Object value) {
+    Object tagValue = "";
+    try {
+      if(value != null && value instanceof String) {
+        tagValue = JsonUtil.getObjectFromJson((String) value);
+      }
+    } catch(JSONException e) {
+      throw new YailRuntimeError("Value failed to convert from JSON.", "JSON Retrieval Error.");
+    }
+    final Object finalTagValue = tagValue;
+
     androidUIHandler.post(new Runnable() {
       public void run() {
-        Object tagValue = "";
-        try {
-          if(value != null && value instanceof String) {
-            tagValue = JsonUtil.getObjectFromJson((String) value);
-            System.out.println(tagValue);
-          }
-        } catch(JSONException e) {
-          throw new YailRuntimeError("Value failed to convert from JSON.", "JSON Retrieval Error.");
-        }
-
-        if (tag.length() <= projectID.length() ||
-          !tag.substring(0,projectID.length()).equals(projectID)) { // Not for us...
-          return;
-        }
-        String parsedTag = tag.substring(projectID.length());
-
         // Invoke the application's "DataChanged" event handler
-        EventDispatcher.dispatchEvent(CloudDB.this, "DataChanged", parsedTag, tagValue);
+        EventDispatcher.dispatchEvent(CloudDB.this, "DataChanged", tag, finalTagValue);
       }
     });
   }
@@ -882,7 +900,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     Jedis jedis;
     try {
       Log.d(LOG_TAG, "getJedis(true): Attempting a new connection.");
-      jedis = new Jedis(redisServer, redisPort, true);
+      jedis = new Jedis(redisServer, redisPort, useSSL);
       Log.d(LOG_TAG, "getJedis(true): Have new connection.");
       jedis.auth(token);
       Log.d(LOG_TAG, "getJedis(true): Authentication complete.");
@@ -1074,6 +1092,18 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
 
   public ExecutorService getBackground() {
     return background;
+  }
+
+  public Object jEval(String script, String scriptsha1, int argcount, String... args) throws JedisException {
+    Jedis jedis = getJedis();
+    try {
+      return jedis.evalsha(scriptsha1, argcount, args);
+    } catch (JedisNoScriptException e) {
+      Log.d(LOG_TAG, "Got a JedisNoScriptException for " + scriptsha1);
+      // This happens if the server doesn't have the script loaded
+      // So we use regular eval, which should then cache the script
+      return jedis.eval(script, argcount, args);
+    }
   }
 
 }

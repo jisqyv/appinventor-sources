@@ -6496,4 +6496,8 @@ public interface OdeMessages extends Messages {
   @Description("")
   String itemToAddParams();
 
+  @DefaultMessage("UseSSL")
+  @Description("")
+  String UseSSLProperties();
+
 }
