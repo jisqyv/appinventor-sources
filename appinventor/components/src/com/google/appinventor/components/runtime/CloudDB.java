@@ -643,17 +643,23 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
 
   private static final String POP_FIRST_SCRIPT =
       "local key = KEYS[1];" +
-      "local currentValue = redis.call('get', key);" +
+      "local project = ARGV[1];" +
+      "local currentValue = redis.call('get', project .. key);" +
       "local decodedValue = cjson.decode(currentValue);" +
+      "local subTable = {};" +
       "if (type(decodedValue) == 'table') then " +
       "  local removedValue = table.remove(decodedValue, 1);" +
       "  local newValue = cjson.encode(decodedValue);" +
-      "  redis.call('set', key, newValue);" +
+      "  redis.call('set', project .. key, newValue);" +
+      "  table.insert(subTable, key);" +
+      "  table.insert(subTable, newValue);" +
+      "  redis.call(\"publish\", project, cjson.encode(subTable));" +
       "  return removedValue;" +
       "else " +
       "  return error('You can only remove elements from a list');" +
       "end";
-  private static final String POP_FIRST_SCRIPT_SHA1 = "adf754512e77760b80b6476e400711c5a29992a0";
+
+  private static final String POP_FIRST_SCRIPT_SHA1 = "307b7e9884bf166c985aac13e8a02d4f0d4ae0a3";
 
   @SimpleFunction(description = "Return the first element of a list and atomically remove it. " +
     "If two devices use this function simultaneously, one will get the first element and the " +
@@ -662,13 +668,13 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   public void RemoveFirstFromList(final String tag) {
     checkProjectIDNotBlank();
 
-    final String key = projectID + tag;
+    final String key = tag;
 
     background.submit(new Runnable() {
         public void run() {
           Jedis jedis = getJedis();
           try {
-            FirstRemoved(jEval(POP_FIRST_SCRIPT, POP_FIRST_SCRIPT_SHA1, 1, key));
+            FirstRemoved(jEval(POP_FIRST_SCRIPT, POP_FIRST_SCRIPT_SHA1, 1, key, projectID));
           } catch (JedisException e) {
             CloudDBError(e.getMessage());
             flushJedis();
@@ -680,8 +686,10 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   private static final String APPEND_SCRIPT =
       "local key = KEYS[1];" +
       "local toAppend = ARGV[1];" +
-      "local currentValue = redis.call('get', key);" +
+      "local project = ARGV[2];" +
+      "local currentValue = redis.call('get', project .. key);" +
       "local newTable;" +
+      "local subTable = {};" +
       "if (currentValue == false) then " +
       "  newTable = {};" +
       "else " +
@@ -692,10 +700,13 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
       "end " +
       "table.insert(newTable, toAppend);" +
       "local newValue = cjson.encode(newTable);" +
-      "redis.call('set', key, newValue);" +
-      "return redis.call('get', key);";
+      "redis.call('set', project .. key, newValue);" +
+      "table.insert(subTable, key);" +
+      "table.insert(subTable, newValue);" +
+      "redis.call(\"publish\", project, cjson.encode(subTable));" +
+      "return newValue;";
 
-  private static final String APPEND_SCRIPT_SHA1 = "1b68d470c265b6730fcde3e7ceda5567de9c9117";
+  private static final String APPEND_SCRIPT_SHA1 = "bff4632a57f9f7cfec714532f45369aec7a515a2";
 
   @SimpleFunction(description = "Append a value to the end of a list atomically. " +
     "If two devices use this function simultaneously, both will be appended and no " +
@@ -713,13 +724,13 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     }
 
     final String item = (String) itemObject;
-    final String key = projectID + tag;
+    final String key = tag;
 
     background.submit(new Runnable() {
         public void run() {
           Jedis jedis = getJedis();
           try {
-            jEval(APPEND_SCRIPT, APPEND_SCRIPT_SHA1, 1, key, item);
+            jEval(APPEND_SCRIPT, APPEND_SCRIPT_SHA1, 1, key, item, projectID);
           } catch(JedisException e) {
             CloudDBError(e.getMessage());
             flushJedis();
