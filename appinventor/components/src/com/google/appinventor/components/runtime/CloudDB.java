@@ -659,7 +659,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
       "  return error('You can only remove elements from a list');" +
       "end";
 
-  private static final String POP_FIRST_SCRIPT_SHA1 = "307b7e9884bf166c985aac13e8a02d4f0d4ae0a3";
+  private static final String POP_FIRST_SCRIPT_SHA1 = "91c37429b88a93ab2f6c600985744e49bc950b69";
 
   @SimpleFunction(description = "Return the first element of a list and atomically remove it. " +
     "If two devices use this function simultaneously, one will get the first element and the " +
@@ -706,7 +706,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
       "redis.call(\"publish\", project, cjson.encode(subTable));" +
       "return newValue;";
 
-  private static final String APPEND_SCRIPT_SHA1 = "bff4632a57f9f7cfec714532f45369aec7a515a2";
+  private static final String APPEND_SCRIPT_SHA1 = "bfb41c6d7d85883e1c1bf2831edd79b0eb1761a1";
 
   @SimpleFunction(description = "Append a value to the end of a list atomically. " +
     "If two devices use this function simultaneously, both will be appended and no " +
