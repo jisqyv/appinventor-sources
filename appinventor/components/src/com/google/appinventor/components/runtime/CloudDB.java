@@ -505,6 +505,9 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
         if (kickit) {
           background.submit(new Runnable() {
               public void run() {
+                JSONArray pendingValueList = null;
+                String pendingTag = null;
+                String pendingValue = null;
                 try {
                   storedValue work;
                   Log.d("CloudDB", "store background task running.");
@@ -514,29 +517,56 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
                       int size = storeQueue.size();
                       if (size == 0) {
                         Log.d("CloudDB", "store background task exiting.");
-                        return;
+                        work = null;
+                      } else {
+                        Log.d("CloudDB", "store: storeQueue.size() == " + size);
+                        work = storeQueue.remove(0);
+                        Log.d("CloudDB", "store: got work.");
                       }
-                      Log.d("CloudDB", "store: storeQueue.size() == " + size);
-                      work = storeQueue.remove(0);
-                      Log.d("CloudDB", "store: got work.");
                     }
                     Log.d("CloudDB", "store: left synchronized block");
+                    if (work == null) {
+                      try {
+                        if (pendingTag != null) {
+                          String jsonValueList = pendingValueList.toString();
+                          Log.d(LOG_TAG, "Workqueue empty, sending pendingTag, valueListLength = " + pendingValueList.length());
+                          jEval(SET_SUB_SCRIPT, SET_SUB_SCRIPT_SHA1, 1, pendingTag, pendingValue, jsonValueList, projectID);
+                        }
+                      } catch (JedisException e) {
+                        CloudDBError(e.getMessage());
+                        flushJedis();
+                      }
+                      return;
+                    }
+
                     String tag = work.getTag();
                     JSONArray valueList = work.getValueList();
-                    if (tag == null || value == null) {
+                    if (tag == null || valueList == null) {
                       Log.d("CloudDB", "Either tag or value is null!");
                     } else {
-                      Log.d("CloudDB", "Got Work: tag = " + tag + " value = " + value);
+                      Log.d("CloudDB", "Got Work: tag = " + tag + " value = " + valueList.get(0));
                     }
-                    try {
-                      Log.i("CloudDB", "Before set is called...");
-                      String jsonValueList = valueList.toString();
-                      jEval(SET_SUB_SCRIPT, SET_SUB_SCRIPT_SHA1, 1, tag, value, jsonValueList, projectID);
-                      Log.i("CloudDB", "Jedis Key = " + projectID+tag);
-                      Log.i("CloudDB", "Jedis Val = " + value);
-                    } catch (JedisException e) {
-                      CloudDBError(e.getMessage());
-                      flushJedis();
+                    if (pendingTag == null) { // First time through this invocation
+                      pendingTag = tag;
+                      pendingValueList = valueList;
+                      pendingValue = valueList.getString(0);
+                      continue; // Go get more work if there is any
+                    } else if (pendingTag.equals(tag)) {
+                      pendingValue = valueList.getString(0);
+                      pendingValueList.put(pendingValue);
+                      continue;
+                    } else {
+                      try {
+                        String jsonValueList = pendingValueList.toString();
+                        Log.d(LOG_TAG, "pendingTag changed sending pendingTag, valueListLength = " + pendingValueList.length());
+                        jEval(SET_SUB_SCRIPT, SET_SUB_SCRIPT_SHA1, 1, pendingTag, pendingValue, jsonValueList, projectID);
+                      } catch (JedisException e) {
+                        CloudDBError(e.getMessage());
+                        flushJedis();
+                      }
+                      pendingTag = tag;
+                      pendingValueList = valueList;
+                      pendingValue = valueList.getString(0);
                     }
                   }
                 } catch (Exception e) {
