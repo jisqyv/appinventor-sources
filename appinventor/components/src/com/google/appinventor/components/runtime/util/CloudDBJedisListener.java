@@ -36,15 +36,19 @@ public class CloudDBJedisListener extends JedisPubSub {
   @Override
   public void onMessage(String channel, String message) {
     Log.i("CloudDB", "onMessage channel " + channel + ", message: " + message);
-    // Message is a JSON encoded list of the tag that was just set and its value
-    List<Object> data = null;
     try {
+    // Message is a JSON encoded list of the tag that was just set and its value
+      List<Object> data = null;
       data = (List<Object>) JsonUtil.getObjectFromJson((String) message);
       Log.i("CloudDB", "onMessage: data = " + data);
+      String tag = (String) data.get(0);   // The variable that was changed
+      List<Object> valueList = (List<Object>) data.get(1);
+      for (Object value : valueList) {
+        cloudDB.DataChanged(tag, value);
+      }
     } catch (JSONException e) {
       Log.e("CloudDB", "onMessage: JSONException", e);
     }
-    cloudDB.DataChanged((String) data.get(0), data.get(1));
   }
 
   public void terminate() {

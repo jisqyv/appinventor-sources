@@ -174,18 +174,18 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
 
   private static class storedValue {
     private String tag;
-    private String value;
-    storedValue(String tag, String value) {
+    private JSONArray  valueList;
+    storedValue(String tag, JSONArray valueList) {
       this.tag = tag;
-      this.value = value;
+      this.valueList = valueList;
     }
 
     public String getTag() {
       return tag;
     }
 
-    public String getValue() {
-      return value;
+    public JSONArray getValueList() {
+      return valueList;
     }
   }
 
@@ -440,14 +440,15 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   private static final String SET_SUB_SCRIPT =
     "local key = KEYS[1];" +
     "local value = ARGV[1];" +
-    "local project = ARGV[2];" +
+    "local topublish = cjson.decode(ARGV[2]);" +
+    "local project = ARGV[3];" +
     "local newtable = {};" +
     "table.insert(newtable, key);" +
-    "table.insert(newtable, value);" +
+    "table.insert(newtable, topublish);" +
     "redis.call(\"publish\", project, cjson.encode(newtable));" +
     "return redis.call('set', project .. key, value);";
 
-  private static final String SET_SUB_SCRIPT_SHA1 = "50bccd05391a07a21edf86f22ff921d9e96bf1c1";
+  private static final String SET_SUB_SCRIPT_SHA1 = "ebfee034296e3ee23a82812ae139aab0dfcd5609";
 
   /**
    * Asks CloudDB to store the given value under the given tag.
@@ -493,7 +494,13 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
         } else {
           Log.d("CloudDB", "storeQueue has " + storeQueue.size() + " entries");
         }
-        storedValue work  = new storedValue(tag, value);
+        JSONArray valueList = new JSONArray();
+        try {
+          valueList.put(0, value);
+        } catch (JSONException e) {
+          throw new YailRuntimeError("JSON Error putting value.", "value is not convertable");
+        }
+        storedValue work  = new storedValue(tag, valueList);
         storeQueue.add(work);
         if (kickit) {
           background.submit(new Runnable() {
@@ -515,7 +522,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
                     }
                     Log.d("CloudDB", "store: left synchronized block");
                     String tag = work.getTag();
-                    String value = work.getValue();
+                    JSONArray valueList = work.getValueList();
                     if (tag == null || value == null) {
                       Log.d("CloudDB", "Either tag or value is null!");
                     } else {
@@ -523,7 +530,8 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
                     }
                     try {
                       Log.i("CloudDB", "Before set is called...");
-                      jEval(SET_SUB_SCRIPT, SET_SUB_SCRIPT_SHA1, 1, tag, value, projectID);
+                      String jsonValueList = valueList.toString();
+                      jEval(SET_SUB_SCRIPT, SET_SUB_SCRIPT_SHA1, 1, tag, value, jsonValueList, projectID);
                       Log.i("CloudDB", "Jedis Key = " + projectID+tag);
                       Log.i("CloudDB", "Jedis Val = " + value);
                     } catch (JedisException e) {
@@ -647,19 +655,21 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
       "local currentValue = redis.call('get', project .. key);" +
       "local decodedValue = cjson.decode(currentValue);" +
       "local subTable = {};" +
+      "local subTable1 = {};" +
       "if (type(decodedValue) == 'table') then " +
       "  local removedValue = table.remove(decodedValue, 1);" +
       "  local newValue = cjson.encode(decodedValue);" +
       "  redis.call('set', project .. key, newValue);" +
       "  table.insert(subTable, key);" +
-      "  table.insert(subTable, newValue);" +
+      "  table.insert(subTable1, newValue);" +
+      "  table.insert(subTable, subTable1);" +
       "  redis.call(\"publish\", project, cjson.encode(subTable));" +
       "  return removedValue;" +
       "else " +
       "  return error('You can only remove elements from a list');" +
       "end";
 
-  private static final String POP_FIRST_SCRIPT_SHA1 = "91c37429b88a93ab2f6c600985744e49bc950b69";
+  private static final String POP_FIRST_SCRIPT_SHA1 = "157e15460da5e2a3c9b881610073d1bdc6f0c076";
 
   @SimpleFunction(description = "Return the first element of a list and atomically remove it. " +
     "If two devices use this function simultaneously, one will get the first element and the " +
@@ -690,6 +700,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
       "local currentValue = redis.call('get', project .. key);" +
       "local newTable;" +
       "local subTable = {};" +
+      "local subTable1 = {};" +
       "if (currentValue == false) then " +
       "  newTable = {};" +
       "else " +
@@ -701,12 +712,13 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
       "table.insert(newTable, toAppend);" +
       "local newValue = cjson.encode(newTable);" +
       "redis.call('set', project .. key, newValue);" +
+      "table.insert(subTable1, newValue);" +
       "table.insert(subTable, key);" +
-      "table.insert(subTable, newValue);" +
+      "table.insert(subTable, subTable1);" +
       "redis.call(\"publish\", project, cjson.encode(subTable));" +
       "return newValue;";
 
-  private static final String APPEND_SCRIPT_SHA1 = "bfb41c6d7d85883e1c1bf2831edd79b0eb1761a1";
+  private static final String APPEND_SCRIPT_SHA1 = "ac45e2c1568499a0a088d85f58e28891e0a67dc6";
 
   @SimpleFunction(description = "Append a value to the end of a list atomically. " +
     "If two devices use this function simultaneously, both will be appended and no " +
