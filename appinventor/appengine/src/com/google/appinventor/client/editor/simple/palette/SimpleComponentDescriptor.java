@@ -86,6 +86,9 @@ public final class SimpleComponentDescriptor {
   // to get the image, category, and description
   private MockComponent cachedMockComponent = null;
 
+  // The version of the extension (meaning is defined by the extension author).
+  private int version = -1;
+
   // Component database: information about components (including their properties and events)
   private final SimpleComponentDatabase COMPONENT_DATABASE;
 
@@ -152,6 +155,7 @@ public final class SimpleComponentDescriptor {
    */
   public SimpleComponentDescriptor(String name,
                                    SimpleEditor editor,
+                                   int version,
                                    String helpString,
                                    String helpUrl,
                                    String categoryDocUrlString,
@@ -160,6 +164,7 @@ public final class SimpleComponentDescriptor {
                                    boolean external) {
     this.name = name;
     this.editor = editor;
+    this.version = version;
     this.helpString = helpString;
     this.helpUrl = helpUrl;
     this.categoryDocUrlString = categoryDocUrlString;
@@ -253,6 +258,15 @@ public final class SimpleComponentDescriptor {
     } else {
       return getCachedMockComponent(name, editor).getIconImage();
     }
+  }
+
+  /**
+   * Returns the version of the component, if any.
+   *
+   * @return  component version string
+   */
+  public int getVersion() {
+    return version;
   }
 
   /**
