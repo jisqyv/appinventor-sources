@@ -206,6 +206,30 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     "0fKtirOMxyHNwu8=\n" +
     "-----END CERTIFICATE-----\n";
 
+  // Digital Signature Trust Root X3 -- For Letsencrypt
+
+  private static final String DST_ROOT_X3 =
+    "-----BEGIN CERTIFICATE-----\n" +
+    "MIIDSjCCAjKgAwIBAgIQRK+wgNajJ7qJMDmGLvhAazANBgkqhkiG9w0BAQUFADA/\n" +
+    "MSQwIgYDVQQKExtEaWdpdGFsIFNpZ25hdHVyZSBUcnVzdCBDby4xFzAVBgNVBAMT\n" +
+    "DkRTVCBSb290IENBIFgzMB4XDTAwMDkzMDIxMTIxOVoXDTIxMDkzMDE0MDExNVow\n" +
+    "PzEkMCIGA1UEChMbRGlnaXRhbCBTaWduYXR1cmUgVHJ1c3QgQ28uMRcwFQYDVQQD\n" +
+    "Ew5EU1QgUm9vdCBDQSBYMzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEB\n" +
+    "AN+v6ZdQCINXtMxiZfaQguzH0yxrMMpb7NnDfcdAwRgUi+DoM3ZJKuM/IUmTrE4O\n" +
+    "rz5Iy2Xu/NMhD2XSKtkyj4zl93ewEnu1lcCJo6m67XMuegwGMoOifooUMM0RoOEq\n" +
+    "OLl5CjH9UL2AZd+3UWODyOKIYepLYYHsUmu5ouJLGiifSKOeDNoJjj4XLh7dIN9b\n" +
+    "xiqKqy69cK3FCxolkHRyxXtqqzTWMIn/5WgTe1QLyNau7Fqckh49ZLOMxt+/yUFw\n" +
+    "7BZy1SbsOFU5Q9D8/RhcQPGX69Wam40dutolucbY38EVAjqr2m7xPi71XAicPNaD\n" +
+    "aeQQmxkqtilX4+U9m5/wAl0CAwEAAaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAOBgNV\n" +
+    "HQ8BAf8EBAMCAQYwHQYDVR0OBBYEFMSnsaR7LHH62+FLkHX/xBVghYkQMA0GCSqG\n" +
+    "SIb3DQEBBQUAA4IBAQCjGiybFwBcqR7uKGY3Or+Dxz9LwwmglSBd49lZRNI+DT69\n" +
+    "ikugdB/OEIKcdBodfpga3csTS7MgROSR6cz8faXbauX+5v3gTt23ADq1cEmv8uXr\n" +
+    "AvHRAosZy5Q6XkjEGB5YGV8eAlrwDPGxrancWYaLbumR9YbK+rlmM6pZW87ipxZz\n" +
+    "R8srzJmwN0jP41ZL9c8PDHIyh8bwRLtTcm1D9SZImlJnt1ir/md2cXjbDaJWFBM5\n" +
+    "JDGFoqgCWjBH4d1QB7wCCZAA62RjYJsWvIjJEubSfZGL+T0yjWW06XyxV3bqxbYo\n" +
+    "Ob8VZRzI9neWagqNdwvYkQsEjgfbKbYK7p2CNTUQ\n" +
+    "-----END CERTIFICATE-----\n";
+
   private String defaultRedisServer = null;
   private boolean useDefault = true;
 
@@ -1252,12 +1276,17 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
         caInput = new ByteArrayInputStream(COMODO_USRTRUST.getBytes("UTF-8"));
         Certificate inter = cf.generateCertificate(caInput);
         caInput.close();
+        caInput = new ByteArrayInputStream(DST_ROOT_X3.getBytes("UTF-8"));
+        Certificate dstx3 = cf.generateCertificate(caInput);
+        caInput.close();
         Log.i(LOG_TAG, "ca=" + ((X509Certificate) ca).getSubjectDN());
         Log.i(LOG_TAG, "inter=" + ((X509Certificate) inter).getSubjectDN());
+        Log.i(LOG_TAG, "dstx3=" + ((X509Certificate) dstx3).getSubjectDN());
         KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
         keyStore.load(null, null);
         keyStore.setCertificateEntry("ca", ca);
         keyStore.setCertificateEntry("inter", inter);
+        keyStore.setCertificateEntry("dstx3", dstx3);
         TrustManagerFactory tmf = TrustManagerFactory.getInstance(
           TrustManagerFactory.getDefaultAlgorithm());
         tmf.init(keyStore);
