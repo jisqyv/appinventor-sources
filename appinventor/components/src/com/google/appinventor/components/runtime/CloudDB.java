@@ -544,9 +544,9 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     "table.insert(newtable, key);" +
     "table.insert(newtable, topublish);" +
     "redis.call(\"publish\", project, cjson.encode(newtable));" +
-    "return redis.call('set', project .. key, value);";
+    "return redis.call('set', project .. \":\" .. key, value);";
 
-  private static final String SET_SUB_SCRIPT_SHA1 = "ebfee034296e3ee23a82812ae139aab0dfcd5609";
+  private static final String SET_SUB_SCRIPT_SHA1 = "765978e4c340012f50733280368a0ccc4a14dfb7";
 
   /**
    * Asks CloudDB to store the given value under the given tag.
@@ -707,14 +707,8 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
             Jedis jedis = getJedis();
             try {
               Log.d(LOG_TAG,"about to call jedis.get()");
-              String returnValue = jedis.get(projectID+tag);
+              String returnValue = jedis.get(projectID + ":" + tag);
               Log.d(LOG_TAG, "finished call jedis.get()");
-              // Set<String> returnValues = jedis.zrange(projectID+tag,0,-1);
-              // Log.d(CloudDB.LOG_TAG,"zrange success ...");
-              // String returnValue = null;
-              // if(returnValues != null && !returnValues.isEmpty()){
-              //   returnValue = returnValues.toArray()[returnValues.size()-1].toString();
-              // }
               if (returnValue != null) {
                 String val = getJsonRepresenationIfValueFileName(returnValue);
                 if(val != null) value.set(val);
@@ -780,14 +774,14 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   private static final String POP_FIRST_SCRIPT =
       "local key = KEYS[1];" +
       "local project = ARGV[1];" +
-      "local currentValue = redis.call('get', project .. key);" +
+      "local currentValue = redis.call('get', project .. \":\" .. key);" +
       "local decodedValue = cjson.decode(currentValue);" +
       "local subTable = {};" +
       "local subTable1 = {};" +
       "if (type(decodedValue) == 'table') then " +
       "  local removedValue = table.remove(decodedValue, 1);" +
       "  local newValue = cjson.encode(decodedValue);" +
-      "  redis.call('set', project .. key, newValue);" +
+      "  redis.call('set', project .. \":\" .. key, newValue);" +
       "  table.insert(subTable, key);" +
       "  table.insert(subTable1, newValue);" +
       "  table.insert(subTable, subTable1);" +
@@ -797,7 +791,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
       "  return error('You can only remove elements from a list');" +
       "end";
 
-  private static final String POP_FIRST_SCRIPT_SHA1 = "157e15460da5e2a3c9b881610073d1bdc6f0c076";
+  private static final String POP_FIRST_SCRIPT_SHA1 = "9619624e5c1f7216073f3f083601548872aebc89";
 
   @SimpleFunction(description = "Return the first element of a list and atomically remove it. " +
     "If two devices use this function simultaneously, one will get the first element and the " +
@@ -825,7 +819,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
       "local key = KEYS[1];" +
       "local toAppend = ARGV[1];" +
       "local project = ARGV[2];" +
-      "local currentValue = redis.call('get', project .. key);" +
+      "local currentValue = redis.call('get', project .. \":\" .. key);" +
       "local newTable;" +
       "local subTable = {};" +
       "local subTable1 = {};" +
@@ -839,14 +833,14 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
       "end " +
       "table.insert(newTable, toAppend);" +
       "local newValue = cjson.encode(newTable);" +
-      "redis.call('set', project .. key, newValue);" +
+      "redis.call('set', project .. \":\" .. key, newValue);" +
       "table.insert(subTable1, newValue);" +
       "table.insert(subTable, key);" +
       "table.insert(subTable, subTable1);" +
       "redis.call(\"publish\", project, cjson.encode(subTable));" +
       "return newValue;";
 
-  private static final String APPEND_SCRIPT_SHA1 = "ac45e2c1568499a0a088d85f58e28891e0a67dc6";
+  private static final String APPEND_SCRIPT_SHA1 = "fd1367d269db18a81e95d94fec6ac5e01ffe778b";
 
   @SimpleFunction(description = "Append a value to the end of a list atomically. " +
     "If two devices use this function simultaneously, both will be appended and no " +
@@ -919,13 +913,17 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   public void ClearTag(final String tag) {
     //Natalie: Should we also add ClearTagsList? Jedis can delete a list of tags easily
     checkProjectIDNotBlank();
-    try {
-      Jedis jedis = getJedis();
-      jedis.del(projectID+tag);
-    } catch (Exception e) {
-      CloudDBError(e.getMessage());
-      flushJedis();
-    }
+    background.submit(new Runnable() {
+        public void run() {
+          try {
+            Jedis jedis = getJedis();
+            jedis.del(projectID + ":" + tag);
+          } catch (Exception e) {
+            CloudDBError(e.getMessage());
+            flushJedis();
+          }
+        }
+      });
   }
 
   /**
@@ -948,7 +946,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
             Jedis jedis = getJedis();
             Set<String> value = null;
             try {
-              value = jedis.keys(projectID+"*");
+              value = jedis.keys(projectID + ":*");
             } catch (JedisException e) {
               CloudDBError(e.getMessage());
               flushJedis();
@@ -957,7 +955,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
             final List<String> listValue = new ArrayList<String>(value);
 
             for(int i = 0; i < listValue.size(); i++){
-              listValue.set(i, listValue.get(i).substring((projectID).length()));
+              listValue.set(i, listValue.get(i).substring((projectID + ":").length()));
             }
 
             androidUIHandler.post(new Runnable() {
