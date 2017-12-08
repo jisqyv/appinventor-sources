@@ -6471,8 +6471,12 @@ public interface OdeMessages extends Messages {
   @Description("")
   String cloudDBComponentPallette();
 
-  @DefaultMessage("Non-visible component that communicates " +
-    "with CloudDB server to store and retrieve information.")
+  @DefaultMessage("Non-visible component allowing you to store data on a Internet " +
+    "connected database server (using Redis software). This allows the users of " +
+    "your App to share data with each other. " +
+    "By default data will be stored in a server maintained by MIT, however you " +
+    "can setup and run your own server. Set the \"RedisServer\" property and " +
+    "\"RedisPort\" Property to access your own server.")
   @Description("")
   String CloudDBHelpStringComponentPallette();
 

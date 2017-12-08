@@ -85,11 +85,16 @@ import redis.clients.jedis.exceptions.JedisNoScriptException;
  *
  * @author manting@mit.edu (Natalie Lao)
  * @author joymitro1989@gmail.com (Joydeep Mitra)
+ * @author jis@mit.edu (Jeffrey I. Schiller)
  */
 
 @DesignerComponent(version = 1,
-    description = "Non-visible component that communicates with CloudDB server to store" +
-        " and retrieve information.",
+    description = "Non-visible component allowing you to store data on a Internet " +
+        "connected database server (using Redis software). This allows the users of " +
+        "your App to share data with each other. " +
+        "By default data will be stored in a server maintained by MIT, however you " +
+        "can setup and run your own server. Set the \"RedisServer\" property and " +
+        "\"RedisPort\" Property to access your own server.",
     designerHelpDescription = "Non-visible component that communicates with CloudDB " +
         "server to store and retrieve information.",
     category = ComponentCategory.EXPERIMENTAL,
@@ -426,7 +431,8 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   }
 
   @SimpleProperty(category = PropertyCategory.BEHAVIOR,
-      description = "The Redis Server to use.")
+      description = "The Redis Server to use to store data. A setting of \"DEFAULT\" " +
+          "means that the MIT server will be used.")
   public String RedisServer() {
     if (redisServer.equals(defaultRedisServer)) {
       return "DEFAULT";
@@ -462,7 +468,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   }
 
   @SimpleProperty(category = PropertyCategory.BEHAVIOR,
-      description = "The Redis Server port to use.")
+      description = "The Redis Server port to use. Defaults to 6381")
   public int RedisPort() {
     return redisPort;
   }
@@ -517,7 +523,12 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
    * @return the authTokenSignature for this CloudDB project
    */
   @SimpleProperty(category = PropertyCategory.BEHAVIOR, userVisible = false,
-          description = "Gets the token for this CloudDB project.")
+          description = "This field contains the authentication token used to login to " +
+              "the backed Redis server. For the \"DEFAULT\" server, do not edit this " +
+              "value, the system will fill it in for you. A system administrator " +
+              "may also provide a special value to you which can be used to share " +
+              "data between multiple projects from multiple people. If using your own " +
+              "Redis server, set a password in the server's config and enter it here.")
   public String Token() {
     checkProjectIDNotBlank();
     return token;
@@ -530,7 +541,8 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   }
 
   @SimpleProperty(category = PropertyCategory.BEHAVIOR, userVisible = false,
-          description = "Set to true to use SSL to talk to CloudDB server.")
+          description = "Set to true to use SSL to talk to CloudDB/Redis server. " +
+              "This should be set to True for the \"DEFAULT\" server.")
   public boolean UseSSL() {
     return useSSL;
   }
@@ -909,7 +921,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
    *
    * @param tag The tag to remove
    */
-  @SimpleFunction(description = "Remove the tag from Firebase")
+  @SimpleFunction(description = "Remove the tag from CloudDB")
   public void ClearTag(final String tag) {
     //Natalie: Should we also add ClearTagsList? Jedis can delete a list of tags easily
     checkProjectIDNotBlank();
@@ -1017,7 +1029,8 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
    *
    * @param message the error message
    */
-  @SimpleEvent
+  @SimpleEvent(description = "Indicates that an error occurred while communicating " +
+                   "with the CloudDB Redis server.")
   public void CloudDBError(final String message) {
     // Log the error message for advanced developers
     Log.e(LOG_TAG, message);
