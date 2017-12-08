@@ -240,7 +240,6 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
 
   private Handler androidUIHandler;
   private final Activity activity;
-  private CloudDBJedisListener childListener;
 
   private Jedis INSTANCE = null;
   private String redisServer = "DEFAULT";
@@ -798,12 +797,12 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
       "  table.insert(subTable1, newValue);" +
       "  table.insert(subTable, subTable1);" +
       "  redis.call(\"publish\", project, cjson.encode(subTable));" +
-      "  return removedValue;" +
+      "  return cjson.encode(removedValue);" +
       "else " +
       "  return error('You can only remove elements from a list');" +
       "end";
 
-  private static final String POP_FIRST_SCRIPT_SHA1 = "9619624e5c1f7216073f3f083601548872aebc89";
+  private static final String POP_FIRST_SCRIPT_SHA1 = "ed4cb4717d157f447848fe03524da24e461028e1";
 
   @SimpleFunction(description = "Return the first element of a list and atomically remove it. " +
     "If two devices use this function simultaneously, one will get the first element and the " +
@@ -829,7 +828,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
 
   private static final String APPEND_SCRIPT =
       "local key = KEYS[1];" +
-      "local toAppend = ARGV[1];" +
+      "local toAppend = cjson.decode(ARGV[1]);" +
       "local project = ARGV[2];" +
       "local currentValue = redis.call('get', project .. \":\" .. key);" +
       "local newTable;" +
@@ -852,7 +851,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
       "redis.call(\"publish\", project, cjson.encode(subTable));" +
       "return newValue;";
 
-  private static final String APPEND_SCRIPT_SHA1 = "fd1367d269db18a81e95d94fec6ac5e01ffe778b";
+  private static final String APPEND_SCRIPT_SHA1 = "d6cc0f65b29878589f00564d52c8654967e9bcf8";
 
   @SimpleFunction(description = "Append a value to the end of a list atomically. " +
     "If two devices use this function simultaneously, both will be appended and no " +
