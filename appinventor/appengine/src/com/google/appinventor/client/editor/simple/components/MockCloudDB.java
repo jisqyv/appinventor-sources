@@ -117,11 +117,16 @@ public class MockCloudDB extends MockNonVisibleComponent {
       }
       int tokenType = token.getType();
       if (newValue.equals("DEFAULT")) {
-        persistToken = false;
-        tokenType |= EditableProperty.TYPE_NONPERSISTED;
-        tokenType |= EditableProperty.TYPE_DOYAIL;
-        token.setValue("");   // Set it to empty so getTokenFromServer
-        getTokenFromServer(); // will fill it in.
+        if (token == null || token.getValue().isEmpty() || !(token.getValue().substring(0, 1).equals("%"))) {
+          token.setValue("");   // Set it to empty so getTokenFromServer will fill in
+          persistToken = false;
+          tokenType |= EditableProperty.TYPE_NONPERSISTED;
+          tokenType |= EditableProperty.TYPE_DOYAIL;
+          getTokenFromServer(); // will fill it in.
+        } else {
+          tokenType &= ~EditableProperty.TYPE_NONPERSISTED;
+          persistToken = true;
+        }
       } else {
         tokenType &= ~EditableProperty.TYPE_NONPERSISTED;
         persistToken = true;
@@ -130,6 +135,12 @@ public class MockCloudDB extends MockNonVisibleComponent {
       onPropertyChange(PROPERTY_NAME_TOKEN, token.getValue());
     } else if (propertyName.equals(PROPERTY_NAME_TOKEN)) {
       EditableProperty serverProperty = properties.getProperty(PROPERTY_NAME_REDIS_SERVER);
+      EditableProperty token = properties.getProperty(PROPERTY_NAME_TOKEN);
+      if (token == null) {      // First pass through and "Token" isn't set yet
+        super.onPropertyChange(propertyName, newValue);
+        return;
+      }
+      int tokenType = token.getType();
       // if the Redis Server property is "DEFAULT" we don't persist the
       // Token property
       if (serverProperty == null) { // Nothing we can do here
@@ -138,10 +149,20 @@ public class MockCloudDB extends MockNonVisibleComponent {
       }
       String server = serverProperty.getValue();
       if (server.equals("DEFAULT")) {
-        persistToken = false;
+        if (newValue == null || !(newValue.substring(0, 1).equals("%"))) {
+          persistToken = false; // Now that the auto-save is scheduled, we no longer want
+                                // to persist the token
+          tokenType |= EditableProperty.TYPE_NONPERSISTED;
+          tokenType |= EditableProperty.TYPE_DOYAIL;
+        } else {
+          tokenType &= ~EditableProperty.TYPE_NONPERSISTED;
+          persistToken = true;
+        }
       } else {
+        tokenType &= ~EditableProperty.TYPE_NONPERSISTED;
         persistToken = true;
       }
+      token.setType(tokenType);
     }
     super.onPropertyChange(propertyName, newValue);
   }

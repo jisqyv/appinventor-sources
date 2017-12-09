@@ -1070,7 +1070,14 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
         jedis = new Jedis(redisServer, redisPort, false);
       }
       Log.d(LOG_TAG, "getJedis(true): Have new connection.");
-      jedis.auth(token);
+      // If the first character of the token is %, we toss it away
+      // it is used by MockCloudDB.java to determine if the token should
+      // be kept or fetched from the server when needed
+      if (token.substring(0, 1).equals("%")) {
+        jedis.auth(token.substring(1));
+      } else {
+        jedis.auth(token);
+      }
       Log.d(LOG_TAG, "getJedis(true): Authentication complete.");
     } catch (JedisConnectionException e) {
       Log.e(LOG_TAG, "in getJedis()", e);
