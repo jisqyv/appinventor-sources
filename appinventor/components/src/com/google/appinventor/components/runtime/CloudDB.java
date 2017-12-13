@@ -66,6 +66,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509TrustManager;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -1296,7 +1297,10 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     }
   }
 
-  private void ensureSslSockFactory() {
+  // We are synchronized because we are called simultaneously from two
+  // different threads. Rather then do the work twice, the first one
+  // does the work and the second one waits!
+  private synchronized void ensureSslSockFactory() {
     if (SslSockFactory != null) {
       return;
     } else {
@@ -1311,17 +1315,32 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
         caInput = new ByteArrayInputStream(DST_ROOT_X3.getBytes("UTF-8"));
         Certificate dstx3 = cf.generateCertificate(caInput);
         caInput.close();
-        Log.d(LOG_TAG, "ca=" + ((X509Certificate) ca).getSubjectDN());
+        Log.d(LOG_TAG, "comodo=" + ((X509Certificate) ca).getSubjectDN());
         Log.d(LOG_TAG, "inter=" + ((X509Certificate) inter).getSubjectDN());
         Log.d(LOG_TAG, "dstx3=" + ((X509Certificate) dstx3).getSubjectDN());
         KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
         keyStore.load(null, null);
-        keyStore.setCertificateEntry("ca", ca);
+        // First add the system trusted certificates
+        int count = 1;
+        for (X509Certificate cert : getSystemCertificates()) {
+          keyStore.setCertificateEntry("root" + count, cert);
+          count += 1;
+        }
+        Log.d(LOG_TAG, "Added " + (count -1) + " system certificates!");
+        // Now add our additions
+        keyStore.setCertificateEntry("comodo", ca);
         keyStore.setCertificateEntry("inter", inter);
         keyStore.setCertificateEntry("dstx3", dstx3);
         TrustManagerFactory tmf = TrustManagerFactory.getInstance(
           TrustManagerFactory.getDefaultAlgorithm());
         tmf.init(keyStore);
+        // // DEBUG
+        // Log.d(LOG_TAG, "And now for something completely different...");
+        // X509TrustManager tm = (X509TrustManager) tmf.getTrustManagers()[0];
+        // for (X509Certificate cert : tm.getAcceptedIssuers()) {
+        //   Log.d(LOG_TAG, cert.getSubjectX500Principal().getName());
+        // }
+        // // END DEBUG
         SSLContext ctx = SSLContext.getInstance("TLS");
         ctx.init(null, tmf.getTrustManagers(), null);
         SslSockFactory = ctx.getSocketFactory();
@@ -1332,4 +1351,20 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     }
   }
 
+  /*
+   * Get the list of root CA's trusted by this device
+   *
+   */
+  private X509Certificate[] getSystemCertificates() {
+    try {
+      TrustManagerFactory otmf = TrustManagerFactory.getInstance(
+        TrustManagerFactory.getDefaultAlgorithm());
+      otmf.init((KeyStore) null);
+      X509TrustManager otm = (X509TrustManager) otmf.getTrustManagers()[0];
+      return otm.getAcceptedIssuers();
+    } catch (Exception e) {
+      Log.e(LOG_TAG, "Getting System Certificates", e);
+      return new X509Certificate[0];
+    }
+  }
 }
