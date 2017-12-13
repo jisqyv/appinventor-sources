@@ -3,6 +3,7 @@
 <!-- ======================================================================
      Copyright 2011 Google Inc.  All Rights Reserved.
      Author: markf@google.com (Mark Friedman)
+     Copyright 2012-2017 Massachusetts Institute of Technology, All rights reserved.
 
      App Inventor build server
      ====================================================================== -->
@@ -85,6 +86,12 @@
     <copy toFile="${classes.files.dir}/commons-pool.jar" file="${lib.dir}/commons-pool/commons-pool2-2.0.jar" />
     <copy toFile="${classes.files.dir}/guava-14.0.1.jar" file="${lib.dir}/guava/guava-14.0.1.jar" />
     <copy toFile="${classes.files.dir}/core.jar" file="${lib.dir}/QRGenerator/core.jar" />
+    <copy toFile="${classes.files.dir}/appcompat-v7.aar" file="${lib.dir}/android/support/appcompat-v7-22.2.1.aar" />
+    <copy toFile="${classes.files.dir}/appcompat-v7.jar" file="${lib.dir}/android/support/appcompat-v7-22.2.1.jar" />
+    <copy toFile="${classes.files.dir}/internal_impl.jar" file="${lib.dir}/android/support/internal_impl-22.2.1.jar" />
+    <copy toFile="${classes.files.dir}/support-annotations.jar" file="${lib.dir}/android/support/support-annotations-22.2.1.jar" />
+    <copy toFile="${classes.files.dir}/support-v4.aar" file="${lib.dir}/android/support/support-v4-22.2.1.aar" />
+    <copy toFile="${classes.files.dir}/support-v4.jar" file="${lib.dir}/android/support/support-v4-22.2.1.jar" />
     <copy toFile="${classes.files.dir}/android.jar" file="${lib.dir}/android/5.1.1/android.jar" />
     <copy toFile="${classes.files.dir}/dx.jar" file="${lib.dir}/android/tools/dx.jar" />
     <copy toFile="${classes.files.dir}/CommonVersion.jar" file="${build.dir}/common/CommonVersion.jar" />
@@ -117,7 +124,13 @@
       <fileset dir="${build.dir}" includes="common/CommonVersion.jar" />
       <fileset dir="${lib.dir}" includes="bouncycastle/bcprov-jdk15on-149.jar"/>
       <fileset dir="${lib.dir}" includes="bouncycastle/bcpkix-jdk15on-149.jar"/>
+      <fileset dir="${lib.dir}" includes="android/tools/common-24.3.0.jar"/>
       <fileset dir="${lib.dir}" includes="android/tools/sdklib.jar"/>
+      <fileset dir="${lib.dir}" includes="android/tools/builder-1.3.0.jar"/>
+      <fileset dir="${lib.dir}" includes="android/tools/builder-model-1.3.0.jar"/>
+      <fileset dir="${lib.dir}" includes="android/tools/sdk-common-24.3.0.jar"/>
+      <fileset dir="${lib.dir}" includes="android/tools/layoutlib-api-24.3.0.jar"/>
+      <fileset dir="${lib.dir}" includes="ecj/ecj-4.5.1.jar"/>
       <fileset dir="${lib.dir}" includes="guava/guava-14.0.1.jar"/>
       <fileset dir="${lib.dir}" includes="commons-io/commons-io-2.0.1.jar"/>
       <fileset dir="${lib.dir}" includes="args4j/args4j-2.0.18.jar"/>

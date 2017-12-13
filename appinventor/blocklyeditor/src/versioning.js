@@ -1,5 +1,5 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright © 2013-2016 Massachusetts Institute of Technology, All rights reserved
+// Copyright © 2013-2017 Massachusetts Institute of Technology, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 /**
@@ -1680,7 +1680,10 @@ Blockly.Versioning.AllUpgradeMaps =
 
 
     // AI2: In BLOCKS_LANGUAGE_VERSION 20// Rename 'obsufcated_text' text block to 'obfuscated_text'
-    20: Blockly.Versioning.renameBlockType('obsufcated_text', 'obfuscated_text')
+    20: Blockly.Versioning.renameBlockType('obsufcated_text', 'obfuscated_text'),
+
+    // AI2: Added is a string? block to test whether values are strings.
+    21: "noUpgrade"
 
 
   }, // End Language upgraders
@@ -2096,7 +2099,11 @@ Blockly.Versioning.AllUpgradeMaps =
 
     // For FORM_COMPONENT_VERSION 20:
     // - The Screen1.ShowListsAsJson property was added and no block needs to be changed.
-    20: "noUpgrade"
+    20: "noUpgrade",
+
+    // For FORM_COMPONENT_VERSION 21:
+    // - The AccentColor, PrimaryColor, PrimaryColorDark, and Theme properties were added to Screen, and no block needs to be changed.
+    21: "noUpgrade"
 
 
   }, // End Screen
