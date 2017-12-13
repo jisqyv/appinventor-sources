@@ -79,14 +79,6 @@ public final class Compiler {
   private static final String SLASH = File.separator;
   private static final String COLON = File.pathSeparator;
 
-  private static final String WEBVIEW_ACTIVITY_CLASS =
-      "com.google.appinventor.components.runtime.WebViewActivity";
-
-  // Copied from SdkLevel.java (which isn't in our class path so we duplicate it here)
-  private static final String LEVEL_GINGERBREAD_MR1 = "10";
-
-  private static final String LEVEL_ICECREAM_SANDWICH = "14";
-
   public static final String RUNTIME_FILES_DIR = "/" + "files" + "/";
 
   // Build info constants. Used for permissions, libraries, assets and activities.

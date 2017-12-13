@@ -1,5 +1,5 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2015 MIT, All rights reserved
+// Copyright 2017 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -275,8 +275,8 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   private List<storedValue> storeQueue = Collections.synchronizedList(new ArrayList());
 
   //added by Joydeep Mitra
-  private boolean sync = false;
-  private long syncPeriod = 9_00_000;
+  // private boolean sync = false;
+  // private long syncPeriod = 900000;
   private ConnectivityManager cm;
   //private CloudDBCacheHelper cloudDBCacheHelper;
   //-------------------------
