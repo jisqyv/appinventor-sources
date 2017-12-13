@@ -22,6 +22,10 @@ import redis.clients.jedis.JedisPubSub;
 public class CloudDBJedisListener extends JedisPubSub {
   public CloudDB cloudDB;
   private Thread myThread;
+  private static String LOG_TAG = "CloudDB"; // Yep, same as the CloudDB component.
+                                             // This is on purpose because when we
+                                             // are looking at logs for CloudDB
+                                             // we want to know about us as well
 
   public CloudDBJedisListener(CloudDB thisCloudDB){
     cloudDB = thisCloudDB;
@@ -30,24 +34,24 @@ public class CloudDBJedisListener extends JedisPubSub {
 
   @Override
   public void onSubscribe(String channel, int subscribedChannels) {
-    Log.i("CloudDB", "onSubscribe " + channel + " " + subscribedChannels);
+    Log.d(LOG_TAG, "onSubscribe " + channel + " " + subscribedChannels);
   }
 
   @Override
   public void onMessage(String channel, String message) {
-    Log.i("CloudDB", "onMessage channel " + channel + ", message: " + message);
+    Log.d(LOG_TAG, "onMessage channel " + channel + ", message: " + message);
     try {
     // Message is a JSON encoded list of the tag that was just set and its value
       List<Object> data = null;
       data = (List<Object>) JsonUtil.getObjectFromJson((String) message);
-      Log.i("CloudDB", "onMessage: data = " + data);
+      Log.d(LOG_TAG, "onMessage: data = " + data);
       String tag = (String) data.get(0);   // The variable that was changed
       List<Object> valueList = (List<Object>) data.get(1);
       for (Object value : valueList) {
         cloudDB.DataChanged(tag, value);
       }
     } catch (JSONException e) {
-      Log.e("CloudDB", "onMessage: JSONException", e);
+      Log.e(LOG_TAG, "onMessage: JSONException", e);
     }
   }
 

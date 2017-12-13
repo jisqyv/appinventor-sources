@@ -72,6 +72,7 @@ import org.json.JSONException;
 
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.exceptions.JedisConnectionException;
+import redis.clients.jedis.exceptions.JedisDataException;
 
 import redis.clients.jedis.exceptions.JedisException;
 import redis.clients.jedis.exceptions.JedisNoScriptException;
@@ -146,6 +147,11 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
                                                  // where variables are kept when an app exits
                                                  // when off-line
 
+  private static volatile boolean dead = false; // On certain fatal errors we declare ourselves
+                                                // "dead" which means an application restart
+                                                // is required to get things going again.
+                                                // For now, only an authentication error
+                                                // sets this
 
   private static final String COMODO_ROOT =
     "-----BEGIN CERTIFICATE-----\n" +
@@ -331,7 +337,6 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     // back in the UI thread.  They do this by posting those actions
     // to androidUIHandler.
     androidUIHandler = new Handler();
-    Log.d(LOG_TAG, "Static: androidUIHandler = " + androidUIHandler);
     this.activity = container.$context();
     //Defaults set in MockCloudDB.java in appengine/src/com/google/appinventor/client/editor/simple/components
     projectID = ""; // set in Designer
@@ -345,7 +350,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
    * Initialize: Do runtime initialization of CloudDB
    */
   public void Initialize() {
-    Log.i(LOG_TAG, "Initalize called!");
+    Log.d(LOG_TAG, "Initalize called!");
     isInitialized = true;
     startListener();
   }
@@ -353,7 +358,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   private void stopListener() {
     // We do this on the UI thread to make sure it is complete
     // before we repoint the redis server (or port)
-    Log.i(LOG_TAG, "Listener stopping!");
+    Log.d(LOG_TAG, "Listener stopping!");
     if (currentListener != null) {
       currentListener.terminate();
     }
@@ -368,7 +373,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
       return;
     }
     listenerRunning = true;
-    Log.i(LOG_TAG, "Listener starting!");
+    Log.d(LOG_TAG, "Listener starting!");
     Thread t = new Thread() {
         public void run() {
           Jedis jedis = getJedis(true);
@@ -383,23 +388,27 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
               } catch (Exception ee) {
                 // XXX
               }
-              Log.i(LOG_TAG, "Listener: connection to Redis failed, sleeping 3 seconds.");
+              Log.d(LOG_TAG, "Listener: connection to Redis failed, sleeping 3 seconds.");
               try {
                 Thread.sleep(3*1000);
               } catch (InterruptedException ee) {
               }
-              Log.i(LOG_TAG, "Woke up!");
+              Log.d(LOG_TAG, "Woke up!");
             }
           } else {
-            Log.i(LOG_TAG, "Listener: getJedis(true) returned null, retry in 3...");
+            Log.d(LOG_TAG, "Listener: getJedis(true) returned null, retry in 3...");
             try {
               Thread.sleep(3*1000);
             } catch (InterruptedException e) {
             }
-            Log.i(LOG_TAG, "Woke up! (2)");
+            Log.d(LOG_TAG, "Woke up! (2)");
           }
           listenerRunning = false;
-          startListener();
+          if (!dead) {
+            startListener();
+          } else {
+            Log.d(LOG_TAG, "We are dead, listener not retrying.");
+          }
         }
       };
     t.start();
@@ -568,9 +577,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
    */
   @SimpleFunction
   public void StoreValue(final String tag, final Object valueToStore) {
-    Log.i("CloudDB","StoreValue");
     checkProjectIDNotBlank();
-    Log.i("CloudDB","PASSSSS");
 
     final String value;
     NetworkInfo networkInfo = cm.getActiveNetworkInfo();
@@ -594,14 +601,14 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     //Natalie: perform the store operation
     //valueToStore is always converted to JSON (String);
     if (isConnected) {
-      Log.i("CloudDB","Device is online...");
+      Log.d(LOG_TAG,"Device is online...");
       synchronized(storeQueue) {
         boolean kickit = false;
         if (storeQueue.size() == 0) { // Need to kick off the background task
-          Log.d("CloudDB", "storeQueue is zero length, kicking background");
+          Log.d(LOG_TAG, "storeQueue is zero length, kicking background");
           kickit = true;
         } else {
-          Log.d("CloudDB", "storeQueue has " + storeQueue.size() + " entries");
+          Log.d(LOG_TAG, "storeQueue has " + storeQueue.size() + " entries");
         }
         JSONArray valueList = new JSONArray();
         try {
@@ -619,21 +626,21 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
                 String pendingValue = null;
                 try {
                   storedValue work;
-                  Log.d("CloudDB", "store background task running.");
+                  Log.d(LOG_TAG, "store background task running.");
                   while (true) {
                     synchronized(storeQueue) {
-                      Log.d("CloudDB", "store: In background synchronized block");
+                      Log.d(LOG_TAG, "store: In background synchronized block");
                       int size = storeQueue.size();
                       if (size == 0) {
-                        Log.d("CloudDB", "store background task exiting.");
+                        Log.d(LOG_TAG, "store background task exiting.");
                         work = null;
                       } else {
-                        Log.d("CloudDB", "store: storeQueue.size() == " + size);
+                        Log.d(LOG_TAG, "store: storeQueue.size() == " + size);
                         work = storeQueue.remove(0);
-                        Log.d("CloudDB", "store: got work.");
+                        Log.d(LOG_TAG, "store: got work.");
                       }
                     }
-                    Log.d("CloudDB", "store: left synchronized block");
+                    Log.d(LOG_TAG, "store: left synchronized block");
                     if (work == null) {
                       try {
                         if (pendingTag != null) {
@@ -651,9 +658,9 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
                     String tag = work.getTag();
                     JSONArray valueList = work.getValueList();
                     if (tag == null || valueList == null) {
-                      Log.d("CloudDB", "Either tag or value is null!");
+                      Log.d(LOG_TAG, "Either tag or value is null!");
                     } else {
-                      Log.d("CloudDB", "Got Work: tag = " + tag + " value = " + valueList.get(0));
+                      Log.d(LOG_TAG, "Got Work: tag = " + tag + " value = " + valueList.get(0));
                     }
                     if (pendingTag == null) { // First time through this invocation
                       pendingTag = tag;
@@ -679,7 +686,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
                     }
                   }
                 } catch (Exception e) {
-                Log.e("CloudDB", "Exception in store worker!", e);
+                Log.e(LOG_TAG, "Exception in store worker!", e);
                 }
               }
             });
@@ -688,7 +695,6 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     } else {
       CloudDBError("Cannot store values off-line.");
     }
-    Log.i("CloudDB", "End of StoreValue...");
   }
 
   /**
@@ -703,7 +709,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   @SimpleFunction
   public void GetValue(final String tag, final Object valueIfTagNotThere) {
     checkProjectIDNotBlank();
-    Log.d(CloudDB.LOG_TAG,"getting value ...");
+    Log.d(LOG_TAG, "getting value ... for tag: " + tag);
     final AtomicReference<Object> value = new AtomicReference<Object>();
     Cursor cursor = null;
     SQLiteDatabase db = null;
@@ -1042,7 +1048,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
           boolean dispatched = EventDispatcher.dispatchEvent(me, "CloudDBError", message);
           if (!dispatched) {
             // If the handler doesn't exist, then put up our own alert
-            Notifier.oneButtonAlert(form, message, "CloudDBError", "Continue");
+            new Notifier(form).ShowAlert("CloudDBError: " + message);
           }
         }
       });
@@ -1059,6 +1065,9 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
 
   public Jedis getJedis(boolean createNew) {
     Jedis jedis;
+    if (dead) {                 // If we are dead, we are dead!
+      return null;
+    }
     try {
       Log.d(LOG_TAG, "getJedis(true): Attempting a new connection.");
       if (useSSL) {             // Need to create a TrustManager and trust the Comodo
@@ -1082,6 +1091,12 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     } catch (JedisConnectionException e) {
       Log.e(LOG_TAG, "in getJedis()", e);
       CloudDBError(e.getMessage());
+      return null;
+    } catch (JedisDataException e) {
+      // This is always an authentication error
+      Log.e(LOG_TAG, "in getJedis()", e);
+      CloudDBError(e.getMessage() + " CloudDB disabled, restart to re-enable.");
+      dead = true;
       return null;
     }
     return jedis;
@@ -1296,9 +1311,9 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
         caInput = new ByteArrayInputStream(DST_ROOT_X3.getBytes("UTF-8"));
         Certificate dstx3 = cf.generateCertificate(caInput);
         caInput.close();
-        Log.i(LOG_TAG, "ca=" + ((X509Certificate) ca).getSubjectDN());
-        Log.i(LOG_TAG, "inter=" + ((X509Certificate) inter).getSubjectDN());
-        Log.i(LOG_TAG, "dstx3=" + ((X509Certificate) dstx3).getSubjectDN());
+        Log.d(LOG_TAG, "ca=" + ((X509Certificate) ca).getSubjectDN());
+        Log.d(LOG_TAG, "inter=" + ((X509Certificate) inter).getSubjectDN());
+        Log.d(LOG_TAG, "dstx3=" + ((X509Certificate) dstx3).getSubjectDN());
         KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
         keyStore.load(null, null);
         keyStore.setCertificateEntry("ca", ca);
