@@ -265,6 +265,7 @@ public class File extends AndroidNonvisibleComponent implements Component {
   /**
    * Asynchronously reads from the given file. Calls the main event thread
    * when the function has completed reading from the file.
+   * @param fileInput the stream to read from
    * @param fileName the file to read
    * @throws FileNotFoundException
    * @throws IOException when the system cannot read the file

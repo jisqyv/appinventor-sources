@@ -52,6 +52,7 @@ public class CloudDBJedisListener extends JedisPubSub {
       }
     } catch (JSONException e) {
       Log.e(LOG_TAG, "onMessage: JSONException", e);
+      cloudDB.CloudDBError("System Error: " + e.getMessage());
     }
   }
 

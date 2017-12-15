@@ -140,19 +140,12 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   private String projectID = "";
   private String token = "";
   private boolean isPublic = false;
-  // Note: The two variables below are static because the systems they
-  // interact with within CloudDB are also static Note: Natalie check true
-  private static boolean isInitialized = false;  // Whether we have made our first
-                                                 // connection to Firebase
-  private static boolean persist = false;        // Whether or not we are in persistant mode
-                                                 // where variables are kept when an app exits
-                                                 // when off-line
 
-  private static volatile boolean dead = false; // On certain fatal errors we declare ourselves
-                                                // "dead" which means an application restart
-                                                // is required to get things going again.
-                                                // For now, only an authentication error
-                                                // sets this
+  private volatile boolean dead = false; // On certain fatal errors we declare ourselves
+                                         // "dead" which means an application restart
+                                         // is required to get things going again.
+                                         // For now, only an authentication error
+                                         // sets this
 
   private static final String COMODO_ROOT =
     "-----BEGIN CERTIFICATE-----\n" +
@@ -272,14 +265,9 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   // effecient as possible, we have a queue of pending store requests and we
   // have a background task that drains this queue as fast as possible and
   // iterates over the queue until it is drained.
-  private List<storedValue> storeQueue = Collections.synchronizedList(new ArrayList());
+  private final List<storedValue> storeQueue = Collections.synchronizedList(new ArrayList());
 
-  //added by Joydeep Mitra
-  // private boolean sync = false;
-  // private long syncPeriod = 900000;
   private ConnectivityManager cm;
-  //private CloudDBCacheHelper cloudDBCacheHelper;
-  //-------------------------
 
   private static class storedValue {
     private String tag;
@@ -295,35 +283,6 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
 
     public JSONArray getValueList() {
       return valueList;
-    }
-  }
-
-  // ReturnVal -- Holder which can be used as a final value but whose content
-  //              remains mutable.
-  private static class ReturnVal {
-    String err;                 // Holder for any errors
-    Object retval;              // Returned value
-
-    Object getRetval() {
-      return retval;
-    }
-
-  }
-
-  //Natalie: What does this do?
-  private abstract static class Transactional {
-    final Object arg1;
-    final Object arg2;
-    final ReturnVal retv;
-
-    Transactional(Object arg1, Object arg2, ReturnVal retv) {
-      this.arg1 = arg1;
-      this.arg2 = arg2;
-      this.retv = retv;
-    }
-
-    ReturnVal getResult() {
-      return retv;
     }
   }
 
@@ -352,8 +311,9 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
    */
   public void Initialize() {
     Log.d(LOG_TAG, "Initalize called!");
-    isInitialized = true;
-    startListener();
+    if (currentListener == null) { // currentListener may still be set
+      startListener();             // in the Companion
+    }
   }
 
   private void stopListener() {
@@ -464,7 +424,6 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     defaultRedisServer = server;
     if (useDefault) {
       redisServer = server;
-//      stopListener();
     }
   }
 
@@ -576,7 +535,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
    * @param valueToStore The value to store. Can be any type of value (e.g.
    * number, text, boolean or list).
    */
-  @SimpleFunction
+  @SimpleFunction(description = "Store a value at a tag.")
   public void StoreValue(final String tag, final Object valueToStore) {
     checkProjectIDNotBlank();
 
@@ -599,8 +558,6 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
       throw new YailRuntimeError("Value failed to convert to JSON.", "JSON Creation Error.");
     }
 
-    //Natalie: perform the store operation
-    //valueToStore is always converted to JSON (String);
     if (isConnected) {
       Log.d(LOG_TAG,"Device is online...");
       synchronized(storeQueue) {
@@ -667,19 +624,19 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
                       pendingTag = tag;
                       pendingValueList = valueList;
                       pendingValue = valueList.getString(0);
-                      continue; // Go get more work if there is any
-                    } else if (pendingTag.equals(tag)) {
+                    } else if (pendingTag.equals(tag)) { // work is for the same tag
                       pendingValue = valueList.getString(0);
                       pendingValueList.put(pendingValue);
-                      continue;
-                    } else {
-                      try {
+                    } else {    // Work is for a different tag, send what we have
+                      try {     // and add the new tag,incoming valuelist for the next round
                         String jsonValueList = pendingValueList.toString();
                         Log.d(LOG_TAG, "pendingTag changed sending pendingTag, valueListLength = " + pendingValueList.length());
                         jEval(SET_SUB_SCRIPT, SET_SUB_SCRIPT_SHA1, 1, pendingTag, pendingValue, jsonValueList, projectID);
                       } catch (JedisException e) {
                         CloudDBError(e.getMessage());
                         flushJedis();
+                        storeQueue.clear(); // Flush pending changes, we are in
+                        return;             // an error state
                       }
                       pendingTag = tag;
                       pendingValueList = valueList;
@@ -707,7 +664,9 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
    * @param valueIfTagNotThere The value to pass to the event if the tag does
    *                           not exist.
    */
-  @SimpleFunction
+  @SimpleFunction(description = "Get the Value for a tag, doesn't return the " +
+    "value but will cause a GotValue event to fire when the " +
+    "value is looked up.")
   public void GetValue(final String tag, final Object valueIfTagNotThere) {
     checkProjectIDNotBlank();
     Log.d(LOG_TAG, "getting value ... for tag: " + tag);
@@ -737,11 +696,12 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
                 value.set(JsonUtil.getJsonRepresentation(valueIfTagNotThere));
               }
             } catch (JSONException e) {
-              throw new YailRuntimeError("Value failed to convert to JSON.", "JSON Creation Error.");
+              CloudDBError("JSON conversion error for " + tag);
+              return;
             } catch (NullPointerException e) {
-              Log.d(CloudDB.LOG_TAG,"error while get...");
+              CloudDBError("System Error getting tag " + tag);
               flushJedis();
-              throw new YailRuntimeError("set threw a runtime exception.", "Redis runtime exception.");
+              return;
             } catch (JedisException e) {
               Log.e(LOG_TAG, "Exception in GetValue", e);
               CloudDBError(e.getMessage());
@@ -765,13 +725,20 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     }
   }
 
+  @SimpleFunction(description = "returns True if we are on the network and will likely " +
+    "be able to connect to the CloudDB server.")
+  public boolean CloudConnected() {
+    NetworkInfo networkInfo = cm.getActiveNetworkInfo();
+    boolean isConnected = networkInfo != null && networkInfo.isConnected();
+    return isConnected;
+  }
+
   @SimpleEvent(description = "Event triggered by the \"RemoveFirstFromList\" function. The " +
     "argument \"value\" is the object that was the first in the list, and which is now " +
     "removed.")
   public void FirstRemoved(Object value) {
     Log.d(CloudDB.LOG_TAG, "FirstRemoved: Value = " + value);
     checkProjectIDNotBlank();
-    final CloudDB me = this;
     try {
       if(value != null && value instanceof String) {
         value = JsonUtil.getObjectFromJson((String) value);
@@ -784,7 +751,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     androidUIHandler.post(new Runnable() {
         @Override
         public void run() {
-          EventDispatcher.dispatchEvent(me, "FirstRemoved", sValue);
+          EventDispatcher.dispatchEvent(CloudDB.this, "FirstRemoved", sValue);
         }
       });
   }
@@ -929,7 +896,6 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
    */
   @SimpleFunction(description = "Remove the tag from CloudDB")
   public void ClearTag(final String tag) {
-    //Natalie: Should we also add ClearTagsList? Jedis can delete a list of tags easily
     checkProjectIDNotBlank();
     background.submit(new Runnable() {
         public void run() {
@@ -953,7 +919,6 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
       "When complete a \"TagList\" event will be triggered with the list of " +
       "known tags.")
   public void GetTagList() {
-    //Natalie: Need Listener here too!
     checkProjectIDNotBlank();
     NetworkInfo networkInfo = cm.getActiveNetworkInfo();
     boolean isConnected = networkInfo != null && networkInfo.isConnected();
@@ -997,8 +962,6 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   @SimpleEvent(description = "Event triggered when we have received the list of known tags. " +
       "Used with the \"GetTagList\" Function.")
   public void TagList(List<String> value) {
-    // Natalie: Why is this not called "GotTagList"? Also need to only
-    // show tag without or projectID
     checkProjectIDNotBlank();
     EventDispatcher.dispatchEvent(this, "TagList", value);
   }
@@ -1040,13 +1003,12 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   public void CloudDBError(final String message) {
     // Log the error message for advanced developers
     Log.e(LOG_TAG, message);
-    final CloudDB me = this;
     androidUIHandler.post(new Runnable() {
         @Override
         public void run() {
 
           // Invoke the application's "CloudDBError" event handler
-          boolean dispatched = EventDispatcher.dispatchEvent(me, "CloudDBError", message);
+          boolean dispatched = EventDispatcher.dispatchEvent(CloudDB.this, "CloudDBError", message);
           if (!dispatched) {
             // If the handler doesn't exist, then put up our own alert
             new Notifier(form).ShowAlert("CloudDBError: " + message);

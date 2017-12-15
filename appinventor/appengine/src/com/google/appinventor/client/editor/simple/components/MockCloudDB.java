@@ -66,7 +66,6 @@ public class MockCloudDB extends MockNonVisibleComponent {
     changeProperty(PROPERTY_NAME_ACCOUNT_NAME, accName);
     String defaultRedisServer = Ode.getInstance().getSystemConfig().getDefaultCloudDBserver();
     changeProperty(PROPERTY_NAME_DEFAULT_REDISSERVER, defaultRedisServer);
-    OdeLog.log("Default Redis Server = " + defaultRedisServer);
     getTokenFromServer();       // Get Token from the server
   }
 
@@ -74,8 +73,8 @@ public class MockCloudDB extends MockNonVisibleComponent {
   public boolean isPropertyforYail(String propertyName) {
     if (propertyName.equals(PROPERTY_NAME_ACCOUNT_NAME) ||
       (propertyName.equals(PROPERTY_NAME_PROJECT_ID)) ||
-        (propertyName.equals(PROPERTY_NAME_DEFAULT_REDISSERVER)) ||
-        (propertyName.equals(PROPERTY_NAME_TOKEN))) {
+      (propertyName.equals(PROPERTY_NAME_DEFAULT_REDISSERVER)) ||
+      (propertyName.equals(PROPERTY_NAME_TOKEN))) {
       return true;
     }
     return super.isPropertyforYail(propertyName);
@@ -99,11 +98,10 @@ public class MockCloudDB extends MockNonVisibleComponent {
     }
   }
 
-  // We provide our own onPropertyChange to catch the case
-  // where the RedisServer is changed to/from the DEFAULT value.
-  // This effects the persistability (is that a word?) of the Token
-  // property. If we are using a private redis server, we want to persist
-  // the Token. Otherwise we do not.
+  // We provide our own onPropertyChange to catch the case where the
+  // RedisServer is changed to/from the DEFAULT value.  This effects
+  // the persistence of the Token property. If we are using a private
+  // redis server, we want to persist the Token. Otherwise we do not.
 
   @Override
   public void onPropertyChange(String propertyName, String newValue) {
@@ -117,7 +115,7 @@ public class MockCloudDB extends MockNonVisibleComponent {
       }
       int tokenType = token.getType();
       if (newValue.equals("DEFAULT")) {
-        if (token == null || token.getValue().isEmpty() || !(token.getValue().substring(0, 1).equals("%"))) {
+        if (token.getValue().isEmpty() || !(token.getValue().substring(0, 1).equals("%"))) {
           token.setValue("");   // Set it to empty so getTokenFromServer will fill in
           persistToken = false;
           tokenType |= EditableProperty.TYPE_NONPERSISTED;
@@ -149,7 +147,8 @@ public class MockCloudDB extends MockNonVisibleComponent {
       }
       String server = serverProperty.getValue();
       if (server.equals("DEFAULT")) {
-        if (newValue == null || !(newValue.substring(0, 1).equals("%"))) {
+        if (newValue == null || newValue.isEmpty() ||
+          !(newValue.substring(0, 1).equals("%"))) {
           persistToken = false; // Now that the auto-save is scheduled, we no longer want
                                 // to persist the token
           tokenType |= EditableProperty.TYPE_NONPERSISTED;
@@ -178,11 +177,11 @@ public class MockCloudDB extends MockNonVisibleComponent {
             return;             // If we have a value, don't over-write it
           }
         }
-        changeProperty(PROPERTY_NAME_TOKEN,token);
+        changeProperty(PROPERTY_NAME_TOKEN, token);
       }
       @Override
       public void onFailure(Throwable t){
-        changeProperty(PROPERTY_NAME_TOKEN,"ERROR : token not created");
+        changeProperty(PROPERTY_NAME_TOKEN, "ERROR : token not created");
         super.onFailure(t);
       }
     });

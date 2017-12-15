@@ -6,13 +6,11 @@
 package com.google.appinventor.components.runtime;
 
 import android.app.Application;
-
 import android.content.Context;
-
 import android.util.Log;
-
 import com.google.appinventor.common.version.GitBuildId;
-
+import com.google.appinventor.components.runtime.util.EclairUtil;
+import com.google.appinventor.components.runtime.util.SdkLevel;
 import com.google.appinventor.components.runtime.multidex.MultiDex;
 
 import org.acra.*;

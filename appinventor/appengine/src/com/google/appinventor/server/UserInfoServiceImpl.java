@@ -194,6 +194,4 @@ public class UserInfoServiceImpl extends OdeRemoteServiceServlet implements User
   @Override
   public void noop() {
   }
-
-
 }
