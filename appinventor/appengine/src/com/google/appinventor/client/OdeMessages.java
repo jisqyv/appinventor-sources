@@ -6508,6 +6508,10 @@ public interface OdeMessages extends Messages {
   @Description("")
   String UseSSLProperties();
 
+  @DefaultMessage("CloudConnected")
+  @Description("")
+  String CloudConnectedMethods();
+
   @DefaultMessage("PrimaryColor")
   @Description("")
   String PrimaryColorProperties();

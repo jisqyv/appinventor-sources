@@ -102,38 +102,12 @@ import redis.clients.jedis.exceptions.JedisNoScriptException;
     category = ComponentCategory.EXPERIMENTAL,
     nonVisible = true,
     iconName = "images/cloudDB.png")
-// Commented out by JIS 10/18/2017 -- First Version of CloudDB will not have offline support
-/* @UsesBroadcastReceivers(receivers = {
-        @ReceiverElement(name = "com.google.appinventor.components.runtime.util.AddReceiver",
-                intentFilters = {
-                        @IntentFilterElement(actionElements = {
-                                @ActionElement(name = "com.evernote.android.job.ADD_JOB_CREATOR")})
-                },
-                exported = "false"),
-        @ReceiverElement(name = "com.evernote.android.job.v14.PlatformAlarmReceiver",
-                intentFilters = {
-                        @IntentFilterElement(actionElements = {
-                                @ActionElement(name = "com.evernote.android.job.v14.RUN_JOB"),
-                                @ActionElement(name = "net.vrallev.android.job.v14.RUN_JOB")})
-                },
-                exported = "false"),
-        @ReceiverElement(name = "com.evernote.android.job.JobBootReceiver",
-                intentFilters = {
-                        @IntentFilterElement(actionElements = {
-                                @ActionElement(name = "android.intent.action.BOOT_COMPLETED"),
-                                @ActionElement(name = "android.intent.action.QUICKBOOT_POWERON"),
-                                @ActionElement(name = "com.htc.intent.action.QUICKBOOT_POWERON"),
-                                @ActionElement(name = "android.intent.action.MY_PACKAGE_REPLACED")})
-                },
-                exported = "false")
-}) */
 @UsesPermissions(permissionNames = "android.permission.INTERNET," +
-//                 "android.permission.WAKE_LOCK," +
-//                 "android.permission.RECEIVE_BOOT_COMPLETED," +
-                   "android.permission.ACCESS_NETWORK_STATE")
+  "android.permission.ACCESS_NETWORK_STATE")
 
 @UsesLibraries(libraries = "jedis.jar")
-public final class CloudDB extends AndroidNonvisibleComponent implements Component {
+public final class CloudDB extends AndroidNonvisibleComponent implements Component, OnClearListener {
+  private static final boolean DEBUG = false;
   private static final String LOG_TAG = "CloudDB";
   private static final String BINFILE_DIR = "/AppInventorBinaries";
   private boolean importProject = false;
@@ -242,9 +216,12 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   private final Activity activity;
 
   private Jedis INSTANCE = null;
-  private String redisServer = "DEFAULT";
-  private int redisPort;
-  private boolean useSSL = true;
+  private volatile String redisServer = "DEFAULT";
+  private volatile int redisPort;
+  private volatile boolean useSSL = true;
+  private volatile boolean shutdown = false; // Should this instance of CloudDB
+                                             // stop?
+
   private SSLSocketFactory SslSockFactory = null; // Socket Factory for using
                                                   // SSL
 
@@ -310,18 +287,39 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
    * Initialize: Do runtime initialization of CloudDB
    */
   public void Initialize() {
-    Log.d(LOG_TAG, "Initalize called!");
+    if (DEBUG) {
+      Log.d(LOG_TAG, "Initalize called!");
+    }
     if (currentListener == null) { // currentListener may still be set
       startListener();             // in the Companion
     }
+    form.registerForOnClear(this); // So we are notified when (clear-current-form)
+                                   // is called.
   }
 
   private void stopListener() {
     // We do this on the UI thread to make sure it is complete
     // before we repoint the redis server (or port)
-    Log.d(LOG_TAG, "Listener stopping!");
+    if (DEBUG) {
+      Log.d(LOG_TAG, "Listener stopping!");
+    }
     if (currentListener != null) {
       currentListener.terminate();
+      currentListener = null;
+      listenerRunning = false;
+    }
+  }
+
+  /*
+   * onClear() -- Called when (clear-current-form) is invoked
+   *
+   */
+  @Override
+  public void onClear() {
+    shutdown = true;            // Tell the listener to stop trying
+    flushJedis(false);          // to restart
+    if (DEBUG) {
+      Log.d(LOG_TAG, "onClear() called");
     }
   }
 
@@ -330,11 +328,15 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     // Note: We use a real thread here rather then the background executor
     // because this thread will run effectively forever
     if (listenerRunning) {
-      Log.d(LOG_TAG, "StartListener while already running, no action taken");
+      if (DEBUG) {
+        Log.d(LOG_TAG, "StartListener while already running, no action taken");
+      }
       return;
     }
     listenerRunning = true;
-    Log.d(LOG_TAG, "Listener starting!");
+    if (DEBUG) {
+      Log.d(LOG_TAG, "Listener starting!");
+    }
     Thread t = new Thread() {
         public void run() {
           Jedis jedis = getJedis(true);
@@ -349,26 +351,36 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
               } catch (Exception ee) {
                 // XXX
               }
-              Log.d(LOG_TAG, "Listener: connection to Redis failed, sleeping 3 seconds.");
+              if (DEBUG) {
+                Log.d(LOG_TAG, "Listener: connection to Redis failed, sleeping 3 seconds.");
+              }
               try {
                 Thread.sleep(3*1000);
               } catch (InterruptedException ee) {
               }
-              Log.d(LOG_TAG, "Woke up!");
+              if (DEBUG) {
+                Log.d(LOG_TAG, "Woke up!");
+              }
             }
           } else {
-            Log.d(LOG_TAG, "Listener: getJedis(true) returned null, retry in 3...");
+            if (DEBUG) {
+              Log.d(LOG_TAG, "Listener: getJedis(true) returned null, retry in 3...");
+            }
             try {
               Thread.sleep(3*1000);
             } catch (InterruptedException e) {
             }
-            Log.d(LOG_TAG, "Woke up! (2)");
+            if (DEBUG) {
+              Log.d(LOG_TAG, "Woke up! (2)");
+            }
           }
           listenerRunning = false;
-          if (!dead) {
+          if (!dead && !shutdown) {
             startListener();
           } else {
-            Log.d(LOG_TAG, "We are dead, listener not retrying.");
+            if (DEBUG) {
+              Log.d(LOG_TAG, "We are dead, listener not retrying.");
+            }
           }
         }
       };
@@ -380,21 +392,21 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   public void RedisServer(String servername) {
     if (servername.equals("DEFAULT")) {
       if (!useDefault) {
-        stopListener();
         useDefault = true;
         if (defaultRedisServer == null) { // Not setup yet
-          Log.d(LOG_TAG, "RedisServer called default defaultServer (should not happen!)");
+          if (DEBUG) {
+            Log.d(LOG_TAG, "RedisServer called before defaultServer (should not happen!)");
+          }
         } else {
           redisServer = defaultRedisServer;
-          startListener();
         }
+        flushJedis(true);           // Re-initialize any existing connections
       }
     } else {
       useDefault = false;
       if (!servername.equals(redisServer)) {
-        stopListener();
         redisServer = servername;
-        startListener();
+        flushJedis(true);           // Re-initialize any existing connections
       }
     }
   }
@@ -430,9 +442,10 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_INTEGER,
     defaultValue = "6381")
   public void RedisPort(int port) {
-    stopListener();
-    redisPort = port;
-    startListener();
+    if (port != redisPort) {
+      redisPort = port;
+      flushJedis(true);
+    }
   }
 
   @SimpleProperty(category = PropertyCategory.BEHAVIOR,
@@ -505,7 +518,10 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN,
            defaultValue = "True")
   public void UseSSL(boolean useSSL) {
-    this.useSSL = useSSL;
+    if (this.useSSL != useSSL) {
+      this.useSSL = useSSL;
+      flushJedis(true);             // Re-initialize any connections
+    }
   }
 
   @SimpleProperty(category = PropertyCategory.BEHAVIOR, userVisible = false,
@@ -559,14 +575,20 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     }
 
     if (isConnected) {
-      Log.d(LOG_TAG,"Device is online...");
+      if (DEBUG) {
+        Log.d(LOG_TAG,"Device is online...");
+      }
       synchronized(storeQueue) {
         boolean kickit = false;
         if (storeQueue.size() == 0) { // Need to kick off the background task
-          Log.d(LOG_TAG, "storeQueue is zero length, kicking background");
+          if (DEBUG) {
+            Log.d(LOG_TAG, "storeQueue is zero length, kicking background");
+          }
           kickit = true;
         } else {
-          Log.d(LOG_TAG, "storeQueue has " + storeQueue.size() + " entries");
+          if (DEBUG) {
+            Log.d(LOG_TAG, "storeQueue has " + storeQueue.size() + " entries");
+          }
         }
         JSONArray valueList = new JSONArray();
         try {
@@ -584,31 +606,45 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
                 String pendingValue = null;
                 try {
                   storedValue work;
-                  Log.d(LOG_TAG, "store background task running.");
+                  if (DEBUG) {
+                    Log.d(LOG_TAG, "store background task running.");
+                  }
                   while (true) {
                     synchronized(storeQueue) {
-                      Log.d(LOG_TAG, "store: In background synchronized block");
+                      if (DEBUG) {
+                        Log.d(LOG_TAG, "store: In background synchronized block");
+                      }
                       int size = storeQueue.size();
                       if (size == 0) {
-                        Log.d(LOG_TAG, "store background task exiting.");
+                        if (DEBUG) {
+                          Log.d(LOG_TAG, "store background task exiting.");
+                        }
                         work = null;
                       } else {
-                        Log.d(LOG_TAG, "store: storeQueue.size() == " + size);
+                        if (DEBUG) {
+                          Log.d(LOG_TAG, "store: storeQueue.size() == " + size);
+                        }
                         work = storeQueue.remove(0);
-                        Log.d(LOG_TAG, "store: got work.");
+                        if (DEBUG) {
+                          Log.d(LOG_TAG, "store: got work.");
+                        }
                       }
                     }
-                    Log.d(LOG_TAG, "store: left synchronized block");
+                    if (DEBUG) {
+                      Log.d(LOG_TAG, "store: left synchronized block");
+                    }
                     if (work == null) {
                       try {
                         if (pendingTag != null) {
                           String jsonValueList = pendingValueList.toString();
-                          Log.d(LOG_TAG, "Workqueue empty, sending pendingTag, valueListLength = " + pendingValueList.length());
+                          if (DEBUG) {
+                            Log.d(LOG_TAG, "Workqueue empty, sending pendingTag, valueListLength = " + pendingValueList.length());
+                          }
                           jEval(SET_SUB_SCRIPT, SET_SUB_SCRIPT_SHA1, 1, pendingTag, pendingValue, jsonValueList, projectID);
                         }
                       } catch (JedisException e) {
                         CloudDBError(e.getMessage());
-                        flushJedis();
+                        flushJedis(true);
                       }
                       return;
                     }
@@ -616,9 +652,13 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
                     String tag = work.getTag();
                     JSONArray valueList = work.getValueList();
                     if (tag == null || valueList == null) {
-                      Log.d(LOG_TAG, "Either tag or value is null!");
+                      if (DEBUG) {
+                        Log.d(LOG_TAG, "Either tag or value is null!");
+                      }
                     } else {
-                      Log.d(LOG_TAG, "Got Work: tag = " + tag + " value = " + valueList.get(0));
+                      if (DEBUG) {
+                        Log.d(LOG_TAG, "Got Work: tag = " + tag + " value = " + valueList.get(0));
+                      }
                     }
                     if (pendingTag == null) { // First time through this invocation
                       pendingTag = tag;
@@ -630,11 +670,13 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
                     } else {    // Work is for a different tag, send what we have
                       try {     // and add the new tag,incoming valuelist for the next round
                         String jsonValueList = pendingValueList.toString();
-                        Log.d(LOG_TAG, "pendingTag changed sending pendingTag, valueListLength = " + pendingValueList.length());
+                        if (DEBUG) {
+                          Log.d(LOG_TAG, "pendingTag changed sending pendingTag, valueListLength = " + pendingValueList.length());
+                        }
                         jEval(SET_SUB_SCRIPT, SET_SUB_SCRIPT_SHA1, 1, pendingTag, pendingValue, jsonValueList, projectID);
                       } catch (JedisException e) {
                         CloudDBError(e.getMessage());
-                        flushJedis();
+                        flushJedis(true);
                         storeQueue.clear(); // Flush pending changes, we are in
                         return;             // an error state
                       }
@@ -669,7 +711,9 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     "value is looked up.")
   public void GetValue(final String tag, final Object valueIfTagNotThere) {
     checkProjectIDNotBlank();
-    Log.d(LOG_TAG, "getting value ... for tag: " + tag);
+    if (DEBUG) {
+      Log.d(LOG_TAG, "getting value ... for tag: " + tag);
+    }
     final AtomicReference<Object> value = new AtomicReference<Object>();
     Cursor cursor = null;
     SQLiteDatabase db = null;
@@ -683,16 +727,22 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
           public void run() {
             Jedis jedis = getJedis();
             try {
-              Log.d(LOG_TAG,"about to call jedis.get()");
+              if (DEBUG) {
+                Log.d(LOG_TAG,"about to call jedis.get()");
+              }
               String returnValue = jedis.get(projectID + ":" + tag);
-              Log.d(LOG_TAG, "finished call jedis.get()");
+              if (DEBUG) {
+                Log.d(LOG_TAG, "finished call jedis.get()");
+              }
               if (returnValue != null) {
                 String val = getJsonRepresenationIfValueFileName(returnValue);
                 if(val != null) value.set(val);
                 else value.set(returnValue);
               }
               else {
-                Log.d(CloudDB.LOG_TAG,"Value retrieved is null");
+                if (DEBUG) {
+                  Log.d(CloudDB.LOG_TAG,"Value retrieved is null");
+                }
                 value.set(JsonUtil.getJsonRepresentation(valueIfTagNotThere));
               }
             } catch (JSONException e) {
@@ -700,12 +750,12 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
               return;
             } catch (NullPointerException e) {
               CloudDBError("System Error getting tag " + tag);
-              flushJedis();
+              flushJedis(true);
               return;
             } catch (JedisException e) {
               Log.e(LOG_TAG, "Exception in GetValue", e);
               CloudDBError(e.getMessage());
-              flushJedis();
+              flushJedis(true);
               return;
             }
 
@@ -720,7 +770,9 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
           }
         });
     } else {
-      Log.d(LOG_TAG, "GetValue(): We're offline");
+      if (DEBUG) {
+        Log.d(LOG_TAG, "GetValue(): We're offline");
+      }
       CloudDBError("Cannot fetch variables while off-line.");
     }
   }
@@ -737,7 +789,9 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     "argument \"value\" is the object that was the first in the list, and which is now " +
     "removed.")
   public void FirstRemoved(Object value) {
-    Log.d(CloudDB.LOG_TAG, "FirstRemoved: Value = " + value);
+    if (DEBUG) {
+      Log.d(CloudDB.LOG_TAG, "FirstRemoved: Value = " + value);
+    }
     checkProjectIDNotBlank();
     try {
       if(value != null && value instanceof String) {
@@ -794,7 +848,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
             FirstRemoved(jEval(POP_FIRST_SCRIPT, POP_FIRST_SCRIPT_SHA1, 1, key, projectID));
           } catch (JedisException e) {
             CloudDBError(e.getMessage());
-            flushJedis();
+            flushJedis(true);
           }
         }
       });
@@ -852,7 +906,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
             jEval(APPEND_SCRIPT, APPEND_SCRIPT_SHA1, 1, key, item, projectID);
           } catch(JedisException e) {
             CloudDBError(e.getMessage());
-            flushJedis();
+            flushJedis(true);
           }
         }
       });
@@ -866,7 +920,9 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
    */
   @SimpleEvent
   public void GotValue(String tag, Object value) {
-    Log.d(CloudDB.LOG_TAG, "GotValue: tag = " + tag + " value = " + (String) value);
+    if (DEBUG) {
+      Log.d(CloudDB.LOG_TAG, "GotValue: tag = " + tag + " value = " + (String) value);
+    }
     checkProjectIDNotBlank();
 
     // We can get a null value is the Jedis connection failed in some way.
@@ -877,7 +933,9 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     }
 
     try {
-      Log.d(LOG_TAG, "GotValue: Class of value = " + value.getClass().getName());
+      if (DEBUG) {
+        Log.d(LOG_TAG, "GotValue: Class of value = " + value.getClass().getName());
+      }
       if(value != null && value instanceof String) {
         value = JsonUtil.getObjectFromJson((String) value);
       }
@@ -904,7 +962,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
             jedis.del(projectID + ":" + tag);
           } catch (Exception e) {
             CloudDBError(e.getMessage());
-            flushJedis();
+            flushJedis(true);
           }
         }
       });
@@ -932,7 +990,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
               value = jedis.keys(projectID + ":*");
             } catch (JedisException e) {
               CloudDBError(e.getMessage());
-              flushJedis();
+              flushJedis(true);
               return;
             }
             final List<String> listValue = new ArrayList<String>(value);
@@ -1032,7 +1090,12 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
       return null;
     }
     try {
-      Log.d(LOG_TAG, "getJedis(true): Attempting a new connection.");
+      if (DEBUG) {
+        Log.d(LOG_TAG, "getJedis(true): Attempting a new connection (createNew = " +
+          createNew + " redisServer = " + redisServer + " redisPort = " +
+          redisPort + " useSSL = " +
+          useSSL);
+      }
       if (useSSL) {             // Need to create a TrustManager and trust the Comodo
                                 // Root certificate because it isn't present in older
                                 // Android versions
@@ -1041,7 +1104,9 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
       } else {
         jedis = new Jedis(redisServer, redisPort, false);
       }
-      Log.d(LOG_TAG, "getJedis(true): Have new connection.");
+      if (DEBUG) {
+        Log.d(LOG_TAG, "getJedis(true): Have new connection.");
+      }
       // If the first character of the token is %, we toss it away
       // it is used by MockCloudDB.java to determine if the token should
       // be kept or fetched from the server when needed
@@ -1050,7 +1115,9 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
       } else {
         jedis.auth(token);
       }
-      Log.d(LOG_TAG, "getJedis(true): Authentication complete.");
+      if (DEBUG) {
+        Log.d(LOG_TAG, "getJedis(true): Authentication complete.");
+      }
     } catch (JedisConnectionException e) {
       Log.e(LOG_TAG, "in getJedis()", e);
       CloudDBError(e.getMessage());
@@ -1079,7 +1146,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
    * we want to make sure we get a new one the next time around!
    */
 
-  public void flushJedis() {
+  private void flushJedis(boolean restartListener) {
     if (INSTANCE == null) {
       return;                   // Nothing to do
     }
@@ -1096,13 +1163,17 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     androidUIHandler.post(new Runnable() {
         public void run() {
           List <Runnable> tasks = background.shutdownNow();
-          Log.d(LOG_TAG, "Killing background executor, returned tasks = " + tasks);
+          if (DEBUG) {
+            Log.d(LOG_TAG, "Killing background executor, returned tasks = " + tasks);
+          }
           background = Executors.newSingleThreadExecutor();
         }
       });
 
     stopListener();             // This is probably hosed to, so restart
-    startListener();
+    if (restartListener) {
+      startListener();
+    }
   }
 
  /**
@@ -1252,7 +1323,9 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     try {
       return jedis.evalsha(scriptsha1, argcount, args);
     } catch (JedisNoScriptException e) {
-      Log.d(LOG_TAG, "Got a JedisNoScriptException for " + scriptsha1);
+      if (DEBUG) {
+        Log.d(LOG_TAG, "Got a JedisNoScriptException for " + scriptsha1);
+      }
       // This happens if the server doesn't have the script loaded
       // So we use regular eval, which should then cache the script
       return jedis.eval(script, argcount, args);
@@ -1277,9 +1350,11 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
         caInput = new ByteArrayInputStream(DST_ROOT_X3.getBytes("UTF-8"));
         Certificate dstx3 = cf.generateCertificate(caInput);
         caInput.close();
-        Log.d(LOG_TAG, "comodo=" + ((X509Certificate) ca).getSubjectDN());
-        Log.d(LOG_TAG, "inter=" + ((X509Certificate) inter).getSubjectDN());
-        Log.d(LOG_TAG, "dstx3=" + ((X509Certificate) dstx3).getSubjectDN());
+        if (DEBUG) {
+          Log.d(LOG_TAG, "comodo=" + ((X509Certificate) ca).getSubjectDN());
+          Log.d(LOG_TAG, "inter=" + ((X509Certificate) inter).getSubjectDN());
+          Log.d(LOG_TAG, "dstx3=" + ((X509Certificate) dstx3).getSubjectDN());
+        }
         KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
         keyStore.load(null, null);
         // First add the system trusted certificates
@@ -1288,7 +1363,9 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
           keyStore.setCertificateEntry("root" + count, cert);
           count += 1;
         }
-        Log.d(LOG_TAG, "Added " + (count -1) + " system certificates!");
+        if (DEBUG) {
+          Log.d(LOG_TAG, "Added " + (count -1) + " system certificates!");
+        }
         // Now add our additions
         keyStore.setCertificateEntry("comodo", ca);
         keyStore.setCertificateEntry("inter", inter);
