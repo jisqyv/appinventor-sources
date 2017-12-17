@@ -25,15 +25,15 @@ import com.google.appinventor.components.annotations.PropertyCategory;
 import com.google.appinventor.components.annotations.SimpleEvent;
 import com.google.appinventor.components.annotations.SimpleFunction;
 import com.google.appinventor.components.annotations.SimpleProperty;
-import com.google.appinventor.components.annotations.UsesBroadcastReceivers;
 import com.google.appinventor.components.annotations.UsesLibraries;
 import com.google.appinventor.components.annotations.UsesPermissions;
-import com.google.appinventor.components.annotations.androidmanifest.ActionElement;
+
 import com.google.appinventor.components.annotations.androidmanifest.IntentFilterElement;
 import com.google.appinventor.components.annotations.androidmanifest.ReceiverElement;
 
 import com.google.appinventor.components.common.ComponentCategory;
 import com.google.appinventor.components.common.PropertyTypeConstants;
+import com.google.appinventor.components.common.YaVersion;
 
 import com.google.appinventor.components.runtime.errors.YailRuntimeError;
 
@@ -72,9 +72,9 @@ import org.json.JSONArray;
 import org.json.JSONException;
 
 import redis.clients.jedis.Jedis;
+
 import redis.clients.jedis.exceptions.JedisConnectionException;
 import redis.clients.jedis.exceptions.JedisDataException;
-
 import redis.clients.jedis.exceptions.JedisException;
 import redis.clients.jedis.exceptions.JedisNoScriptException;
 
@@ -90,7 +90,7 @@ import redis.clients.jedis.exceptions.JedisNoScriptException;
  * @author jis@mit.edu (Jeffrey I. Schiller)
  */
 
-@DesignerComponent(version = 1,
+@DesignerComponent(version = YaVersion.CLOUDDB_COMPONENT_VERSION,
     description = "Non-visible component allowing you to store data on a Internet " +
         "connected database server (using Redis software). This allows the users of " +
         "your App to share data with each other. " +
