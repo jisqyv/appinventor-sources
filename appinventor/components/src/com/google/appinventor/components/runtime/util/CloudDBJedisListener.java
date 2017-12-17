@@ -55,10 +55,14 @@ public class CloudDBJedisListener extends JedisPubSub {
       String tag = (String) data.get(0);   // The variable that was changed
       List<Object> valueList = (List<Object>) data.get(1);
       for (Object value : valueList) {
+        // Note: DataChanged will arrange to dispatch the event
+        // on the UI thread.
         cloudDB.DataChanged(tag, value);
       }
     } catch (JSONException e) {
       Log.e(LOG_TAG, "onMessage: JSONException", e);
+      // CloudDBError arranges to generate the error UI on the
+      // UI Thread
       cloudDB.CloudDBError("System Error: " + e.getMessage());
     }
   }
