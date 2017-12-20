@@ -11,6 +11,7 @@ import com.google.appinventor.components.annotations.DesignerComponent;
 import com.google.appinventor.components.annotations.DesignerProperty;
 import com.google.appinventor.components.annotations.PropertyCategory;
 import com.google.appinventor.components.annotations.SimpleEvent;
+import com.google.appinventor.components.annotations.SimpleFunction;
 import com.google.appinventor.components.annotations.SimpleObject;
 import com.google.appinventor.components.annotations.SimpleProperty;
 import com.google.appinventor.components.common.ComponentCategory;
@@ -25,6 +26,9 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+
+import android.util.Log;
+
 import android.view.Surface;
 import android.view.WindowManager;
 
@@ -74,6 +78,10 @@ import java.util.Queue;
 public class AccelerometerSensor extends AndroidNonvisibleComponent
     implements OnStopListener, OnResumeListener, SensorComponent, SensorEventListener, Deleteable {
 
+  // Logging and Debugging
+  private final static String LOG_TAG = "AccelerometerSensor";
+  private final static boolean DEBUG = true;
+
   // Shake thresholds - derived by trial
   private static final double weakShakeThreshold = 5.0;
   private static final double moderateShakeThreshold = 13.0;
@@ -110,12 +118,10 @@ public class AccelerometerSensor extends AndroidNonvisibleComponent
 
   private Sensor accelerometerSensor;
 
-  // temporary flag. true == compensate for default landscape devices
-  // 10/16/2017: We set this to false in the branding for our Hong
-  // Kong servers because the tutorials we are using there already
-  // compensate and this change will break them. We will remove this
-  // "feature" after those tutorials are updated.
-  private static boolean handleDefaultRotation = true;
+  // Tuning variables that effect how the Accerlometer reading
+  // is transformed.
+  private boolean handleDefaultRotation = false;
+  private boolean flipYAxis = false;
 
   /**
    * Creates a new AccelerometerSensor component.
@@ -135,8 +141,6 @@ public class AccelerometerSensor extends AndroidNonvisibleComponent
     startListening();
     MinimumInterval(400);
     Sensitivity(Component.ACCELEROMETER_SENSITIVITY_MODERATE);
-    // save the device default orientation (portrait or landscape)
-    deviceDefaultOrientation = getDeviceDefaultOrientation();    
   }
 
 
@@ -235,12 +239,18 @@ public class AccelerometerSensor extends AndroidNonvisibleComponent
 public int getDeviceDefaultOrientation() {
     Configuration config = resources.getConfiguration();
     int rotation = windowManager.getDefaultDisplay().getRotation();
+    if (DEBUG) {
+      Log.d(LOG_TAG, "rotation = " + rotation);
+      Log.d(LOG_TAG, "config.orientation = " + config.orientation);
+    }
+    // return config.orientation;
+
     if ( ((rotation == Surface.ROTATION_0 || rotation == Surface.ROTATION_180) &&
             config.orientation == Configuration.ORIENTATION_LANDSCAPE)
-        || ((rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270) &&    
+        || ((rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270) &&
             config.orientation == Configuration.ORIENTATION_PORTRAIT)) {
       return Configuration.ORIENTATION_LANDSCAPE;
-    } else { 
+    } else {
       return Configuration.ORIENTATION_PORTRAIT;
     }
 }
@@ -279,8 +289,36 @@ public int getDeviceDefaultOrientation() {
     return enabled;
   }
 
+  /**
+   * Return the deviceDefaultOrientation
+   *
+   * This is primarily intended to help debug MIT App Inventor
+   *
+   * @return {@code PORTRAIT} if default mode is portrait
+   *         {@code LANDSCAPE } if the default mode is landscape
+   */
+  @SimpleFunction(description="Return the Default Device Orientation")
+  public String DeviceDefaultOrientation() {
+    int orientation = getDeviceDefaultOrientation();
+    if (orientation == Configuration.ORIENTATION_PORTRAIT) {
+      return "PORTRAIT";
+    } else if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
+      return "LANDSCAPE";
+    } else {
+      return "" + orientation;
+    }
+  }
+
   // Assumes that sensorManager has been initialized, which happens in constructor
   private void startListening() {
+    // save the device default orientation (portrait or landscape)
+    deviceDefaultOrientation = getDeviceDefaultOrientation();
+    if (DEBUG) {
+      Log.d(LOG_TAG, "deviceDefaultOrientation = " + deviceDefaultOrientation);
+      Log.d(LOG_TAG, "Configuration.ORIENTATION_LANDSCAPE = " + Configuration.ORIENTATION_LANDSCAPE);
+      Log.d(LOG_TAG, "Configuration.ORIENTATION_PORTRAIT = " + Configuration.ORIENTATION_PORTRAIT);
+    }
+
     sensorManager.registerListener(this, accelerometerSensor, SensorManager.SENSOR_DELAY_GAME);
   }
 
@@ -382,6 +420,33 @@ public int getDeviceDefaultOrientation() {
     }
   }
 
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_NON_NEGATIVE_INTEGER,
+                    defaultValue = "0")
+  @SimpleProperty(description="Make various corrections to the coordinate system")
+  public void AxisCorrection(int correction) {
+    if ((correction & 0x01) == 0x01) {
+      handleDefaultRotation = true;
+    } else {
+      handleDefaultRotation = false;
+    }
+    if ((correction & 0x02) == 0x02) {
+      flipYAxis = true;
+    } else {
+      flipYAxis = false;
+    }
+  }
+
+  public int AxisCorrection() {
+    int retval = 0;
+    if (handleDefaultRotation) {
+      retval |= 0x01;
+    }
+    if (flipYAxis) {
+      retval |= 0x02;
+    }
+    return retval;
+  }
+
   // SensorListener implementation
   @Override
   public void onSensorChanged(SensorEvent sensorEvent) {
@@ -396,6 +461,9 @@ public int getDeviceDefaultOrientation() {
       } else {
         xAccel = values[0];
         yAccel = values[1];
+      }
+      if (flipYAxis) {
+        yAccel = -yAccel;
       }
       zAccel = values[2];
       accuracy = sensorEvent.accuracy;

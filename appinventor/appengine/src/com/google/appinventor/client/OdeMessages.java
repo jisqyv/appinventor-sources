@@ -1075,6 +1075,14 @@ public interface OdeMessages extends Messages {
   @Description("Text for accelerometer sensitivity choice 'strong'")
   String strongAccelerometerSensitivity();
 
+  @DefaultMessage("DeviceDefaultOrientation")
+  @Description("")
+  String DeviceDefaultOrientationMethods();
+
+  @DefaultMessage("AxisCorrection")
+  @Description("")
+  String AxisCorrectionProperties();
+
   // Used in editor/youngandroid/properties/YoungAndroidSizingChoicePropertyEditor.java
 
   @DefaultMessage("Fixed")
