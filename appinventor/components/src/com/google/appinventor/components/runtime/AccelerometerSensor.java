@@ -27,6 +27,8 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 
+import android.os.Handler;
+
 import android.util.Log;
 
 import android.view.Surface;
@@ -100,7 +102,7 @@ public class AccelerometerSensor extends AndroidNonvisibleComponent
 
   private int accuracy;
   private int sensitivity;
-  private int deviceDefaultOrientation;
+  private volatile int deviceDefaultOrientation;
 
   private final SensorManager sensorManager;
 
@@ -120,8 +122,12 @@ public class AccelerometerSensor extends AndroidNonvisibleComponent
 
   // Tuning variables that effect how the Accerlometer reading
   // is transformed.
-  private boolean handleDefaultRotation = false;
+  private boolean swapXandYAxis = false;
   private boolean flipYAxis = false;
+  private boolean flipXAxis = false;
+
+  // Used to launch Runnables on the UI Thread after a delay
+  private final Handler androidUIHandler;
 
   /**
    * Creates a new AccelerometerSensor component.
@@ -138,6 +144,7 @@ public class AccelerometerSensor extends AndroidNonvisibleComponent
     windowManager = (WindowManager) container.$context().getSystemService(Context.WINDOW_SERVICE);
     sensorManager = (SensorManager) container.$context().getSystemService(Context.SENSOR_SERVICE);
     accelerometerSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+    androidUIHandler = new Handler();
     startListening();
     MinimumInterval(400);
     Sensitivity(Component.ACCELEROMETER_SENSITIVITY_MODERATE);
@@ -312,12 +319,17 @@ public int getDeviceDefaultOrientation() {
   // Assumes that sensorManager has been initialized, which happens in constructor
   private void startListening() {
     // save the device default orientation (portrait or landscape)
-    deviceDefaultOrientation = getDeviceDefaultOrientation();
-    if (DEBUG) {
-      Log.d(LOG_TAG, "deviceDefaultOrientation = " + deviceDefaultOrientation);
-      Log.d(LOG_TAG, "Configuration.ORIENTATION_LANDSCAPE = " + Configuration.ORIENTATION_LANDSCAPE);
-      Log.d(LOG_TAG, "Configuration.ORIENTATION_PORTRAIT = " + Configuration.ORIENTATION_PORTRAIT);
-    }
+    androidUIHandler.postDelayed(new Runnable() {
+        @Override
+        public void run() {
+          AccelerometerSensor.this.deviceDefaultOrientation = getDeviceDefaultOrientation();
+          if (DEBUG) {
+            Log.d(LOG_TAG, "deviceDefaultOrientation = " + AccelerometerSensor.this.deviceDefaultOrientation);
+            Log.d(LOG_TAG, "Configuration.ORIENTATION_LANDSCAPE = " + Configuration.ORIENTATION_LANDSCAPE);
+            Log.d(LOG_TAG, "Configuration.ORIENTATION_PORTRAIT = " + Configuration.ORIENTATION_PORTRAIT);
+          }
+        }
+      }, 32);                   // Wait 32ms for the UI to settle down
 
     sensorManager.registerListener(this, accelerometerSensor, SensorManager.SENSOR_DELAY_GAME);
   }
@@ -422,27 +434,35 @@ public int getDeviceDefaultOrientation() {
 
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_NON_NEGATIVE_INTEGER,
                     defaultValue = "0")
-  @SimpleProperty(description="Make various corrections to the coordinate system")
+  @SimpleProperty(description="Make various corrections to the coordinate system on LANDSCAPE primary devices")
   public void AxisCorrection(int correction) {
     if ((correction & 0x01) == 0x01) {
-      handleDefaultRotation = true;
+      swapXandYAxis = true;
     } else {
-      handleDefaultRotation = false;
+      swapXandYAxis = false;
     }
     if ((correction & 0x02) == 0x02) {
       flipYAxis = true;
     } else {
       flipYAxis = false;
     }
+    if ((correction & 0x04) == 0x04) {
+      flipXAxis = true;
+    } else {
+      flipXAxis = false;
+    }
   }
 
   public int AxisCorrection() {
     int retval = 0;
-    if (handleDefaultRotation) {
+    if (swapXandYAxis) {
       retval |= 0x01;
     }
     if (flipYAxis) {
       retval |= 0x02;
+    }
+    if (flipXAxis) {
+      retval |= 0x04;
     }
     return retval;
   }
@@ -454,16 +474,23 @@ public int getDeviceDefaultOrientation() {
       final float[] values = sensorEvent.values;
       // make landscapePrimary devices report acceleration as if they were
       // portraitPrimary
-      if ((deviceDefaultOrientation == Configuration.ORIENTATION_LANDSCAPE)
-          && handleDefaultRotation) {
-        xAccel = -values[1];
-        yAccel = values[0];
+      if (deviceDefaultOrientation == Configuration.ORIENTATION_LANDSCAPE) {
+        if (swapXandYAxis) {
+          xAccel = values[1];
+          yAccel = values[0];
+        } else {
+          xAccel = values[0];
+          yAccel = values[1];
+        }
+        if (flipYAxis) {
+          yAccel = -yAccel;
+        }
+        if (flipXAxis) {
+          xAccel = -xAccel;
+        }
       } else {
         xAccel = values[0];
         yAccel = values[1];
-      }
-      if (flipYAxis) {
-        yAccel = -yAccel;
       }
       zAccel = values[2];
       accuracy = sensorEvent.accuracy;
