@@ -120,8 +120,8 @@ public class AccelerometerSensor extends AndroidNonvisibleComponent
 
   private Sensor accelerometerSensor;
 
-  // Set to true to enable landscape mode tablet fix
-  private boolean landscapeFix = false;
+  // Set to true to disable landscape mode tablet fix
+  private boolean legacyMode = false;
 
   // Used to launch Runnables on the UI Thread after a delay
   private final Handler androidUIHandler;
@@ -432,13 +432,23 @@ public int getDeviceDefaultOrientation() {
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN,
     defaultValue = "False")
   @SimpleProperty(userVisible = false,
-    description="Correct Xaccel and Yaccel on tablets that default to LANDSCAPE mode")
-  public void LandscapeFix(boolean landscapeFix) {
-    this.landscapeFix = landscapeFix;
+    description="In prior MIT App Inventor releases (before the introduction " +
+    "of this property) we incorrectly handled tablets that by default " +
+    "use LANDSCAPE mode. The X and Y axes where swapped and " +
+    "the direction of the Y axis was incorrect. We have fixed this. " +
+    "However some people may have made projects where they have " +
+    "compensated on their own. For those people we recommend that " +
+    "you make the necessary changes to your project. However if this " +
+    "is inconvenient, you can set this property to \"True\" and we " +
+    "will emulate the old behavior (just on LANDSCAPE default mode " +
+    "tablets). However we recommend that you just make the necessary " +
+    "changes because we may withdraw this property in a future release.")
+  public void LegacyMode(boolean legacyMode) {
+    this.legacyMode = legacyMode;
   }
 
-  public boolean LandscapeFix() {
-    return landscapeFix;
+  public boolean LegacyMode() {
+    return legacyMode;
   }
 
   // SensorListener implementation
@@ -449,7 +459,7 @@ public int getDeviceDefaultOrientation() {
       // make landscapePrimary devices report acceleration as if they were
       // portraitPrimary
       if ((deviceDefaultOrientation == Configuration.ORIENTATION_LANDSCAPE) &&
-          landscapeFix) {
+          !legacyMode) {
         xAccel = values[1];
         yAccel = -values[0];
       } else {

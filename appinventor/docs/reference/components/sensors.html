@@ -475,6 +475,8 @@
   <dd></dd>
   <dt><code>Enabled</code></dt>
   <dd></dd>
+  <dt><code>LegacyMode</code> (designer only)</dt>
+  <dd>In prior MIT App Inventor releases (before the introduction of this property) we incorrectly handled tablets that by default use LANDSCAPE mode. The X and Y axes where swapped and the direction of the Y axis was incorrect. We have fixed this. However some people may have made projects where they have compensated on their own. For those people we recommend that you make the necessary changes to your project. However if this is inconvenient, you can set this property to "True" and we will emulate the old behavior (just on LANDSCAPE default mode tablets). However we recommend that you just make the necessary changes because we may withdraw this property in a future release.</dd>
   <dt><code>MinimumInterval</code></dt>
   <dd>The minimum interval, in milliseconds, between phone shakes</dd>
   <dt><code>Sensitivity</code></dt>

@@ -1079,9 +1079,9 @@ public interface OdeMessages extends Messages {
   @Description("")
   String DeviceDefaultOrientationMethods();
 
-  @DefaultMessage("AxisCorrection")
+  @DefaultMessage("LegacyMode")
   @Description("")
-  String AxisCorrectionProperties();
+  String LegacyModeProperties();
 
   // Used in editor/youngandroid/properties/YoungAndroidSizingChoicePropertyEditor.java
 
