@@ -120,11 +120,8 @@ public class AccelerometerSensor extends AndroidNonvisibleComponent
 
   private Sensor accelerometerSensor;
 
-  // Tuning variables that effect how the Accerlometer reading
-  // is transformed.
-  private boolean swapXandYAxis = false;
-  private boolean flipYAxis = false;
-  private boolean flipXAxis = false;
+  // Set to true to enable landscape mode tablet fix
+  private boolean landscapeFix = false;
 
   // Used to launch Runnables on the UI Thread after a delay
   private final Handler androidUIHandler;
@@ -432,39 +429,16 @@ public int getDeviceDefaultOrientation() {
     }
   }
 
-  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_NON_NEGATIVE_INTEGER,
-                    defaultValue = "0")
-  @SimpleProperty(description="Make various corrections to the coordinate system on LANDSCAPE primary devices")
-  public void AxisCorrection(int correction) {
-    if ((correction & 0x01) == 0x01) {
-      swapXandYAxis = true;
-    } else {
-      swapXandYAxis = false;
-    }
-    if ((correction & 0x02) == 0x02) {
-      flipYAxis = true;
-    } else {
-      flipYAxis = false;
-    }
-    if ((correction & 0x04) == 0x04) {
-      flipXAxis = true;
-    } else {
-      flipXAxis = false;
-    }
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN,
+    defaultValue = "False")
+  @SimpleProperty(userVisible = false,
+    description="Correct Xaccel and Yaccel on tablets that default to LANDSCAPE mode")
+  public void LandscapeFix(boolean landscapeFix) {
+    this.landscapeFix = landscapeFix;
   }
 
-  public int AxisCorrection() {
-    int retval = 0;
-    if (swapXandYAxis) {
-      retval |= 0x01;
-    }
-    if (flipYAxis) {
-      retval |= 0x02;
-    }
-    if (flipXAxis) {
-      retval |= 0x04;
-    }
-    return retval;
+  public boolean LandscapeFix() {
+    return landscapeFix;
   }
 
   // SensorListener implementation
@@ -474,20 +448,10 @@ public int getDeviceDefaultOrientation() {
       final float[] values = sensorEvent.values;
       // make landscapePrimary devices report acceleration as if they were
       // portraitPrimary
-      if (deviceDefaultOrientation == Configuration.ORIENTATION_LANDSCAPE) {
-        if (swapXandYAxis) {
-          xAccel = values[1];
-          yAccel = values[0];
-        } else {
-          xAccel = values[0];
-          yAccel = values[1];
-        }
-        if (flipYAxis) {
-          yAccel = -yAccel;
-        }
-        if (flipXAxis) {
-          xAccel = -xAccel;
-        }
+      if ((deviceDefaultOrientation == Configuration.ORIENTATION_LANDSCAPE) &&
+          landscapeFix) {
+        xAccel = values[1];
+        yAccel = -values[0];
       } else {
         xAccel = values[0];
         yAccel = values[1];
