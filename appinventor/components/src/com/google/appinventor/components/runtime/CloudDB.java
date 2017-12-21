@@ -106,7 +106,8 @@ import redis.clients.jedis.exceptions.JedisNoScriptException;
   "android.permission.ACCESS_NETWORK_STATE")
 
 @UsesLibraries(libraries = "jedis.jar")
-public final class CloudDB extends AndroidNonvisibleComponent implements Component, OnClearListener {
+public final class CloudDB extends AndroidNonvisibleComponent implements Component,
+  OnClearListener, OnDestroyListener {
   private static final boolean DEBUG = false;
   private static final String LOG_TAG = "CloudDB";
   private static final String BINFILE_DIR = "/AppInventorBinaries";
@@ -295,6 +296,7 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     }
     form.registerForOnClear(this); // So we are notified when (clear-current-form)
                                    // is called.
+    form.registerForOnDestroy(this); // close our Redis connections when we are leaving
   }
 
   private void stopListener() {
@@ -321,6 +323,14 @@ public final class CloudDB extends AndroidNonvisibleComponent implements Compone
     if (DEBUG) {
       Log.d(LOG_TAG, "onClear() called");
     }
+  }
+
+  @Override
+  public void onDestroy() {
+    if (DEBUG) {
+      Log.d(LOG_TAG, "onDestroy() called");
+    }
+    onClear();
   }
 
   private synchronized void startListener() {
