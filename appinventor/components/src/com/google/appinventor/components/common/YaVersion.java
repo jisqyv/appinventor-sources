@@ -401,10 +401,12 @@ public class YaVersion {
   // - FORM_COMPONENT_VERSION was incremented to 21
   // For YOUNG_ANDROID_VERSION 161:
   // - BLOCKS_LANGUAGE_VERSION was incremented to 21
-  // For YOUNG_ANDROID_VERSION 162
+  // For YOUNG_ANDROID_VERSION 162:
+  // - ACCELEROMETERSENSOR_COMPONENT_VERSION was incremented to 4
+  // For YOUNG_ANDROID_VERSION 163:
   // Added CloudDB
 
-  public static final int YOUNG_ANDROID_VERSION = 162;
+  public static final int YOUNG_ANDROID_VERSION = 163;
 
   // ............................... Blocks Language Version Number ...............................
 
@@ -512,7 +514,9 @@ public class YaVersion {
   //   the minimum interval to elapse before calling a shaking event when necessary.
   //For ACCELEROMETERSENSOR_COMPONENT_VERSION 3:
   // - AccelerometerSensor.Sensitivty property was added.
-  public static final int ACCELEROMETERSENSOR_COMPONENT_VERSION = 3;
+  //For ACCELEROMETERSENSOR_COMPONENT_VERSION 4:
+  // - Added the LegacyMode property.
+  public static final int ACCELEROMETERSENSOR_COMPONENT_VERSION = 4;
 
   // For ACTIVITYSTARTER_COMPONENT_VERSION 2:
   // - The ActivityStarter.DataType, ActivityStarter.ResultType, and ActivityStarter.ResultUri
@@ -852,7 +856,9 @@ public class YaVersion {
   // - The Alignment property was renamed to TextAlignment.
   // For PASSWORDTEXTBOX_COMPONENT_VERSION 3:
   // - Added RequestFocus Function (via TextBoxBase)
-  public static final int PASSWORDTEXTBOX_COMPONENT_VERSION = 3;
+  // For PASSWORDTEXTBOX_COMPONENT_VERSION 4:
+  // - Added PasswordVisible property
+  public static final int PASSWORDTEXTBOX_COMPONENT_VERSION = 4;
 
   // For PEDOMETER_COMPONENT_VERSION 2:
   // - The step sensing algorithm was updated to be more accurate.

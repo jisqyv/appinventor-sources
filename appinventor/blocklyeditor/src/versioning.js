@@ -1091,7 +1091,10 @@ Blockly.Versioning.AllUpgradeMaps =
     2: "noUpgrade",
 
     // AI2: AccelerometerSensor.Sensitivty property was added.
-    3: "noUpgrade"
+    3: "noUpgrade",
+
+    // AI2: LegacyMode property was added.
+    4: "noUpgrade"
 
   }, // End Accelerometer upgraders
 
@@ -1930,7 +1933,10 @@ Blockly.Versioning.AllUpgradeMaps =
     2: "ai1CantDoUpgrade", // Just indicates we couldn't do upgrade even if we wanted to
 
     // RequestFocus was added
-    3: "noUpgrade"
+    3: "noUpgrade",
+
+    // PasswordVisible was added
+    4: "noUpgrade"
 
   }, // End PasswordTextBox upgraders
 

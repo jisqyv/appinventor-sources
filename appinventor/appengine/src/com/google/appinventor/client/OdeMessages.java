@@ -1075,6 +1075,10 @@ public interface OdeMessages extends Messages {
   @Description("Text for accelerometer sensitivity choice 'strong'")
   String strongAccelerometerSensitivity();
 
+  @DefaultMessage("LegacyMode")
+  @Description("")
+  String LegacyModeProperties();
+
   // Used in editor/youngandroid/properties/YoungAndroidSizingChoicePropertyEditor.java
 
   @DefaultMessage("Fixed")
@@ -3470,6 +3474,10 @@ public interface OdeMessages extends Messages {
   @DefaultMessage("Mentions")
   @Description("")
   String MentionsProperties();
+
+  @DefaultMessage("PasswordVisible")
+  @Description("")
+  String PasswordVisibleProperties();
 
   @DefaultMessage("ProviderLocked")
   @Description("")
