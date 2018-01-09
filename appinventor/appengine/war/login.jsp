@@ -185,6 +185,11 @@ Your Revisit Code:&nbsp;<input type=text name=A value="" size=4 maxlength=4>-<in
                            .add("galleryId", galleryId)
                            .add("redirect", redirect).build() %>"  style="text-decoration:none;" >中文</a>&nbsp;
 <a href="<%= new UriBuilder("/login")
+                           .add("locale", "pt")
+                           .add("repo", repo)
+                           .add("galleryId", galleryId)
+                           .add("redirect", redirect).build() %>"  style="text-decoration:none;" >Português</a>&nbsp;
+<a href="<%= new UriBuilder("/login")
                    .add("locale", "en")
                    .add("repo", repo)
                    .add("galleryId", galleryId)
