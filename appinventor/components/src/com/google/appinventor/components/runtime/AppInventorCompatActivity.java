@@ -19,6 +19,7 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.FrameLayout.LayoutParams;
 import android.widget.TextView;
 import com.google.appinventor.components.common.ComponentConstants;
@@ -56,6 +57,7 @@ public class AppInventorCompatActivity extends Activity implements AppCompatCall
     if (currentTheme != Theme.PACKAGED) {
       applyTheme();
     }
+    Window.Callback classicCallback = getWindow().getCallback();
     appCompatDelegate = AppCompatDelegate.create(this, this);
     try {
       appCompatDelegate.onCreate(icicle);
@@ -63,6 +65,7 @@ public class AppInventorCompatActivity extends Activity implements AppCompatCall
       // Thrown in "Classic" mode
       appCompatDelegate = null;
       AppInventorCompatActivity.classicMode = true;
+      getWindow().setCallback(classicCallback);
     }
 
     super.onCreate(icicle);
@@ -266,6 +269,7 @@ public class AppInventorCompatActivity extends Activity implements AppCompatCall
 
   @SuppressWarnings("WeakerAccess")
   protected void setAppInventorTheme(Theme theme) {
+    if (!Form.getActiveForm().isRepl()) return;  // Theme changing only allowed in REPL
     if (theme == currentTheme) {
       return;
     }

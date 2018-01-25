@@ -475,7 +475,7 @@ public final class MockForm extends MockContainer {
     }
 
     if (propertyName.equals(PROPERTY_NAME_ACTIONBAR)) {
-      return editor.isScreen1();
+      return false;
     }
 
     if (propertyName.equals(PROPERTY_NAME_PRIMARY_COLOR)) {
@@ -961,6 +961,11 @@ public final class MockForm extends MockContainer {
       setActionBarProperty(newValue);
     } else if (propertyName.equals(PROPERTY_NAME_THEME)) {
       setTheme(newValue);
+      if ("Classic".equals(newValue)) {
+        getProperties().getExistingProperty(PROPERTY_NAME_ACTIONBAR).setValue("False");
+      } else {
+        getProperties().getExistingProperty(PROPERTY_NAME_ACTIONBAR).setValue("True");
+      }
     } else if (propertyName.equals(PROPERTY_NAME_PRIMARY_COLOR)) {
       setPrimaryColor(newValue);
     } else if (propertyName.equals(PROPERTY_NAME_PRIMARY_COLOR_DARK)) {
