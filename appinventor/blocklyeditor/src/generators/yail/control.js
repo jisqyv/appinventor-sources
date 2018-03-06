@@ -88,13 +88,12 @@ Blockly.Yail['controls_forEach'] = function() {
   var loopIndexName = Blockly.Yail.YAIL_LOCAL_VAR_TAG + this.getFieldValue('VAR');
   var listCode = Blockly.Yail.valueToCode(this, 'LIST', Blockly.Yail.ORDER_NONE) || emptyListCode;
   var bodyCode = Blockly.Yail.statementToCode(this, 'DO', Blockly.Yail.ORDER_NONE) ||  Blockly.Yail.YAIL_FALSE;
-  // Blockly.Yail.YAIL_FOREACH generates a call to foreach-with-break
-  return Blockly.Yail.YAIL_FOREACH + Blockly.Yail.YAIL_BREAK + Blockly.Yail.YAIL_SPACER + loopIndexName + Blockly.Yail.YAIL_SPACER
+  return Blockly.Yail.YAIL_FOREACH + loopIndexName + Blockly.Yail.YAIL_SPACER
          + Blockly.Yail.YAIL_BEGIN + bodyCode + Blockly.Yail.YAIL_CLOSE_COMBINATION + Blockly.Yail.YAIL_SPACER
          + listCode + Blockly.Yail.YAIL_CLOSE_COMBINATION;
 };
 
-// In general break could take a value to return from the loop, but 
+// In general break could take a value to return from the loop, but
 // none of our block language loops return values, so we won't use that capability.
 
 // [hal, 1/20/2018]
@@ -116,7 +115,7 @@ Blockly.Yail['controls_forRange'] = function() {
   var endCode = Blockly.Yail.valueToCode(this, 'END', Blockly.Yail.ORDER_NONE) || 0;
   var stepCode = Blockly.Yail.valueToCode(this, 'STEP', Blockly.Yail.ORDER_NONE) || 0;
   var bodyCode = Blockly.Yail.statementToCode(this, 'DO', Blockly.Yail.ORDER_NONE) || Blockly.Yail.YAIL_FALSE;
-  return Blockly.Yail.YAIL_FORRANGE + Blockly.Yail.YAIL_BREAK + Blockly.Yail.YAIL_SPACER + loopIndexName + Blockly.Yail.YAIL_SPACER
+  return Blockly.Yail.YAIL_FORRANGE + loopIndexName + Blockly.Yail.YAIL_SPACER
          + Blockly.Yail.YAIL_BEGIN + bodyCode + Blockly.Yail.YAIL_CLOSE_COMBINATION + Blockly.Yail.YAIL_SPACER
          + startCode + Blockly.Yail.YAIL_SPACER
          + endCode + Blockly.Yail.YAIL_SPACER
@@ -131,8 +130,7 @@ Blockly.Yail['controls_while'] = function() {
   // While condition.
   var test = Blockly.Yail.valueToCode(this, 'TEST', Blockly.Yail.ORDER_NONE) || Blockly.Yail.YAIL_FALSE;
   var toDo = Blockly.Yail.statementToCode(this, 'DO') || Blockly.Yail.YAIL_FALSE;
-  var code = Blockly.Yail.YAIL_WHILE + Blockly.Yail.YAIL_BREAK + Blockly.Yail.YAIL_SPACER + test
-             + Blockly.Yail.YAIL_SPACER + Blockly.Yail.YAIL_BEGIN + toDo + Blockly.Yail.YAIL_CLOSE_COMBINATION + Blockly.Yail.YAIL_CLOSE_COMBINATION;
+  var code = Blockly.Yail.YAIL_WHILE + test + Blockly.Yail.YAIL_SPACER + Blockly.Yail.YAIL_BEGIN + toDo + Blockly.Yail.YAIL_CLOSE_COMBINATION + Blockly.Yail.YAIL_CLOSE_COMBINATION;
   return code;
 };
 

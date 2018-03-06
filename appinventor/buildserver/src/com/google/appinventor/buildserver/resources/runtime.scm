@@ -768,6 +768,53 @@
         (set! *test-global-var-environment* (gnu.mapping.Environment:make 'test-global-var-env)))))
 
 
+;; Note: (Jeff Schiller) The macro below is intentially unhygienic. We
+;; need to make sure that if there is a *yail-break* form inside
+;; bodyform that it does not get shadowed by the macro (which it would
+;; if this was a hygienic macro).
+
+(define-macro (foreach arg-name bodyform list-of-args)
+  `(call-with-current-continuation
+    (lambda (*yail-break*)
+      (let ((proc (lambda (,arg-name) ,bodyform)))
+        (yail-for-each proc ,list-of-args)))))
+
+;; This yail procedure should be called only if "*yail-break*" is used
+;; outside of a foreach, forrange or while macro.  The blocks editor
+;; should give an error if the break block is placed outside of a
+;; loop.  So the only way this yail procedure would be called should
+;; be by running do-it on an isolated break block.  See
+;; blocklyeditor/src/warninghandler.js checkIsNotInLoop
+
+(define (*yail-break* ignore)
+  (signal-runtime-error
+     "Break should be run only from within a loop"
+     "Bad use of Break"))
+
+;; Also unhygienic (see comment above about foreach)
+
+(define-macro (forrange lambda-arg-name body-form start end step)
+  `(call-with-current-continuation
+    (lambda (*yail-break*)
+      (yail-for-range (lambda (,lambda-arg-name) ,body-form) ,start ,end ,step))))
+
+;; Also unhygienic (see comment above about foreach)
+
+(define-macro (while condition body . rest)
+  `(call-with-current-continuation
+    (lambda (*yail-break*)
+      (let *yail-loop* ()
+        (if ,condition
+            (begin
+              (begin ,body . ,rest)
+              (*yail-loop*))
+            #!null)))))
+
+;; Below are hygienic versions of the forrange, foreach and while
+;; macros. They are here to be "future aware". A future version of
+;; MIT App Inventor will use these hygienic versions which require
+;; and additional argument, and therefore different YAIL generation
+
 (define-syntax foreach-with-break
   (syntax-rules ()
     ((_ escapename arg-name bodyform list-of-args)
@@ -776,29 +823,18 @@
 	(let ((proc (lambda (arg-name) bodyform)))
 	  (yail-for-each proc list-of-args)))))))
 
-  ;; To call this foreach-with-break macro, we must pass a symbol that will be the name of an escape procedure
-  ;; referenced in the body of the proc argument.  For example
+  ;; To call this foreach-with-break macro, we must pass a symbol that
+  ;; will be the name of an escape procedure referenced in the body of
+  ;; the proc argument.  For example
+  ;;
   ;; (foreach-with-break
-  ;;  break
+  ;;  *yail-break*
   ;;  x
   ;;  (if (= x 17)
-  ;;      (begin (display "escape") (break #f))
+  ;;      (begin (display "escape") (*yail-break* #f))
   ;;      (begin (display x) (display " "))
   ;;      )
   ;;  '(100 200 17 300))
-
-
-;; This yail procedure should be called only if "break" is not shadowed by 
-;; the break passed as the escape parameter in the loop macro.
-;; The blocks editor should give an error if the break block is placed
-;; outside of a loop.   So the only way this yail procedure
-;; would be called should be by running do-it on an isolated break block.
-;; See blocklyeditor/src/warninghandler.js checkIsNotInLoop
-
-(define (break ignore)
-  (signal-runtime-error
-     "Break should be run only from within a loop"
-     "Bad use of Break"))
 
 (define-syntax forrange-with-break
   (syntax-rules ()
