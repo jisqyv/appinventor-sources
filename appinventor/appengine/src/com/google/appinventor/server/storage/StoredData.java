@@ -34,5 +34,4 @@ public class StoredData {
     public Date timestamp;          // So we know when to expire this objects
     public String email;            // Email of account in question
   }
-
 }
