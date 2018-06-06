@@ -32,11 +32,16 @@ import com.google.appinventor.shared.storage.StorageUtil;
 import com.google.appinventor.shared.util.AccountUtil;
 
 import java.io.ByteArrayOutputStream;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 
 import java.sql.Connection;
@@ -70,6 +75,7 @@ public class LocalStorageIo implements  StorageIo {
   static final Flag<Boolean> requireTos = Flag.createFlag("require.tos", false);
   static final Flag<String> storageRoot = Flag.createFlag("storage.root", "");
   static final String USER_DATABASE = storageRoot.get() + "/users.sqlite";
+  static final String BUILDSTATUS_DATABASE = storageRoot.get() + "/buildstatus.sqlite";
 
   private static final Logger LOG = Logger.getLogger(LocalStorageIo.class.getName());
 
@@ -82,7 +88,7 @@ public class LocalStorageIo implements  StorageIo {
   private Class driverClass;    // Keep the Driver class from being GC'd
 
   private ThreadLocal<Connection> userConn = new ThreadLocal<Connection>();
-
+  private ThreadLocal<Connection> buildConn = new ThreadLocal<Connection>();
 
   // Create a final object of this class to hold a modifiable result value that
   // can be used in a method of an inner class.
@@ -122,8 +128,7 @@ public class LocalStorageIo implements  StorageIo {
         conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
         conn.setAutoCommit(false);
         Statement statement = conn.createStatement();
-        statement.executeUpdate("drop table if exists users");
-        statement.executeUpdate("create table users (uuid string, email string, emaillower string, " +
+        statement.executeUpdate("create table if not exists users (uuid string, email string, emaillower string, " +
           "visited timestamp, settings string, tosaccepted boolean, isadmin boolean, sessionid string," +
           " password string, templatepath string)");
         statement.executeUpdate("create index usersuuid on users(uuid)");
@@ -193,6 +198,28 @@ public class LocalStorageIo implements  StorageIo {
       PreparedStatement prep = conn.prepareStatement("select * from users limit 1");
       Statement statement = conn.createStatement();
       statement.executeUpdate("create table if not exists license (uuid text, hardware text, authcode text)");
+    } catch (SQLException e) {
+      throw CrashReport.createAndLogError(LOG, null, null, e);
+    } finally {
+      if (conn != null) {
+        try {
+          conn.close();
+        } catch (Exception e) {
+          throw CrashReport.createAndLogError(LOG, null, null, e);
+        }
+      }
+    }
+    try {
+      // Attempt to create the build status database
+      conn = DriverManager.getConnection("jdbc:sqlite:" + BUILDSTATUS_DATABASE);
+      conn.setAutoCommit(false);
+      Statement statement = conn.createStatement();
+      statement.executeUpdate("create table if not exists builds (userid text, projectid integer, progress integer, " +
+        "used timestamp, unique (userid, projectid) on conflict replace)");
+      statement.close();
+      conn.commit();
+      conn.close();
+      conn = null;
     } catch (SQLException e) {
       throw CrashReport.createAndLogError(LOG, null, null, e);
     } finally {
@@ -1897,6 +1924,103 @@ public class LocalStorageIo implements  StorageIo {
       }
     } catch (SQLException ee) {
       throw CrashReport.createAndLogError(LOG, null, null, ee);
+    }
+  }
+
+  @Override
+  public String downloadBackpack(String backPackId) {
+    try {
+      backPackId.replace("/", "-"); // Make sure no games are played
+      File fileObject = new File(storageRoot.get() + "/BACKPACKS/" + backPackId);
+      BufferedReader input = new BufferedReader(new FileReader(fileObject));
+      StringBuilder sb = new StringBuilder();
+      String line;
+      while ((line = input.readLine()) != null) {
+        sb.append(line);
+        sb.append("\n");
+      }
+      input.close();
+      return sb.toString();
+    } catch (Exception e) {
+      throw CrashReport.createAndLogError(LOG, null, null, e);
+    }
+  }
+
+  @Override
+  public void uploadBackpack(String backPackId, String content) {
+    try {
+      backPackId.replace("/", "-"); // Make sure no games are played
+      File fileObject = new File(storageRoot.get() + "/BACKPACKS/" + backPackId);
+      PrintWriter output = new PrintWriter(fileObject);
+      output.write(content);
+      output.close();
+    } catch (Exception e) {
+      throw CrashReport.createAndLogError(LOG, null, null, e);
+    }
+  }
+
+  @Override
+  public void storeBuildStatus(String userId, long projectId, int progress) {
+    Connection conn = null;
+    try {
+      conn = buildConn.get();
+      if (conn == null) {
+        conn = DriverManager.getConnection("jdbc:sqlite:" + BUILDSTATUS_DATABASE);
+        conn.setAutoCommit(false);
+        buildConn.set(conn);
+      }
+      PreparedStatement prep;
+      prep = conn.prepareStatement("insert into builds values (?, ?, ?, ?)");
+      prep.setString(1, userId);
+      prep.setLong(2, projectId);
+      prep.setInt(3, progress);
+      prep.setDate(4, new java.sql.Date(System.currentTimeMillis()));
+      prep.executeUpdate();
+      prep.close();
+      conn.commit();
+    } catch (SQLException e) {
+      try {
+        conn.rollback();
+        conn.close();
+      } catch (Exception ee) {
+        // XXX
+      }
+      buildConn.set(null);
+      throw CrashReport.createAndLogError(LOG, null, null, e);
+    }
+  }
+
+  @Override
+  public int getBuildStatus(String userId, long projectId) {
+    Connection conn = null;
+    try {
+      conn = buildConn.get();
+      if (conn == null) {
+        conn = DriverManager.getConnection("jdbc:sqlite:" + BUILDSTATUS_DATABASE);
+        conn.setAutoCommit(false);
+        buildConn.set(conn);
+      }
+      PreparedStatement prep = conn.prepareStatement("select progress from builds where userid = ? and projectid = ?");
+      prep.setString(1, userId);
+      prep.setLong(2, projectId);
+      ResultSet rs = prep.executeQuery();
+      if (rs.next()) {
+        int progress = rs.getInt("progress");
+        prep.close();
+        conn.commit();
+        return progress;
+      } else {
+        return 50;                // Kludge
+      }
+    } catch (SQLException e) {
+      try {
+        conn.rollback();
+        conn.close();
+      } catch (Exception ee) {
+        // XXX
+      }
+      buildConn.set(null);
+      throw CrashReport.createAndLogError(LOG, null, null, e);
     }
   }
 
