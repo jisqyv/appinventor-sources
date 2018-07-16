@@ -1966,21 +1966,19 @@ public class LocalStorageIo implements  StorageIo {
       conn = buildConn.get();
       if (conn == null) {
         conn = DriverManager.getConnection("jdbc:sqlite:" + BUILDSTATUS_DATABASE);
-        conn.setAutoCommit(false);
         buildConn.set(conn);
       }
       PreparedStatement prep;
       prep = conn.prepareStatement("insert into builds values (?, ?, ?, ?)");
+      prep.setQueryTimeout(30);
       prep.setString(1, userId);
       prep.setLong(2, projectId);
       prep.setInt(3, progress);
       prep.setDate(4, new java.sql.Date(System.currentTimeMillis()));
       prep.executeUpdate();
       prep.close();
-      conn.commit();
     } catch (SQLException e) {
       try {
-        conn.rollback();
         conn.close();
       } catch (Exception ee) {
         // XXX
@@ -1997,24 +1995,22 @@ public class LocalStorageIo implements  StorageIo {
       conn = buildConn.get();
       if (conn == null) {
         conn = DriverManager.getConnection("jdbc:sqlite:" + BUILDSTATUS_DATABASE);
-        conn.setAutoCommit(false);
         buildConn.set(conn);
       }
       PreparedStatement prep = conn.prepareStatement("select progress from builds where userid = ? and projectid = ?");
+      prep.setQueryTimeout(30);
       prep.setString(1, userId);
       prep.setLong(2, projectId);
       ResultSet rs = prep.executeQuery();
       if (rs.next()) {
         int progress = rs.getInt("progress");
         prep.close();
-        conn.commit();
         return progress;
       } else {
         return 50;                // Kludge
       }
     } catch (SQLException e) {
       try {
-        conn.rollback();
         conn.close();
       } catch (Exception ee) {
         // XXX
