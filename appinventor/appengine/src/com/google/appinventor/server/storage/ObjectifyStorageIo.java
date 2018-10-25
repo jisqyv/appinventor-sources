@@ -2186,6 +2186,22 @@ public class ObjectifyStorageIo implements  StorageIo {
       }
     }
 
+    // SPECIAL HACK, We are going to add an entry that contains "bad" UTF-8
+    // for testing
+    byte [] badutf8 = { (byte) 0xfe, 0x32, 0x2e, 0x34, 0x36, 0x45, (byte) 0xff,
+                        (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff};
+    out.setMethod(ZipOutputStream.STORED);
+    ZipEntry zentry = new ZipEntry("assets/badutf8");
+    java.util.zip.CRC32 crc32 = new java.util.zip.CRC32();
+    crc32.update(badutf8, 0, badutf8.length);
+    zentry.setSize(badutf8.length);
+    zentry.setCompressedSize(badutf8.length);
+    zentry.setCrc(crc32.getValue());
+    out.putNextEntry(zentry);
+    out.write(badutf8, 0, badutf8.length);
+    out.closeEntry();
+    // END SPECIAL HACK
+
     out.close();
 
     if (zipName == null) {
