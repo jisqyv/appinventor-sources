@@ -83,7 +83,11 @@ public class LocalStorageIo implements  StorageIo {
 
   private static final long MOTD_ID = 1;
 
-  private static final long TWENTYFOURHOURS = 24*3600*1000; // 24 hours in milliseconds
+  // storage.backuptime: how long before we make a backup snapshot of a bky or scm file.
+  // The time is provided in minutes but converted to milliseconds for the backuptime
+  // variable. We default to 1 day.
+  private static final long backupTime = Flag.createFlag("storage.backuptime",
+    new Long(60*24)).get().longValue() * 60*1000;
 
   private Class driverClass;    // Keep the Driver class from being GC'd
 
@@ -1163,7 +1167,7 @@ public class LocalStorageIo implements  StorageIo {
         throw new BlocksTruncatedException();
       File theFile = new File(storageRoot.get() + "/" + userId + "/" + projectId + "/" + fileName);
       if (theFile.exists() && considerBackup) {   // check to see if we should back it up
-        if ((theFile.lastModified() + TWENTYFOURHOURS) < System.currentTimeMillis()) {
+        if ((theFile.lastModified() + backupTime) < System.currentTimeMillis()) {
           // Yes backup, which in this case means we rename the file
           String renamedFileName = storageRoot.get() + File.separator +
             userId + File.separator + projectId + File.separator +
