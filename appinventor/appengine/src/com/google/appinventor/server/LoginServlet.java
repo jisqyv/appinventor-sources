@@ -4,26 +4,29 @@
 
 package com.google.appinventor.server;
 
-import com.google.appinventor.server.flags.Flag;
-import java.security.GeneralSecurityException;
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+
 import com.google.api.client.http.javanet.NetHttpTransport;
 
-import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
-import com.google.api.client.http.HttpTransport;
-import java.util.Arrays;
+
+import com.google.appinventor.server.flags.Flag;
 
 import com.google.appinventor.server.storage.StorageIo;
 import com.google.appinventor.server.storage.StorageIoInstanceHolder;
 import com.google.appinventor.server.storage.StoredData.PWData;
 
+import com.google.appinventor.server.tokens.Token;
+import com.google.appinventor.server.tokens.TokenException;
+import com.google.appinventor.server.tokens.TokenProto;
+
 import com.google.appinventor.server.util.PasswordHash;
 import com.google.appinventor.server.util.UriBuilder;
 
 import com.google.appinventor.shared.rpc.user.User;
+
 import com.google.appinventor.shared.util.AccountUtil;
 
 import com.sun.mail.smtp.SMTPTransport;
@@ -39,9 +42,11 @@ import java.net.URL;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 
+import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
@@ -51,8 +56,8 @@ import java.util.ResourceBundle;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import java.util.logging.Logger;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.mail.Message;
 import javax.mail.MessagingException;
@@ -69,6 +74,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.owasp.html.HtmlPolicyBuilder;
 import org.owasp.html.PolicyFactory;
+
 
 /**
  * LoginServlet -- Handle logging someone in using an email address for a login
@@ -182,6 +188,72 @@ public class LoginServlet extends HttpServlet {
       out.println("<input type=submit value=\"" + bundle.getString("sendlink") + "\" style=\"font-size: 300%;\">\n");
       out.println("</form>\n");
       return;
+    } else if (page.equals("token")) {
+      String encodedToken = params.get("token");
+      if (encodedToken == null) {
+        fail(req, resp, "No Authentication Token Provided");
+        return;
+      }
+      TokenProto.token token = null;
+      try {
+        token = Token.verifyToken(encodedToken);
+      } catch (TokenException e) {
+        fail(req, resp, e.getMessage());
+        return;
+      }
+      // At this point we have a valid token, so use it to login!
+      // need to make sure it is a SSOLOGIN token
+      if (token.getCommand() != TokenProto.token.CommandType.SSOLOGIN) {
+        fail(req, resp, "Token Valid, but not a SSOLOGIN token.");
+        return;
+      }
+      long offset = System.currentTimeMillis() - token.getTs();
+      offset /= 1000;  // Convert to seconds
+      if (offset > 120) {       // Two minutes
+        fail(req, resp, "Token Expired. Was valid until " +
+          new Date(token.getTs()));
+        return;
+      }
+      // At this point we have a valid SSOLOGIN token
+
+      userInfo = new OdeAuthFilter.UserInfo();
+
+      // visit in read-only mode
+      userInfo.setReadOnly(token.getReadOnly());
+
+      // String backPackId = token.getBackpackid();
+      // if (backPackId != null && !backPackId.isEmpty()) {
+      //   userInfo.setBackpackId(backPackId);
+      // }
+
+      String uuid = token.getUuid();
+      User user = storageIo.getUser(uuid); // Attempt a lookup on UUID
+      if (user == null) {                   // UUID doesn't exist in the system
+        if (uuid.indexOf("@") < 0) {
+          fail(req, resp, "Cannot create account which is not an Email address");
+        } else {
+          user = storageIo.getUserFromEmail(uuid);
+        }
+      }
+
+      userInfo.setUserId(user.getUserId()); // This logs us in
+
+      String newCookie = userInfo.buildCookie(false);
+      if (newCookie != null) {
+        Cookie cook = new Cookie("AppInventor", newCookie);
+        cook.setPath("/");
+        resp.addCookie(cook);
+      }
+      String uri = "http://" + req.getServerName();
+      if (!publicPort.get().equals("80")) {
+        uri += ":" + publicPort.get();
+      }
+      uri += "/";
+      if (!locale.equals("en")) {
+        uri += "?locale=" + locale;
+      }
+      resp.sendRedirect(uri);   // This should bring up App Inventor
+      return;
     }
 
     String emailAddress = bundle.getString("emailaddress");
@@ -210,7 +282,6 @@ public class LoginServlet extends HttpServlet {
   protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     BufferedReader input = new BufferedReader(new InputStreamReader(req.getInputStream()));
     String queryString = input.readLine();
-
     PrintWriter out;
 
     OdeAuthFilter.UserInfo userInfo = OdeAuthFilter.getUserInfo(req);
@@ -331,6 +402,7 @@ public class LoginServlet extends HttpServlet {
         .add("locale", locale)
         .add("repo", repo)
         .add("galleryId", galleryId).build();
+
       resp.sendRedirect(uri);   // Logged in, go to service
       return;
     }
