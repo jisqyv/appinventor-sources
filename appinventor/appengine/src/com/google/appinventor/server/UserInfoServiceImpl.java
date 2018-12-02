@@ -69,6 +69,10 @@ public class UserInfoServiceImpl extends OdeRemoteServiceServlet implements User
     config.setDefaultCloudDBserver(Flag.createFlag("clouddb.server", "").get());
     config.setNoop(Flag.createFlag("session.noop", 0).get());
 
+    if (!Flag.createFlag("build2.server.host", "").get().isEmpty()) {
+      config.setSecondBuildserver(true);
+    }
+
     return config;
   }
 

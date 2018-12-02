@@ -403,10 +403,15 @@ Blockly.WorkspaceSvg.prototype.populateComponentTypes = function(strComponentInf
 Blockly.WorkspaceSvg.prototype.loadBlocksFile = function(formJson, blocksContent) {
   if (blocksContent.length != 0) {
     try {
-      Blockly.Block.isRenderingOn = false;
-      Blockly.Versioning.upgrade(formJson, blocksContent, this);
+      Blockly.Events.disable();
+      if (Blockly.Versioning.upgrade(formJson, blocksContent, this)) {
+        var self = this;
+        setTimeout(function() {
+          self.fireChangeListener(new AI.Events.ForceSave(self));
+        });
+      }
     } finally {
-      Blockly.Block.isRenderingOn = true;
+      Blockly.Events.enable();
     }
     if (this.getCanvas() != null) {
       this.render();
@@ -708,6 +713,32 @@ Blockly.WorkspaceSvg.prototype.customContextMenu = function(menuOptions) {
     else if (Blockly.workspace_arranged_latest_position === Blockly.BLKS_VERTICAL)
       arrangeOptionV.callback(opt_type);
   }
+
+  // Enable all blocks
+  var enableAll = {enabled: true};
+  enableAll.text = Blockly.Msg.ENABLE_ALL_BLOCKS;
+  enableAll.callback = function() {
+    var allBlocks = Blockly.mainWorkspace.getAllBlocks();
+    Blockly.Events.setGroup(true);
+    for (var x = 0, block; block = allBlocks[x]; x++) {
+      block.setDisabled(false);
+    }
+    Blockly.Events.setGroup(false);
+  };
+  menuOptions.push(enableAll);
+
+  // Disable all blocks
+  var disableAll = {enabled: true};
+  disableAll.text = Blockly.Msg.DISABLE_ALL_BLOCKS;
+  disableAll.callback = function() {
+    var allBlocks = Blockly.mainWorkspace.getAllBlocks();
+    Blockly.Events.setGroup(true);
+    for (var x = 0, block; block = allBlocks[x]; x++) {
+      block.setDisabled(true);
+    }
+    Blockly.Events.setGroup(false);
+  };
+  menuOptions.push(disableAll);
 
   // Retrieve from backpack option.
   var backpackRetrieve = {enabled: true};
