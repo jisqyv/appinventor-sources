@@ -100,7 +100,7 @@ public final class Look extends AndroidNonvisibleComponent implements Component 
     super(form);
     requestHardwareAcceleration(form);
     WebView.setWebContentsDebuggingEnabled(true);
-    Log.d(LOG_TAG, "Created Look component");
+    Log.d(LOG_TAG, "Created Look component: 01/14/2019: 10:53AM");
   }
 
   @SuppressLint("SetJavaScriptEnabled")

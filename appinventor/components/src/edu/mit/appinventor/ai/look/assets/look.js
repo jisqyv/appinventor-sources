@@ -27,7 +27,7 @@ const mobilenetDemo = async () => {
     console.log("Look: Mobilenet ready");
     // this causes an error if we put it here?
     // set knownClasses here so they will be available when classifier is ready
-    // Look.setKnownClasses()
+    JsSetKnownClasses();
     Look.ready();
   } catch (error) {
     console.log("Look: " + error);
