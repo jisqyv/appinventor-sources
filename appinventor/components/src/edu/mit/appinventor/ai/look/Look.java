@@ -93,6 +93,7 @@ public final class Look extends AndroidNonvisibleComponent implements Component 
 
   // ** added
   // scavenger classes from Javascript
+  //  private YailList knownClasses = YailList.makeEmptyList();
   private YailList knownClasses = null;
 
   public Look(final Form form) {
@@ -361,8 +362,9 @@ public final class Look extends AndroidNonvisibleComponent implements Component 
   @SimpleProperty(
   category = PropertyCategory.BEHAVIOR)
   public YailList KnownClasses() {
+    Log.e("Look classes", "inside KnownClasses property");
     if (knownClasses == null) {
-	Log.e("Look classes", "inside KnownClasses property -- calling setKnownClasses()");
+	Log.e("Look classes", "inside KnownClasses property with KnownClasses null -- calling setKnownClasses()");
 	setKnownClasses();
     }
     return knownClasses;
@@ -371,7 +373,12 @@ public final class Look extends AndroidNonvisibleComponent implements Component 
   private void setKnownClasses() {
     Log.e("Look classes", "inside setKnownClasses");
     webview.evaluateJavascript("JsSetKnownClasses()", null);
-    Log.e("Look classes", "return from evaluateJavascript");
+    Log.e("Look classes", "returned from evaluateJavascript");
+    if (knownClasses == null) {
+	Log.e("finished setKnownClasses", "returning from setKnownClasses but KnownClasses is null");
+	setKnownClasses();
+    }
+    Log.e("setKnown classes returning", "knownClasses is " + String.valueOf(knownClasses));
   }
 
 
