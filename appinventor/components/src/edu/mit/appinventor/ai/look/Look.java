@@ -342,43 +342,35 @@ public final class Look extends AndroidNonvisibleComponent implements Component 
     @JavascriptInterface
     public void setKnownClassesFromJS(final String s) {
 	// s is a comma-separated string
-	Log.e("running inside setKnownClassesFromJS", "dummy argument");
-	Log.e("running 2 inside setKnownClassesFromJS", s);
+	Log.d(LOG_TAG, "running inside setKnownClassesFromJS --dummy argument");
+	Log.d(LOG_TAG, "running 2 inside setKnownClassesFromJS" + s);
 	List<String>classes = Arrays.asList(s.split("\\s*,\\s*"));
 	knownClasses = YailList.makeList(classes);
     }
 
-      // dummy for testing
-      @JavascriptInterface
-      public void dummyTest() {
-	  Log.e("inside dummy interface", null);
-	  // nothing
-      }
-
-
   }
 
   // ** added new property
-  @SimpleProperty(
-  category = PropertyCategory.BEHAVIOR)
+  @SimpleProperty(category = PropertyCategory.BEHAVIOR,
+      description = "The classes known by ths image classifier.")
   public YailList KnownClasses() {
-    Log.e("Look classes", "inside KnownClasses property");
+    Log.d(LOG_TAG, "inside KnownClasses property");
     if (knownClasses == null) {
-	Log.e("Look classes", "inside KnownClasses property with KnownClasses null -- calling setKnownClasses()");
+	Log.d(LOG_TAG, "inside KnownClasses property with KnownClasses null -- calling setKnownClasses()");
 	setKnownClasses();
     }
     return knownClasses;
   }
 
   private void setKnownClasses() {
-    Log.e("Look classes", "inside setKnownClasses");
+    Log.d(LOG_TAG, "inside setKnownClasses point A");
     webview.evaluateJavascript("JsSetKnownClasses()", null);
-    Log.e("Look classes", "returned from evaluateJavascript");
+    Log.d(LOG_TAG, "returned from evaluateJavascript");
     if (knownClasses == null) {
-	Log.e("finished setKnownClasses", "returning from setKnownClasses but KnownClasses is null");
+	Log.d(LOG_TAG, "returning from setKnownClasses but KnownClasses is null");
 	setKnownClasses();
     }
-    Log.e("setKnown classes returning", "knownClasses is " + String.valueOf(knownClasses));
+    Log.d(LOG_TAG, "setKnown classes returning: knownClasses is " + String.valueOf(knownClasses));
   }
 
 
