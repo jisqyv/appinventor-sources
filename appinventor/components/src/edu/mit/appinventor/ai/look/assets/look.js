@@ -25,8 +25,6 @@ const mobilenetDemo = async () => {
     mobilenet.predict(zeros).dispose();
     zeros.dispose();
     console.log("Look: Mobilenet ready");
-    // this causes an error if we put it here?
-    // set knownClasses here so they will be available when classifier is ready
     JsSetKnownClasses();
     Look.ready();
   } catch (error) {
