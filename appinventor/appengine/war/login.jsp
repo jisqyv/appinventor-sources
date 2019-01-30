@@ -23,54 +23,71 @@
     <meta HTTP-EQUIV="pragma" CONTENT="no-cache"/>
     <meta HTTP-EQUIV="Cache-Control" CONTENT="no-cache, must-revalidate"/>
     <meta HTTP-EQUIV="expires" CONTENT="0"/>
+    <meta name="google-signin-scope" content="profile email">
+    <meta name="google-signin-client_id" content="<%= googleClientId %>">
+    <script src="https://apis.google.com/js/platform.js" async defer></script>
+
+
     <title>MIT App Inventor</title>
     <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet" type="text/css"/>
 <% if (useGoogle) { %>
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
-    <script src="https://apis.google.com/js/client:platform.js?onload=start" async defer></script>
     <script language=javascript>
-    // When we load the login page, make sure we start out by being
-    // logged out from Google
-    var auth2;
-    var start = function() {
-      gapi.load('auth2', function() {
-         gapi.auth2.init({ client_id: "<%= googleClientId %>" })
-           .then(function () {
-                  auth2 = gapi.auth2.getAuthInstance();
-                  auth2.signOut();
-                  attachSignin(document.getElementById('customBtn'), auth2);
-           });
-      });
+     var initialized = false;
+     function onSignIn(googleUser) {
+         console.log('onSignIn called, initialized = ' + initialized);
+         if (!initialized) {
+             // ignore onSignIn if we haven't completed the signout below
+             // the idea here is to make sure when we visit this page (login)
+             // that people get a login dialog and don't just immediately get
+             // logged in because they still have authentication cookies in
+             // Google Land
+             return;
+         }
+         var profile = googleUser.getBasicProfile();
+         /* console.log("ID: " + profile.getId()); // Don't send this directly to your server!
+          * console.log('Full Name: ' + profile.getName());
+          * console.log('Given Name: ' + profile.getGivenName());
+          * console.log('Family Name: ' + profile.getFamilyName());
+          * console.log("Image URL: " + profile.getImageUrl());
+          * console.log("Email: " + profile.getEmail());*/
+         // The ID token you need to pass to your backend:
+         var id_token = googleUser.getAuthResponse().id_token;
+         /* console.log("ID Token: " + id_token);*/
+         xhr = new XMLHttpRequest();
+         xhr.open('POST', '/login/');
+         xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+         xhr.onreadystatechange = function() {
+             if (this.readyState != 4) return;
+             if (this.status == 200) {
+                 // login OK, reload to the index page
+                 window.location = "<%= new UriBuilder("/")
+                                               .add("locale", locale)
+                                               .add("repo", repo)
+                                               .add("galleryId", galleryId).build() %>";
+             } else {
+                 window.alert("Login Incorrect");
+             }
+         };
+         xhr.send('idtoken=' + id_token);
     };
-    function attachSignin(element, auth2) {
-      console.log(element.id);
-      auth2.attachClickHandler(element, {},
-           function(googleUser) {
-             document.getElementById('name').innerText = "Signed in: " +
-               googleUser.getBasicProfile().getName();
-             SignInCallback(googleUser);
-           }, function(error) {
-             alert(JSON.stringify(error, undefined, 2));
-           });
-    };
-    function SignInCallback(googleUser) {
-       xhr = new XMLHttpRequest();
-       xhr.open('POST', '/login/');
-       xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-       xhr.onreadystatechange = function() {
-            if (this.readyState != 4) return;
-            if (this.status == 200) {
-                // login OK, reload to the index page
-                window.location = "<%= new UriBuilder("/")
-                                              .add("locale", locale)
-                                              .add("repo", repo)
-                                              .add("galleryId", galleryId).build() %>";
-            } else {
-              window.alert("Login Incorrect");
-            }
-       }
-       xhr.send('idtoken=' + googleUser.getAuthResponse().id_token);
-    }
+    function signOut() {
+      gapi.auth2.init().then(function() {
+        var auth2 = gapi.auth2.getAuthInstance();
+        if (auth2.isSignedIn.get()) {
+          auth2.signOut().then(function () {
+            initialized = true;
+            console.log('User signed out.');
+          });
+        } else {
+          initialized = true;
+          console.log("User wasn't logged in");
+     }
+     });
+     };
+     window.onload = function() {
+         signOut();
+     };
     </script>
 <% } %>
   </head>
@@ -169,13 +186,8 @@ Your Revisit Code:&nbsp;<input type=text name=A value="" size=4 maxlength=4>-<in
 <% if (useGoogle) { %>
 <br/><br/>
 <center>
-  <div id="gSignInWrapper">
-    <span class="label">Or sign in with:</span>
-    <div id="customBtn" class="customGPlusSignIn">
-      <span class="icon"></span>
-      <span class="buttonText">Google</span>
-    </div>
-    <div id="name"></div>
+    <div class="g-signin2" data-onsuccess="onSignIn" data-theme="dark"></div>
+    <br/>
 </center>
 <%    } %>
 <footer>
