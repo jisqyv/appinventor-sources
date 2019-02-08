@@ -1,6 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2018 MIT, All rights reserved
+// Copyright 2011-2019 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -1681,9 +1681,9 @@ public interface OdeMessages extends Messages {
   @Description("Text messages are always received, and a notification is shown if the App is in the background.")
   String textReceivingChoiceAlways();
 
-  @DefaultMessage("Starting asset transfer to companion...")
-  @Description("Message to display at the start of an asset transfer before any assets are sent")
-  String startingAssetTransfer();
+  @DefaultMessage("0 Starting Up")
+  @Description("")
+  String startingConnectionDialog();
 
   @DefaultMessage("Downloading {0} from the App Inventor server...")
   @Description("Message to display when an asset is being downloaded from the server")
@@ -4839,6 +4839,10 @@ public interface OdeMessages extends Messages {
   @Description("")
   String MakePhoneCallMethods();
 
+  @DefaultMessage("MakePhoneCallDirect")
+  @Description("")
+  String MakePhoneCallDirectMethods();
+
   @DefaultMessage("GetWifiIpAddress")
   @Description("")
   String GetWifiIpAddressMethods();
@@ -4878,6 +4882,10 @@ public interface OdeMessages extends Messages {
   @DefaultMessage("SendMessage")
   @Description("")
   String SendMessageMethods();
+
+  @DefaultMessage("SendMessageDirect")
+  @Description("")
+  String SendMessageDirectMethods();
 
   @DefaultMessage("GetValue")
   @Description("")
@@ -5869,6 +5877,13 @@ public interface OdeMessages extends Messages {
   @DefaultMessage("Error on Fusion Tables query")
   @Description("")
   String FusionTablesStandardErrorMessage();
+
+  @DefaultMessage("WARNING: Google has Deprecated the Fusion Tables Service. " +
+    "It will stop working on December 3, 2019 " +
+    "<a href=\"https://support.google.com/fusiontables/answer/9185417\" target=\"_blank\"> " +
+    "Learn More</a>")
+  @Description("")
+  String FusionTablesDeprecated();
 
   @DefaultMessage("SelectionColor")
   @Description("")

@@ -737,6 +737,14 @@ class NativeOpenStreetMapController implements MapController, MapListener {
     MultiPolygon polygon = (MultiPolygon) featureOverlays.get(aiPolygon);
     if (polygon != null) {
       polygon.setMultiPoints(aiPolygon.getPoints());
+      view.invalidate();
+    }
+  }
+
+  @Override
+  public void updateFeatureHoles(MapPolygon aiPolygon) {
+    MultiPolygon polygon = (MultiPolygon) featureOverlays.get(aiPolygon);
+    if (polygon != null) {
       polygon.setMultiHoles(aiPolygon.getHolePoints());
       view.invalidate();
     }
@@ -1137,6 +1145,7 @@ class NativeOpenStreetMapController implements MapController, MapListener {
 
   protected void showOverlay(OverlayWithIW overlay) {
     view.getOverlayManager().add(overlay);
+    view.invalidate();
   }
 
   @Override
@@ -1146,6 +1155,7 @@ class NativeOpenStreetMapController implements MapController, MapListener {
 
   protected void hideOverlay(OverlayWithIW overlay) {
     view.getOverlayManager().remove(overlay);
+    view.invalidate();
   }
 
   @Override
