@@ -345,14 +345,15 @@ public class LoginServlet extends HttpServlet {
     String galleryId = params.get("galleryId");
     String redirect = params.get("redirect");
 
+    ResourceBundle bundle;
     if (locale == null) {
-      locale = "en";
+      bundle = ResourceBundle.getBundle("com/google/appinventor/server/loginmessages", new Locale("en"));
+    } else {
+      bundle = ResourceBundle.getBundle("com/google/appinventor/server/loginmessages", new Locale(locale));
     }
 
-    ResourceBundle bundle = ResourceBundle.getBundle("com/google/appinventor/server/loginmessages", new Locale(locale));
-
     if (DEBUG) {
-      LOG.info("locale = " + locale + " bundle: " + new Locale(locale));
+      LOG.info("locale = " + locale);
     }
     if (page.equals("sendlink")) {
       String email = params.get("email");
@@ -588,6 +589,9 @@ public class LoginServlet extends HttpServlet {
 
   private void sendmail(String email, String url, String locale) {
     Properties props = System.getProperties();
+    if (locale == null) {
+      locale = "en";
+    }
     if (props.get("mail.smtp.host") == null) { // Use webserver approach
       sendmailByWebService(email, url, locale);
     } else {

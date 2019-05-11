@@ -13,9 +13,6 @@
    String googleClientId = Flag.createFlag("auth.googleclientid", "").get();
    boolean anonOK = Flag.createFlag("auth.useanon", false).get();
    boolean showLogin = Flag.createFlag("auth.showlogin", true).get();
-   if (locale == null) {
-       locale = "en";
-   }
 %>
 <html>
   <head>
