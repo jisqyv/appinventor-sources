@@ -251,10 +251,8 @@ public class LoginServlet extends HttpServlet {
         uri += ":" + publicPort.get();
       }
       uri += "/";
-      if (!locale.equals("en")) {
-        uri += "?locale=" + locale;
-      }
-      resp.sendRedirect(uri);   // This should bring up App Inventor
+      resp.sendRedirect(new UriBuilder(uri)
+        .add("locale", locale).build());
       return;
     }
 
