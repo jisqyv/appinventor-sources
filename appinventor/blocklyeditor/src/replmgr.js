@@ -334,6 +334,7 @@ Blockly.ReplMgr.putYail = (function() {
             var offer;
             var key = rs.replcode;
             var haveoffer = false;
+            var connectionstate = "none";
             webrtcisopen = false;
             webrtcforcestop = false;
             top.ConnectProgressBar_setProgress(20, Blockly.Msg.DIALOG_SECURE_ESTABLISHING);
@@ -348,10 +349,13 @@ Blockly.ReplMgr.putYail = (function() {
                                 var hunk = json[i];
                                 var candidate = hunk['candidate'];
                                 offer = hunk['offer'];
-                                if (candidate && haveoffer) {
+                                if (candidate && haveoffer && connectionstate != "none") {
                                     var nonce = hunk['nonce'];
                                     if (!seennonce[nonce]) {
                                         seennonce[nonce] = true;
+                                        console.log("addIceCandidate: signaliingstate = " + webrtcpeer.signalingState +
+                                                    " iceConnectionState = " + webrtcpeer.iceConnectionState);
+                                        console.log("addIceCandidate: candidate = " + JSON.stringify(candidate));
                                         webrtcpeer.addIceCandidate(candidate);
                                     } else {
                                         console.log("Seen nonce " + nonce);
@@ -374,7 +378,8 @@ Blockly.ReplMgr.putYail = (function() {
             };
             webrtcpeer = new RTCPeerConnection(top.ReplState.iceservers);
             webrtcpeer.oniceconnectionstatechange = function(evt) {
-                console.log("oniceconnectionstatechange: evt.type = " + evt.type);
+                console.log("oniceconnectionstatechange: evt.type = " + evt.type + " connection state = " + this.iceConnectionState);
+                connectionstate = this.iceConnectionState;
                 if (this.iceConnectionState == "disconnected" ||
                     this.iceConnectionState == "failed") {
                     webrtcdata = null;
@@ -386,6 +391,7 @@ Blockly.ReplMgr.putYail = (function() {
             };
             webrtcpeer.onsignalingstatechange = function(evt) {
                 console.log("onsignalingstatechange: evt.type = " + evt.type);
+                console.log("onsignalingstatechange: signalingstate = " + this.signalingState);
             };
             webrtcpeer.onicecandidate = function(evt) {
                 if (evt.type == 'icecandidate') {
