@@ -2679,9 +2679,7 @@ private static native boolean finish(String userId) /*-{
   }-*/;
 
 public static native void CLog(String message) /*-{
-    console.log(message
-);
+    console.log(message);
   }-*/;
 
 }
-
