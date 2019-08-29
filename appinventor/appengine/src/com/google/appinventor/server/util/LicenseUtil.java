@@ -26,7 +26,7 @@ import java.util.UUID;
  */
 
 public class LicenseUtil {
-  private final transient static StorageIo storageIo = StorageIoInstanceHolder.INSTANCE;
+  private final transient static StorageIo storageIo = StorageIoInstanceHolder.getInstance();
 
   // KLUDGE: We cache the authCode here to avoid a second call to getLicenseConfig()
   private static String authCode = null;

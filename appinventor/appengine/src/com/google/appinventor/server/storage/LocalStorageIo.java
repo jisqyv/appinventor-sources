@@ -2024,6 +2024,11 @@ public class LocalStorageIo implements  StorageIo {
     }
   }
 
+  @Override
+  public void assertUserHasProject(String userId, long projectId) {
+    // We are a no-op in this storage backend as this cannot happen here
+  }
+
   private static String collectUserErrorInfo(final String userId) {
     return collectUserErrorInfo(userId, CrashReport.NOT_AVAILABLE);
   }
