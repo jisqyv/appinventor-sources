@@ -458,8 +458,10 @@ public class YaVersion {
   // - Added Switch
   // For YOUNG_ANDROiD_VERSION 185:
   // - SPEECHRECOGNIZER_COMPONENT_VERSION was incremented to 2
+  // For YOUNG_ANDROID_VERSION 186:
+  // - BLOCKS_LANGUAGE_VERSION was incremented to 27
 
-  public static final int YOUNG_ANDROID_VERSION = 185;
+  public static final int YOUNG_ANDROID_VERSION = 186;
 
   // ............................... Blocks Language Version Number ...............................
 
@@ -531,8 +533,16 @@ public class YaVersion {
   // - List join with separator block was added.
   // For BLOCKS_LANGUAGE_VERSION 26:
   // - Generic event handlers were added.
+  // For BLOCKS_LANGUAGE_VERSION 27:
+  // - The text compare block was modified to include the not-equal operator
 
-  public static final int BLOCKS_LANGUAGE_VERSION = 26;
+  public static final int BLOCKS_LANGUAGE_VERSION = 27;
+
+  // ................................. Target SDK Version Number ..................................
+
+  public static final int TARGET_SDK_VERSION = 28;
+
+  public static final String TARGET_ANDROID_VERSION = "Android 9.0 Pie";
 
   // ................................. Component Version Numbers ..................................
 
@@ -1254,7 +1264,7 @@ public class YaVersion {
 
   public static final String ACCEPTABLE_COMPANION_PACKAGE = "edu.mit.appinventor.aicompanion3";
 
-  public static final String PREFERRED_COMPANION = "2.55 or 2.55u";
+  public static final String PREFERRED_COMPANION = "2.55";
   public static final String COMPANION_UPDATE_URL = "/companions/MITAI2Companion.asc";
   public static final String COMPANION_UPDATE_URL1 = "/companions/MITAI2Companion.apk";
   public static final String COMPANION_UPDATE_EMULATOR_URL = "/companions/CompanionUpgradeHelper.asc";
