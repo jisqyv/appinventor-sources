@@ -57,13 +57,15 @@ import java.util.Date;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import javax.annotation.Nullable;
+
+// Log4j
+import org.apache.log4j.Logger;
+
 
 /**
  * Implements the StorageIo interface using Local SQL Database and file storage.
@@ -77,7 +79,7 @@ public class LocalStorageIo implements  StorageIo {
   static final String USER_DATABASE = storageRoot.get() + "/users.sqlite";
   static final String BUILDSTATUS_DATABASE = storageRoot.get() + "/buildstatus.sqlite";
 
-  private static final Logger LOG = Logger.getLogger(LocalStorageIo.class.getName());
+  private static final Logger LOG = Logger.getLogger(LocalStorageIo.class);
 
   private static final String DEFAULT_ENCODING = "UTF-8";
 
@@ -480,11 +482,9 @@ public class LocalStorageIo implements  StorageIo {
       ResultSet rs = prep.executeQuery();
       if (rs.next()) {
         String settings = rs.getString("settings");
-//        LOG.log(Level.INFO, "loadSettings: returning " + settings);
         prep.close();
         return settings;
       } else {
-//        LOG.log(Level.INFO, "LoadSettings returning empty.");
         prep.close();
         return "";
       }
@@ -502,7 +502,6 @@ public class LocalStorageIo implements  StorageIo {
 
   @Override
   public void storeSettings(final String userId, final String settings) {
-//    LOG.log(Level.INFO, "storeSettings: userId = " + userId + " settings = " + settings);
     Connection conn = null;
     try {
       conn = userConn.get();
@@ -960,7 +959,7 @@ public class LocalStorageIo implements  StorageIo {
   @Override
   public byte[] downloadRawUserFile(final String userId, final String fileName) {
     // Only support android.keystore and backpack.xml
-    LOG.log(Level.INFO, "downloadRawUserFile: fileName = " + fileName);
+    LOG.debug("downloadRawUserFile: fileName = " + fileName);
     if (!fileName.equals(StorageUtil.ANDROID_KEYSTORE_FILENAME) &&
       !fileName.equals(StorageUtil.USER_BACKPACK_FILENAME)) {
       throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId, fileName),
@@ -1079,12 +1078,12 @@ public class LocalStorageIo implements  StorageIo {
 
   @Override
   public List<String> getProjectSourceFiles(final String userId, final long projectId) {
-    LOG.log(Level.INFO, "getProjectSourceFiles: userId = " + userId + " projectId = " + projectId);
+    LOG.debug("getProjectSourceFiles: userId = " + userId + " projectId = " + projectId);
     List<String> result = new ArrayList<String>();
     try {
       getProjectFiles(userId, projectId, "", true, result);
       for (String zFile : result) {
-        LOG.log(Level.INFO, "getProjectSourceFiles: File = " + zFile);
+        LOG.debug("getProjectSourceFiles: File = " + zFile);
       }
       return result;
     } catch (IOException e) {
@@ -1215,7 +1214,6 @@ public class LocalStorageIo implements  StorageIo {
       final String encoding) {
     try {
       String retval = new String(downloadRawFile(userId, projectId, fileName), encoding);
-//      LOG.log(Level.INFO, "downloadFile: filesName = " + fileName + " contents = " + retval);
       return retval;
     } catch (UnsupportedEncodingException e) {
       throw CrashReport.createAndLogError(LOG, null, "Unsupported file content encoding, "
@@ -1230,7 +1228,7 @@ public class LocalStorageIo implements  StorageIo {
 
   @Override
   public byte[] downloadRawFile(final String userId, final long projectId, final String fileName) {
-    LOG.log(Level.INFO, "downloadRawFile: fileName = " + fileName);
+    LOG.debug("downloadRawFile: fileName = " + fileName);
     FileInputStream in = null;
     byte [] result;
     try {
@@ -1610,7 +1608,7 @@ public class LocalStorageIo implements  StorageIo {
 
   @Override
   public PWData findPWData(final String uid) {
-    LOG.log(Level.INFO, "findPWData called, uid = " + uid);
+    LOG.debug("findPWData called, uid = " + uid);
     Connection conn = null;
     try {
       conn = userConn.get();
@@ -1626,11 +1624,11 @@ public class LocalStorageIo implements  StorageIo {
         pwData.id = uid;
         pwData.email = rs.getString("email");
         pwData.timestamp = new java.util.Date(rs.getDate("timestamp").getTime());
-        LOG.log(Level.INFO, "findPWData returning pwData.email = " + pwData.email);
+        LOG.debug("findPWData returning pwData.email = " + pwData.email);
         prep.close();
         return pwData;
       } else {
-        LOG.log(Level.INFO, "findPWData returning null.");
+        LOG.debug("findPWData returning null.");
         prep.close();
         return null;
       }
@@ -1871,7 +1869,7 @@ public class LocalStorageIo implements  StorageIo {
     }
     String fileName = "__TEMP__/" + UUID.randomUUID().toString();
     tempPath = new File(storageRoot.get() + "/" + fileName);
-    LOG.log(Level.INFO, "Creating Temp file " + fileName);
+    LOG.debug("Creating Temp file " + fileName);
     boolean done = false;
     try {
       FileOutputStream fout = new FileOutputStream(tempPath);
@@ -1889,7 +1887,7 @@ public class LocalStorageIo implements  StorageIo {
   @Override
   public InputStream openTempFile(String fileName) throws IOException {
     File tempPath = new File(storageRoot.get() + "/" + fileName);
-    LOG.log(Level.INFO, "Opening " + tempPath);
+    LOG.debug("Opening " + tempPath);
     return new FileInputStream(tempPath);
   }
 
@@ -1904,7 +1902,7 @@ public class LocalStorageIo implements  StorageIo {
     }
     File tempPath = new File(storageRoot.get() + "/" + fileName);
     tempPath.delete();
-    LOG.log(Level.INFO, "Deleting " + tempPath);
+    LOG.debug("Deleting " + tempPath);
   }
 
   @Override
