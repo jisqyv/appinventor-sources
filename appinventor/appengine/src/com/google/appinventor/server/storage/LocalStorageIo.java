@@ -642,6 +642,11 @@ public class LocalStorageIo implements  StorageIo {
   }
 
   @Override
+  public void setMoveToTrashFlag(final String userId, final long projectId,boolean flag) {
+    // XXX
+  }
+
+  @Override
   public List<Long> getProjects(final String userId) {
     List<Long> projects = new ArrayList<Long>();
     Connection conn = null;
@@ -749,7 +754,7 @@ public class LocalStorageIo implements  StorageIo {
         return new UserProject(projectId, rs.getString("name"),
                                YoungAndroidProjectNode.YOUNG_ANDROID_PROJECT_TYPE,
                                cmillis,
-                               mmillis);
+                               mmillis, false); // XXX
       } else {
         return null;
       }
@@ -789,7 +794,7 @@ public class LocalStorageIo implements  StorageIo {
         UserProject proj = new UserProject(rs.getInt("rowid"), rs.getString("name"),
           YoungAndroidProjectNode.YOUNG_ANDROID_PROJECT_TYPE,
           cmillis,
-          mmillis);
+          mmillis, false); // XXX
         retval.add(proj);
       }
       statement.close();

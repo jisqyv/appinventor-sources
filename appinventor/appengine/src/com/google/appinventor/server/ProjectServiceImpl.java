@@ -220,6 +220,28 @@ public class ProjectServiceImpl extends OdeRemoteServiceServlet implements Proje
   }
 
   /**
+   * Moves the project to trash.
+   * @param projectId  project ID
+   */
+  @Override
+  public UserProject moveToTrash(long projectId) {
+      String userId = userInfoProvider.getUserId();
+      storageIo.setMoveToTrashFlag(userId,projectId,true);
+      return storageIo.getUserProject(userId,projectId);
+  }
+
+  /**
+   * Moves the project back to My Projects Tab.
+   * @param projectId  project ID
+   */
+  @Override
+  public UserProject restoreProject(long projectId) {
+      String userId = userInfoProvider.getUserId();
+      storageIo.setMoveToTrashFlag(userId,projectId,false);
+      return storageIo.getUserProject(userId,projectId);
+  }
+
+  /**
    * Returns an array with project IDs.
    *
    * @return  IDs of projects found by the back-end

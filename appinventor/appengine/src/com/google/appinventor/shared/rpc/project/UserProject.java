@@ -30,6 +30,11 @@ public class UserProject implements IsSerializable {
   private String projectType;
 
   /**
+   * The moved to Trash flag.
+   */
+  private boolean projectMovedToTrashFlag;
+
+  /**
    * The date the project was created expressed in milliseconds since
    * January 1, 1970 UTC
    */
@@ -57,12 +62,13 @@ public class UserProject implements IsSerializable {
    * @param projectName the project name
    * @param projectType the project type
    */
-  public UserProject(long projectId, String projectName, String projectType, long creationDate) {
+  public UserProject(long projectId, String projectName, String projectType, long creationDate, boolean projectMovedToTrashFlag) {
     this.projectId = projectId;
     this.projectName = projectName;
     this.projectType = projectType;
     this.creationDate = creationDate;
     this.modificationDate = creationDate;
+    this.projectMovedToTrashFlag = projectMovedToTrashFlag;
   }
 
   /**
@@ -73,12 +79,13 @@ public class UserProject implements IsSerializable {
    * @param projectType the project type
    */
   public UserProject(long projectId, String projectName, String projectType, long creationDate,
-      long modificationDate) {
+      long modificationDate, boolean projectMovedToTrashFlag) {
     this.projectId = projectId;
     this.projectName = projectName;
     this.projectType = projectType;
     this.creationDate = creationDate;
     this.modificationDate = modificationDate;
+    this.projectMovedToTrashFlag = projectMovedToTrashFlag;
   }
 
   /**
@@ -120,6 +127,10 @@ public class UserProject implements IsSerializable {
     if (modificationDate != 0) {
       this.modificationDate = modificationDate;
     }
+  }
+
+  public boolean getProjectMovedToTrashFlag() {
+    return projectMovedToTrashFlag;
   }
 
   @Override

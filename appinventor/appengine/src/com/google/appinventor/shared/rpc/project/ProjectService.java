@@ -80,6 +80,18 @@ public interface ProjectService extends RemoteService {
   void deleteProject(long projectId);
 
   /**
+   * Moves the project to trash.
+   * @param projectId  project ID
+   */
+  UserProject moveToTrash(long projectId);
+
+  /**
+   * Moves the project to trash.
+   * @param projectId  project ID
+   */
+  UserProject restoreProject(long projectId);
+
+  /**
    * Returns an array with project IDs.
    *
    * @return  IDs of projects found by the back-end

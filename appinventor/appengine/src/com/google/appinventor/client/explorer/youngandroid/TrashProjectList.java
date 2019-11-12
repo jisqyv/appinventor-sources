@@ -1,6 +1,5 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2019 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -34,22 +33,29 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The project list shows all projects in a table.
+ * The deleted project list shows all projects in a table.
  *
  * <p> The project name, date created, and date modified will be shown in the table.
  *
  * @author lizlooney@google.com (Liz Looney)
  */
-public class ProjectList extends Composite implements ProjectManagerEventListener {
+public class TrashProjectList extends Composite implements ProjectManagerEventListener {
   private enum SortField {
-    NAME,
-    DATE_CREATED,
-    DATE_MODIFIED,
+      NAME,
+      DATE_CREATED,
+      DATE_MODIFIED,
+      PUBLISHED,
   }
   private enum SortOrder {
-    ASCENDING,
-    DESCENDING,
+      ASCENDING,
+      DESCENDING,
   }
+
+  // TODO: add these to OdeMessages.java
+  private static final String NOT_PUBLISHED = "No";
+  private static final String PUBLISHED = "Yes";
+
+
   private final List<Project> projects;
   private final List<Project> selectedProjects;
   private final Map<Project, ProjectWidgets> projectWidgets;
@@ -58,16 +64,18 @@ public class ProjectList extends Composite implements ProjectManagerEventListene
 
   private boolean projectListLoading = true;
 
+
   // UI elements
   private final Grid table;
   private final Label nameSortIndicator;
   private final Label dateCreatedSortIndicator;
   private final Label dateModifiedSortIndicator;
+  private final Label publishedSortIndicator;
 
   /**
-   * Creates a new ProjectList
+   * Creates a new TrashProjectList
    */
-  public ProjectList() {
+  public TrashProjectList() {
     projects = new ArrayList<Project>();
     selectedProjects = new ArrayList<Project>();
     projectWidgets = new HashMap<Project, ProjectWidgets>();
@@ -76,13 +84,14 @@ public class ProjectList extends Composite implements ProjectManagerEventListene
     sortOrder = SortOrder.DESCENDING;
 
     // Initialize UI
-    table = new Grid(1, 4); // The table initially contains just the header row.
+    table = new Grid(1, 5); // The table initially contains just the header row.
     table.addStyleName("ode-ProjectTable");
     table.setWidth("100%");
     table.setCellSpacing(0);
     nameSortIndicator = new Label("");
     dateCreatedSortIndicator = new Label("");
     dateModifiedSortIndicator = new Label("");
+    publishedSortIndicator = new Label("");
     refreshSortIndicators();
     setHeaderRow();
 
@@ -127,16 +136,26 @@ public class ProjectList extends Composite implements ProjectManagerEventListene
     dateModifiedHeader.add(dateModifiedSortIndicator);
     table.setWidget(0, 3, dateModifiedHeader);
 
+    HorizontalPanel publishedHeader = new HorizontalPanel();
+    final Label publishedHeaderLabel = new Label(MESSAGES.projectPublishedHeader());
+    publishedHeaderLabel.addStyleName("ode-ProjectHeaderLabel");
+    publishedHeader.add(publishedHeaderLabel);
+    publishedSortIndicator.addStyleName("ode-ProjectHeaderLabel");
+    publishedHeader.add(publishedSortIndicator);
+    table.setWidget(0, 4, publishedHeader);
+
     MouseDownHandler mouseDownHandler = new MouseDownHandler() {
       @Override
       public void onMouseDown(MouseDownEvent e) {
         SortField clickedSortField;
         if (e.getSource() == nameHeaderLabel || e.getSource() == nameSortIndicator) {
-          clickedSortField = SortField.NAME;
+            clickedSortField = SortField.NAME;
         } else if (e.getSource() == dateCreatedHeaderLabel || e.getSource() == dateCreatedSortIndicator) {
-          clickedSortField = SortField.DATE_CREATED;
+            clickedSortField = SortField.DATE_CREATED;
+        } else if (e.getSource() == dateModifiedHeaderLabel || e.getSource() == dateModifiedSortIndicator) {
+            clickedSortField = SortField.DATE_MODIFIED;
         } else {
-          clickedSortField = SortField.DATE_MODIFIED;
+            clickedSortField = SortField.PUBLISHED;
         }
         changeSortOrder(clickedSortField);
       }
@@ -147,6 +166,8 @@ public class ProjectList extends Composite implements ProjectManagerEventListene
     dateCreatedSortIndicator.addMouseDownHandler(mouseDownHandler);
     dateModifiedHeaderLabel.addMouseDownHandler(mouseDownHandler);
     dateModifiedSortIndicator.addMouseDownHandler(mouseDownHandler);
+    publishedHeaderLabel.addMouseDownHandler(mouseDownHandler);
+    publishedSortIndicator.addMouseDownHandler(mouseDownHandler);
   }
 
   private void changeSortOrder(SortField clickedSortField) {
@@ -169,20 +190,25 @@ public class ProjectList extends Composite implements ProjectManagerEventListene
         : "\u25BC";     // down-pointing triangle
     switch (sortField) {
       case NAME:
-        nameSortIndicator.setText(text);
-        dateCreatedSortIndicator.setText("");
-        dateModifiedSortIndicator.setText("");
-        break;
+          nameSortIndicator.setText(text);
+          dateCreatedSortIndicator.setText("");
+          dateModifiedSortIndicator.setText("");
+          break;
       case DATE_CREATED:
-        dateCreatedSortIndicator.setText(text);
-        dateModifiedSortIndicator.setText("");
-        nameSortIndicator.setText("");
-        break;
+          dateCreatedSortIndicator.setText(text);
+          dateModifiedSortIndicator.setText("");
+          nameSortIndicator.setText("");
+          break;
       case DATE_MODIFIED:
-        dateModifiedSortIndicator.setText(text);
-        dateCreatedSortIndicator.setText("");
-        nameSortIndicator.setText("");
-        break;
+          dateModifiedSortIndicator.setText(text);
+          dateCreatedSortIndicator.setText("");
+          nameSortIndicator.setText("");
+          break;
+      case PUBLISHED:
+          publishedSortIndicator.setText(text);
+          nameSortIndicator.setText("");
+          dateCreatedSortIndicator.setText("");
+          dateModifiedSortIndicator.setText("");
     }
   }
 
@@ -191,6 +217,7 @@ public class ProjectList extends Composite implements ProjectManagerEventListene
     final Label nameLabel;
     final Label dateCreatedLabel;
     final Label dateModifiedLabel;
+    final Label publishedLabel;
 
     private ProjectWidgets(final Project project) {
       checkBox = new CheckBox();
@@ -206,7 +233,7 @@ public class ProjectList extends Composite implements ProjectManagerEventListene
             table.getRowFormatter().setStyleName(row, "ode-ProjectRowUnHighlighted");
             selectedProjects.remove(project);
           }
-          Ode.getInstance().getProjectToolbar().updateButtons();
+          Ode.getInstance().getProjectToolbar().updateTrashButtons();
         }
       });
 
@@ -218,7 +245,6 @@ public class ProjectList extends Composite implements ProjectManagerEventListene
           if (ode.screensLocked()) {
             return;             // i/o in progress, ignore request
           }
-          ode.openYoungAndroidProjectInDesigner(project);
         }
       });
       nameLabel.addStyleName("ode-ProjectNameLabel");
@@ -230,6 +256,8 @@ public class ProjectList extends Composite implements ProjectManagerEventListene
 
       Date dateModified = new Date(project.getDateModified());
       dateModifiedLabel = new Label(dateTimeFormat.format(dateModified));
+
+      publishedLabel = new Label();
     }
   }
 
@@ -268,7 +296,7 @@ public class ProjectList extends Composite implements ProjectManagerEventListene
     refreshSortIndicators();
 
     // Refill the table.
-    table.resize(1 + projects.size(), 4);
+    table.resize(1 + projects.size(), 5);
     int row = 1;
     for (Project project : projects) {
       ProjectWidgets pw = projectWidgets.get(project);
@@ -283,10 +311,11 @@ public class ProjectList extends Composite implements ProjectManagerEventListene
       table.setWidget(row, 1, pw.nameLabel);
       table.setWidget(row, 2, pw.dateCreatedLabel);
       table.setWidget(row, 3, pw.dateModifiedLabel);
+      table.setWidget(row, 4, pw.publishedLabel);
       row++;
     }
 
-    Ode.getInstance().getProjectToolbar().updateButtons();
+    Ode.getInstance().getProjectToolbar().updateTrashButtons();
   }
 
   /**
@@ -295,7 +324,7 @@ public class ProjectList extends Composite implements ProjectManagerEventListene
    * @return the number of projects
    */
   public int getNumProjects() {
-    return projects.size();
+      return projects.size();
   }
 
   /**
@@ -304,7 +333,7 @@ public class ProjectList extends Composite implements ProjectManagerEventListene
    * @return the number of selected projects
    */
   public int getNumSelectedProjects() {
-    return selectedProjects.size();
+      return selectedProjects.size();
   }
 
   /**
@@ -313,13 +342,16 @@ public class ProjectList extends Composite implements ProjectManagerEventListene
    * @return the selected projects
    */
   public List<Project> getSelectedProjects() {
-    return selectedProjects;
+      return selectedProjects;
   }
 
   // ProjectManagerEventListener implementation
 
   @Override
-  public void onProjectAdded(Project project) {
+  public void onProjectAdded(Project project) { }
+
+  @Override
+  public void onDeletedProjectAdded(Project project) {
     projects.add(project);
     projectWidgets.put(project, new ProjectWidgets(project));
     if (!projectListLoading) {
@@ -328,25 +360,25 @@ public class ProjectList extends Composite implements ProjectManagerEventListene
   }
 
   @Override
-  public void onDeletedProjectAdded(Project project) {}
+  public void onProjectRemoved(Project project) { }
 
   @Override
-  public void onProjectRemoved(Project project) {
+  public void onDeletedProjectRemoved(Project project) {
     projects.remove(project);
     projectWidgets.remove(project);
 
     refreshTable(false);
 
     selectedProjects.remove(project);
-    Ode.getInstance().getProjectToolbar().updateButtons();
+    Ode.getInstance().getProjectToolbar().updateTrashButtons();
   }
-
-  @Override
-  public void onDeletedProjectRemoved(Project project) { }
 
   @Override
   public void onProjectsLoaded() {
     projectListLoading = false;
     refreshTable(true);
+  }
+  public void onProjectPublishedOrUnpublished() {
+      refreshTable(false);
   }
 }
