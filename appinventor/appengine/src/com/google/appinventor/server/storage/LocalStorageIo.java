@@ -96,6 +96,17 @@ public class LocalStorageIo implements  StorageIo {
   private ThreadLocal<Connection> userConn = new ThreadLocal<Connection>();
   private ThreadLocal<Connection> buildConn = new ThreadLocal<Connection>();
 
+  // We set this to true if we are retrying a call in an error handler after
+  // "fixing" the problem. This is used to handling schema upgrades. If the
+  // schema is out of data, we typically get an SQLException. We then update
+  // the schema and call the failing function (aka ourselves) again after
+  // setting this flag. If this flag is set on an error, then something else
+  // is going on and we re-throw the original error
+  //
+  // We do go about things in this fashion to avoid having to verify the
+  // schema on each call, which would be a performance issue.
+  private boolean recursiveError = false;
+
   // Create a final object of this class to hold a modifiable result value that
   // can be used in a method of an inner class.
   private class Result<T> {
@@ -343,7 +354,7 @@ public class LocalStorageIo implements  StorageIo {
       projectDb = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + newId + "/projects.sqlite");
       Statement statement = projectDb.createStatement();
       // Note: the projectId is the rowid which is auto-created
-      statement.executeUpdate("create table projects (name string, settings string, created date, modified date, history string, deleted boolean)");
+      statement.executeUpdate("create table projects (name string, settings string, created date, modified date, history string, deleted boolean, trashed boolean)");
       statement.close();
     } finally {
       if (projectDb != null) {
@@ -538,8 +549,8 @@ public class LocalStorageIo implements  StorageIo {
       // Get connection to the user's projects database
       conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
       conn.setAutoCommit(false);
-      PreparedStatement prep = conn.prepareStatement("insert into projects (name, settings, created, modified, history, deleted) " +
-        "values (?, ?, ?, ?, ?, 0)");
+      PreparedStatement prep = conn.prepareStatement("insert into projects (name, settings, created, modified, history, deleted, trashed) " +
+        "values (?, ?, ?, ?, ?, 0, 0)");
       prep.setQueryTimeout(30);
       prep.setString(1, project.getProjectName());
       prep.setString(2, projectSettings);
@@ -641,8 +652,30 @@ public class LocalStorageIo implements  StorageIo {
   }
 
   @Override
-  public void setMoveToTrashFlag(final String userId, final long projectId,boolean flag) {
-    // XXX
+  public void setMoveToTrashFlag(final String userId, final long projectId, boolean flag) {
+    Connection conn = null;
+    try {
+      conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
+      PreparedStatement prep;
+      if (flag) {
+        prep = conn.prepareStatement("update projects set trashed = 1 where rowid = ?");
+      } else {
+        prep = conn.prepareStatement("update projects set trashed = 0 where rowid = ?");
+      }
+      prep.setLong(1, projectId);
+      prep.execute();
+    } catch (SQLException e) {
+      throw CrashReport.createAndLogError(LOG, null,
+        collectUserProjectErrorInfo(userId, projectId), e);
+    } finally {
+      if (conn != null) {
+        try {
+          conn.close();
+        } catch (Exception e) {
+          CrashReport.createAndLogError(LOG, null, collectUserProjectErrorInfo(userId, projectId), e);
+        }
+      }
+    }
   }
 
   @Override
@@ -742,6 +775,7 @@ public class LocalStorageIo implements  StorageIo {
       if (rs.next()) {
         java.sql.Date created = rs.getDate("created");
         java.sql.Date modified = rs.getDate("modified");
+        boolean trashed = rs.getBoolean("trashed");
         long cmillis = 0;
         long mmillis = 0;
         if (created != null) {
@@ -753,7 +787,7 @@ public class LocalStorageIo implements  StorageIo {
         return new UserProject(projectId, rs.getString("name"),
                                YoungAndroidProjectNode.YOUNG_ANDROID_PROJECT_TYPE,
                                cmillis,
-                               mmillis, false); // XXX
+                               mmillis, trashed);
       } else {
         return null;
       }
@@ -782,6 +816,7 @@ public class LocalStorageIo implements  StorageIo {
       while (rs.next()) {
         java.sql.Date created = rs.getDate("created");
         java.sql.Date modified = rs.getDate("modified");
+        boolean trashed = rs.getBoolean("trashed");
         long cmillis = 0;
         long mmillis = 0;
         if (created != null) {
@@ -793,14 +828,27 @@ public class LocalStorageIo implements  StorageIo {
         UserProject proj = new UserProject(rs.getInt("rowid"), rs.getString("name"),
           YoungAndroidProjectNode.YOUNG_ANDROID_PROJECT_TYPE,
           cmillis,
-          mmillis, false); // XXX
+          mmillis, trashed);
         retval.add(proj);
       }
       statement.close();
       return retval;
     } catch (SQLException e) {
-      throw CrashReport.createAndLogError(LOG, null,
-        collectUserErrorInfo(userId), e);
+      if (recursiveError) {
+        throw CrashReport.createAndLogError(LOG, null,
+          collectUserErrorInfo(userId), e);
+      } else {
+        if (!updateProjectsSchema(conn)) {
+          throw CrashReport.createAndLogError(LOG, null,
+            collectUserErrorInfo(userId), e);
+        } else {
+          // Call ourselves recursively
+          List<UserProject> zretVal = getUserProjects(userId, projectIds);
+          // All went well, so clear the recursive error flag
+          recursiveError = false;
+          return zretVal;
+        }
+      }
     } finally {
       if (conn != null) {
         try {
@@ -2055,4 +2103,30 @@ public class LocalStorageIo implements  StorageIo {
     return formatter.format(new java.util.Date());
   }
 
+  private boolean updateProjectsSchema(Connection conn) {
+    try {
+      Statement statement = conn.createStatement();
+      ResultSet rs = statement.executeQuery("select sql from sqlite_master where name = 'projects'");
+      if (rs.next()) {
+        String sql = rs.getString("sql");
+        LOG.debug("sql = " + sql);
+        sql = sql.toLowerCase();
+        if (sql.equals("create table projects (name string, settings string, created date, modified date, history string, deleted boolean)")) {
+          rs.close();
+          statement.executeUpdate("alter table projects add column trashed boolean");
+          statement.executeUpdate("update projects set trashed = 0");
+          statement.close();
+          return true;
+        } else {
+          LOG.warn("Unknown schema during projects schema update: " + sql);
+          return false;
+        }
+      } else {
+        return false;             // ?
+      }
+    } catch (SQLException e) {
+      throw CrashReport.createAndLogError(LOG, null,
+        null, e);
+    }
+  }
 }
