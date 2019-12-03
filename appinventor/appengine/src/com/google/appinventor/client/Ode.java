@@ -2560,6 +2560,7 @@ public class Ode implements EntryPoint {
   private void showTutorials() {
     if (tutorialVisible) {
       tutorialPanel.setVisible(true);
+      overDeckPanel.setCellWidth(tutorialPanel, "300");
     }
   }
 
@@ -2568,6 +2569,7 @@ public class Ode implements EntryPoint {
     if (visible) {
       tutorialPanel.setVisible(true);
       tutorialPanel.setWidth("300px");
+      overDeckPanel.setCellWidth(tutorialPanel, "300");
     } else {
       tutorialPanel.setVisible(false);
       overDeckPanel.setCellWidth(tutorialPanel, "0%");
