@@ -11,26 +11,6 @@
     <filter-class>com.google.appinventor.server.OdeAuthFilter</filter-class>
   </filter>
 
-<!-- The "nonesuch" security role is a role that no one will -->
-<!-- ever have. The purpose is so we can restrict access to -->
-<!-- the keystore file, which should never be served over the -->
-<!-- web. It should really be moved to WEB-INF, but for now we -->
-<!-- want to remain compatible with the App Engine version of -->
-<!-- this code, so we leave it at top level, but protect it -->
-
-  <security-role>
-    <role-name>nonesuch</role-name>
-  </security-role>
-
-  <security-constraint>
-    <web-resource-collection>
-      <url-pattern>/keystore/*</url-pattern>
-    </web-resource-collection>
-    <auth-constraint>
-      <role-name>nonesuch</role-name>
-    </auth-constraint>
-  </security-constraint>
-
   <!-- Security constraints: require login for these urls -->
   <!-- This is how we implement Google Account login -->
 
@@ -49,11 +29,8 @@
       <url-pattern>/ode2/*</url-pattern>
       <url-pattern>/companions/*</url-pattern>
       <url-pattern>/reference/*</url-pattern>
-      <url-pattern>/learn/*</url-pattern>
       <url-pattern>/about/*</url-pattern>
-      <url-pattern>/forum/*</url-pattern>
       <url-pattern>/b/*</url-pattern>
-      <url-pattern>/rendezvous/*</url-pattern>
       <url-pattern>/remote_api/*</url-pattern>
     </web-resource-collection>
   </security-constraint>
@@ -97,16 +74,6 @@
   </servlet-mapping>
 
 
-  <!-- rendezvious -->
-  <servlet>
-    <servlet-name>rendezvousServlet</servlet-name>
-    <servlet-class>com.google.appinventor.server.RendezvousServlet</servlet-class>
-  </servlet>
-  <servlet-mapping>
-    <servlet-name>rendezvousServlet</servlet-name>
-    <url-pattern>/rendezvous/*</url-pattern>
-  </servlet-mapping>
-
   <!-- Nonce based APK download -->
   <servlet>
     <servlet-name>buildOutputServlet</servlet-name>
@@ -144,16 +111,6 @@
     <filter-name>odeAuthFilter</filter-name>
     <servlet-name>getMotdService</servlet-name>
   </filter-mapping>
-
-  <!-- help -->
-  <servlet>
-    <servlet-name>helpService</servlet-name>
-    <servlet-class>com.google.appinventor.server.HelpServiceImpl</servlet-class>
-  </servlet>
-  <servlet-mapping>
-    <servlet-name>helpService</servlet-name>
-    <url-pattern>/ode/help</url-pattern>
-  </servlet-mapping>
 
   <!-- projects -->
   <servlet>
@@ -226,20 +183,6 @@
     <servlet-name>cloudDBAuthService</servlet-name>
   </filter-mapping>
 
-  <!-- android -->
-  <servlet>
-    <servlet-name>androidServlet</servlet-name>
-    <servlet-class>com.google.appinventor.server.AndroidServlet</servlet-class>
-  </servlet>
-  <servlet-mapping>
-    <servlet-name>androidServlet</servlet-name>
-    <url-pattern>/android/*</url-pattern>
-  </servlet-mapping>
-  <filter-mapping>
-    <filter-name>odeAuthFilter</filter-name>
-    <servlet-name>androidServlet</servlet-name>
-  </filter-mapping>
-
   <!-- accept tos -->
   <servlet>
     <servlet-name>tosServlet</servlet-name>
@@ -303,21 +246,11 @@
     <servlet-name>firebaseAuthService</servlet-name>
   </filter-mapping>
 
-  <!-- Not sure what needs to replace GwtResourceServlet
-  <servlet>
-    <servlet-name>odeUiServlet</servlet-name>
-    <servlet-class>com.google.gwt.gserver.GwtResourceServlet</servlet-class>
-  </servlet>
-  <servlet-mapping>
-    <servlet-name>odeUiServlet</servlet-name>
-    <url-pattern>/ode/*</url-pattern>
-  </servlet-mapping>
-  -->
-
   <mime-mapping>
     <extension>js</extension>
     <mime-type>application/javascript; charset=utf-8</mime-type>
   </mime-mapping>
+  <!-- TODO: Optionally add a <welcome-file-list> tag to display a welcome file. -->
 
   <!-- components -->
   <servlet>
