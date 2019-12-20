@@ -64,7 +64,7 @@ public class ProjectServiceImpl extends OdeRemoteServiceServlet implements Proje
 
   @Override public void init() {
     Encryptor encryptor = EncryptionStrategy.WRITE;
-    encryptor.setKeyPath(getServletContext().getRealPath("keystore"));
+    encryptor.setKeyPath(getServletContext().getRealPath("WEB-INF/keystore"));
     LOG.log(Level.INFO, "Settings encryptor keystore path.");
   }
 
