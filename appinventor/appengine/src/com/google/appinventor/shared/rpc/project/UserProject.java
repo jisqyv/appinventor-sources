@@ -129,7 +129,15 @@ public class UserProject implements IsSerializable {
     }
   }
 
-  public boolean getProjectMovedToTrashFlag() {
+  public void moveToTrash() {
+    this.projectMovedToTrashFlag = true;
+  }
+
+  public void restoreFromTrash() {
+    this.projectMovedToTrashFlag = false;
+  }
+
+  public boolean isInTrash() {
     return projectMovedToTrashFlag;
   }
 
