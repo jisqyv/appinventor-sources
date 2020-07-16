@@ -517,6 +517,7 @@
         <pathelement location="${lib.dir}/gwt_incubator/gwt-incubator-20101117-r1766.jar" />
         <pathelement location="${lib.dir}/gwt_query/gwtquery-1.5-beta1.jar" />
         <pathelement location="${lib.dir}/smart_gwt/smartgwt-2.5.jar" />
+        <pathelement location="${lib.dir}/gwt_material/gwt-material-jquery-2.3.0.jar" />
         <pathelement location="${lib.dir}/gwt_material/gwt-material-2.3.0.jar" />
         <!-- gwt libs -->
         <pathelement location="${gwt.sdk}/gwt-user.jar"/>
@@ -570,6 +571,9 @@
         <pathelement location="${lib.dir}/gwt_dragdrop/gwt-dnd-3.2.3.jar" />
         <pathelement location="${lib.dir}/gwt_incubator/gwt-incubator-20101117-r1766.jar" />
         <pathelement location="${lib.dir}/gwt_query/gwtquery-1.5-beta1.jar" />
+        <pathelement location="${lib.dir}/smart_gwt/smartgwt-2.5.jar" />
+        <pathelement location="${lib.dir}/gwt_material/gwt-material-jquery-2.3.0.jar" />
+        <pathelement location="${lib.dir}/gwt_material/gwt-material-2.3.0.jar" />
         <!-- gwt libs -->
         <pathelement location="${gwt.sdk}/gwt-dev.jar"/>
         <pathelement location="${gwt.sdk}/gwt-user.jar"/>
