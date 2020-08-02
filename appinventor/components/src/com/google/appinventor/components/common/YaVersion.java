@@ -1,6 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2019 MIT, All rights reserved
+// Copyright 2011-2020 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -510,8 +510,10 @@ public class YaVersion {
   // - BLOCKS_LANGUAGE_VERSION was incremented to 31
   // For YOUNG_ANDROID_VERSION 206:
   // - YANDEX_COMPONENT_VERSION was incremented to 2.
+  // For YOUNG_ANDROID_VERSION 207:
+  // - BLOCKS_LANGUAGE_VERSION was incremented to 32
 
-  public static final int YOUNG_ANDROID_VERSION = 206;
+  public static final int YOUNG_ANDROID_VERSION = 207;
 
   // ............................... Blocks Language Version Number ...............................
 
@@ -591,14 +593,16 @@ public class YaVersion {
   // - The Reverse Text block was added
   // For BLOCKS_LANGUAGE_VERSION 31
   // - The replace-all-mappings block was added.
+  // For BLOCKS_LANGUAGE_VERSION 32
+  // - The and/or blocks gained mutators.
 
-  public static final int BLOCKS_LANGUAGE_VERSION = 31;
+  public static final int BLOCKS_LANGUAGE_VERSION = 32;
 
   // ................................. Target SDK Version Number ..................................
 
-  public static final int TARGET_SDK_VERSION = 28;
+  public static final int TARGET_SDK_VERSION = 29;
 
-  public static final String TARGET_ANDROID_VERSION = "Android 9.0 Pie";
+  public static final String TARGET_ANDROID_VERSION = "Android 10.0";
 
   // ................................. Component Version Numbers ..................................
 
@@ -1393,11 +1397,11 @@ public class YaVersion {
 
   public static final String ACCEPTABLE_COMPANION_PACKAGE = "edu.mit.appinventor.aicompanion3";
 
-  public static final String PREFERRED_COMPANION = "2.58a";
+  public static final String PREFERRED_COMPANION = "2.59";
   public static final String COMPANION_UPDATE_URL = "/companions/MITAI2Companion.asc";
   public static final String COMPANION_UPDATE_URL1 = "/companions/MITAI2Companion.apk";
   public static final String COMPANION_UPDATE_EMULATOR_URL = "/companions/CompanionUpgradeHelper.asc";
-  public static final String [] ACCEPTABLE_COMPANIONS = { "2.58a", "2.58au" };
+  public static final String [] ACCEPTABLE_COMPANIONS = { "2.59", "2.59u" };
 
   // Splash Screen Values
   public static final int SPLASH_SURVEY = 1;

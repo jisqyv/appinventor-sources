@@ -7,18 +7,26 @@
 package com.google.appinventor.client.explorer.youngandroid;
 
 import com.google.appinventor.client.Ode;
-import static com.google.appinventor.client.Ode.MESSAGES;
-
 import com.google.appinventor.client.explorer.project.Project;
 import com.google.appinventor.client.explorer.project.ProjectComparators;
 import com.google.appinventor.client.explorer.project.ProjectManagerEventListener;
+
+import com.google.appinventor.shared.rpc.ServerLayout;
+
+import com.google.gwt.core.client.GWT;
+
+import com.google.gwt.dom.client.Element;
+
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.dom.client.MouseDownEvent;
 import com.google.gwt.event.dom.client.MouseDownHandler;
+
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.event.logical.shared.ValueChangeHandler;
+
 import com.google.gwt.i18n.client.DateTimeFormat;
+
 import com.google.gwt.user.client.ui.CheckBox;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.Grid;
@@ -33,6 +41,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static com.google.appinventor.client.Ode.MESSAGES;
 
 /**
  * The project list shows all projects in a table.
@@ -290,6 +300,11 @@ public class ProjectList extends Composite implements ProjectManagerEventListene
         } else {
           table.getRowFormatter().setStyleName(row, "ode-ProjectRowUnHighlighted");
           pw.checkBox.setValue(false);
+          table.getRowFormatter().getElement(row).setAttribute("data-exporturl",
+              "application/octet-stream:" + project.getProjectName() + ".aia:"
+                  + GWT.getModuleBaseURL() + ServerLayout.DOWNLOAD_SERVLET_BASE
+                  + ServerLayout.DOWNLOAD_PROJECT_SOURCE + "/" + project.getProjectId());
+          configureDraggable(table.getRowFormatter().getElement(row));
         }
         pw.checkBox.setName(String.valueOf(row));
         if (row >= previous_rowmax) {
@@ -375,4 +390,13 @@ public class ProjectList extends Composite implements ProjectManagerEventListene
     projectListLoading = false;
     refreshTable(true);
   }
+
+  private static native void configureDraggable(Element el)/*-{
+    if (el.getAttribute('draggable') != 'true') {
+      el.setAttribute('draggable', 'true');
+      el.addEventListener('dragstart', function(e) {
+        e.dataTransfer.setData('DownloadURL', this.dataset.exporturl);
+      });
+    }
+  }-*/;
 }

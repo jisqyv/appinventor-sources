@@ -38,7 +38,7 @@ import com.google.appinventor.client.settings.Settings;
 import com.google.appinventor.client.settings.user.UserSettings;
 
 import com.google.appinventor.client.tracking.Tracking;
-
+import com.google.appinventor.client.utils.HTML5DragDrop;
 import com.google.appinventor.client.utils.PZAwarePositionCallback;
 
 import com.google.appinventor.client.widgets.boxes.Box;
@@ -469,37 +469,49 @@ public class Ode implements EntryPoint {
     resizeWorkArea((WorkAreaPanel) deckPanel.getWidget(debuggingTabIndex));
   }
 
-  public void openPreviousProject() {
+  /**
+   * Processes the template and galleryId flags.
+   *
+   * @return true if a template or gallery id is present and being handled, otherwise false.
+   */
+  private boolean handleQueryString() {
     if (userSettings == null) {
-      OdeLog.wlog("Ignoring openPreviousProject() since userSettings is null");
-      return;
+      return false;
     }
-    OdeLog.log("Ode.openPreviousProject called");
-    String value = userSettings.getSettings(SettingsConstants.USER_GENERAL_SETTINGS).
-      getPropertyValue(SettingsConstants.GENERAL_SETTINGS_CURRENT_PROJECT_ID);
-
     // Retrieve the userTemplates
-    String userTemplates = userSettings.getSettings(SettingsConstants.USER_GENERAL_SETTINGS).
-      getPropertyValue(SettingsConstants.USER_TEMPLATE_URLS);
+    String userTemplates = userSettings.getSettings(SettingsConstants.USER_GENERAL_SETTINGS)
+        .getPropertyValue(SettingsConstants.USER_TEMPLATE_URLS);
     TemplateUploadWizard.setStoredTemplateUrls(userTemplates);
 
     if (templateLoadingFlag) {  // We are loading a template, open it instead
                                 // of the last project
       NewProjectCommand callbackCommand = new NewProjectCommand() {
-          @Override
-          public void execute(Project project) {
-            templateLoadingFlag = false;
-            Ode.getInstance().openYoungAndroidProjectInDesigner(project);
-          }
-        };
+        @Override
+        public void execute(Project project) {
+          templateLoadingFlag = false;
+          Ode.getInstance().openYoungAndroidProjectInDesigner(project);
+        }
+      };
       TemplateUploadWizard.openProjectFromTemplate(templatePath, callbackCommand);
-    } else {
-      openProject(value);
+      return true;
     }
+    return false;
+  }
+
+  /**
+   * Opens the user's last project, if the information is known.
+   */
+  private void openPreviousProject() {
+    if (userSettings == null) {
+      OdeLog.wlog("Ignoring openPreviousProject() since userSettings is null");
+      return;
+    }
+    final String value = userSettings.getSettings(SettingsConstants.USER_GENERAL_SETTINGS)
+        .getPropertyValue(SettingsConstants.GENERAL_SETTINGS_CURRENT_PROJECT_ID);
+    openProject(value);
   }
 
   private void openProject(String projectIdString) {
-    OdeLog.log("Ode.openProject called for " + projectIdString);
     if (projectIdString.equals("")) {
       openPreviousProject();
     } else if (!projectIdString.equals("0")) {
@@ -709,7 +721,7 @@ public class Ode implements EntryPoint {
               @Override
               public void onProjectsLoaded() {
                 projectManager.removeProjectManagerEventListener(this);
-                if (shouldAutoloadLastProject()) {
+                if (!handleQueryString() && shouldAutoloadLastProject()) {
                   openPreviousProject();
                 }
 
@@ -749,7 +761,7 @@ public class Ode implements EntryPoint {
       }
 
       private String makeUri(String base) {
-        String[] params = new String[] { "locale", "repo", "galleryId" };
+        String[] params = new String[] { "locale", "repo", "galleryId", "autoload" };
         String separator = "?";
         StringBuilder sb = new StringBuilder(base);
         for (String param : params) {
@@ -1073,6 +1085,7 @@ public class Ode implements EntryPoint {
     });
 
     setupMotd();
+    HTML5DragDrop.init();
   }
 
   private void setupMotd() {
@@ -2576,6 +2589,10 @@ public class Ode implements EntryPoint {
       designToolbar.setTutorialToggleVisible(false);
       setTutorialVisible(false);
     } else {
+      String locale = Window.Location.getParameter("locale");
+      if (locale != null) {
+        newURL += (newURL.contains("?") ? "&" : "?") + "locale=" + locale;
+      }
       tutorialPanel.setUrl(newURL);
       designToolbar.setTutorialToggleVisible(true);
       setTutorialVisible(true);

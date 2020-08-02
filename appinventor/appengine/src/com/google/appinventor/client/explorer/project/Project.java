@@ -235,16 +235,14 @@ public final class Project {
 
   public void deleteFromTrash() {
     Tracking.trackEvent(Tracking.PROJECT_EVENT,
-            Tracking.PROJECT_ACTION_DELETE_PROJECT_YA, getProjectName());
-    Ode.getInstance().getProjectService().deleteProject(getProjectId(),
-      new OdeAsyncCallback<Void>(
-        // failure message
-        MESSAGES.deleteProjectError()) {
-        @Override
-        public void onSuccess(Void result) {
-          Ode.getInstance().getProjectManager().removeDeletedProject(getProjectId());
-        }
-      });
+        Tracking.PROJECT_ACTION_DELETE_PROJECT_YA, getProjectName());
+    final OdeAsyncCallback<Void> deleteCallback = new OdeAsyncCallback<Void>() {
+      @Override
+      public void onSuccess(Void result) {
+        Ode.getInstance().getProjectManager().removeDeletedProject(getProjectId());
+      }
+    };
+    Ode.getInstance().getProjectService().deleteProject(getProjectId(), deleteCallback);
   }
 
   public boolean isInTrash() {

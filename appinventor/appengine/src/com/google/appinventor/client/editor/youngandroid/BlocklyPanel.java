@@ -288,9 +288,9 @@ public class BlocklyPanel extends HTMLPanel {
     }
   }
 
-  public void startRepl(boolean alreadyRunning, boolean forEmulator, boolean forUsb) { // Start the Repl
+  public void startRepl(boolean alreadyRunning, boolean forChromebook, boolean forEmulator, boolean forUsb) { // Start the Repl
     makeActive();
-    doStartRepl(alreadyRunning, forEmulator, forUsb);
+    doStartRepl(alreadyRunning, forChromebook, forEmulator, forUsb);
   }
 
   public void hardReset() {
@@ -676,6 +676,9 @@ public class BlocklyPanel extends HTMLPanel {
   native void makeActive()/*-{
     Blockly.mainWorkspace = this.@com.google.appinventor.client.editor.youngandroid.BlocklyPanel::workspace;
     Blockly.mainWorkspace.refreshBackpack();
+    if (Blockly.mainWorkspace.pendingRender === true) {
+      Blockly.mainWorkspace.pendingRenderFunc();
+    }
     // Trigger a screen switch to send new YAIL.
     var parts = Blockly.mainWorkspace.formName.split(/_(.+)/);  // Split string on first _
     if (Blockly.ReplMgr.isConnected()) {
@@ -839,8 +842,8 @@ public class BlocklyPanel extends HTMLPanel {
     }
   }-*/;
 
-  public native void doStartRepl(boolean alreadyRunning, boolean forEmulator, boolean forUsb) /*-{
-    Blockly.ReplMgr.startRepl(alreadyRunning, forEmulator, forUsb);
+  public native void doStartRepl(boolean alreadyRunning, boolean forChromebook, boolean forEmulator, boolean forUsb) /*-{
+    Blockly.ReplMgr.startRepl(alreadyRunning, forChromebook, forEmulator, forUsb);
   }-*/;
 
   public native void doHardReset() /*-{

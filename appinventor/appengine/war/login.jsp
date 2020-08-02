@@ -2,17 +2,23 @@
 <%@page import="com.google.appinventor.server.flags.Flag"%>
 <%@page import="com.google.appinventor.server.util.UriBuilder"%>
 <%@page contentType="text/html" pageEncoding="UTF-8" session="false" %>
+<%@page import="org.apache.commons.lang3.StringEscapeUtils"%>
 <!doctype html>
 <%
-   String error = request.getParameter("error");
-   String locale = request.getParameter("locale");
-   String redirect = request.getParameter("redirect");
-   String repo = (String) request.getAttribute("repo");
-   String galleryId = (String) request.getAttribute("galleryId");
+   String error = StringEscapeUtils.escapeHtml4(request.getParameter("error"));
+   String locale = StringEscapeUtils.escapeHtml4(request.getParameter("locale"));
+   String redirect = StringEscapeUtils.escapeHtml4(request.getParameter("redirect"));
+   String repo = StringEscapeUtils.escapeHtml4((String) request.getAttribute("repo"));
+   String autoload = StringEscapeUtils.escapeHtml4((String) request.getAttribute("autoload"));
+   String galleryId = StringEscapeUtils.escapeHtml4((String) request.getAttribute("galleryId"));
    boolean useGoogle = Flag.createFlag("auth.usegoogle", false).get();
    String googleClientId = Flag.createFlag("auth.googleclientid", "").get();
    boolean anonOK = Flag.createFlag("auth.useanon", false).get();
    boolean showLogin = Flag.createFlag("auth.showlogin", true).get();
+   if (locale == null) {
+       locale = "en";
+   }
+
 %>
 <html>
   <head>
@@ -124,7 +130,7 @@
   </style>
 <body>
   <center>
-    <h1>${pleaselogin}</h1></center>
+    <h1>${pleaselogin}</h1>
   </center>
 <% if (error != null) {
 out.println("<center><font color=red><b>" + error + "</b></font></center><br/>");
@@ -143,6 +149,10 @@ out.println("<center><font color=red><b>" + error + "</b></font></center><br/>")
    if (repo != null && !repo.equals("")) {
    %>
 <input type=hidden name=repo value="<%= repo %>">
+<% }
+   if (autoload != null && !autoload.equals("")) {
+   %>
+<input type=hidden name=autoload value="<%= autoload %>">
 <% }
    if (galleryId != null && !galleryId.equals("")) {
    %>
@@ -191,16 +201,19 @@ Your Revisit Code:&nbsp;<input type=text name=A value="" size=4 maxlength=4>-<in
 <center><a href="<%= new UriBuilder("/login")
                            .add("locale", "zh_CN")
                            .add("repo", repo)
+                           .add("autoload", autoload)
                            .add("galleryId", galleryId)
                            .add("redirect", redirect).build() %>"  style="text-decoration:none;" >中文</a>&nbsp;
 <a href="<%= new UriBuilder("/login")
                            .add("locale", "pt")
                            .add("repo", repo)
+                           .add("autoload", autoload)
                            .add("galleryId", galleryId)
                            .add("redirect", redirect).build() %>"  style="text-decoration:none;" >Português</a>&nbsp;
 <a href="<%= new UriBuilder("/login")
                    .add("locale", "en")
                    .add("repo", repo)
+                   .add("autoload", autoload)
                    .add("galleryId", galleryId)
                    .add("redirect", redirect).build() %>"  style="text-decoration:none;" >English</a></center>
 <p></p>
