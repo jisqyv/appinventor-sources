@@ -201,8 +201,8 @@ public class Ode implements EntryPoint {
                                           // account. I.e. isAnon is true
 
   // Remembers the current View
-  static final int DESIGNER = 0;
-  static final int PROJECTS = 1;
+  public static final int DESIGNER = 0;
+  public static final int PROJECTS = 1;
   public static final int USERADMIN = 2;
   public static final int TRASHCAN = 3;
 
@@ -379,6 +379,14 @@ public class Ode implements EntryPoint {
    */
   public int getCurrentView() {
     return currentView;
+  }
+
+  public DeckPanel getDeckPanel() {
+    return deckPanel;
+  }
+
+  public HorizontalPanel getOverDeckPanel() {
+    return overDeckPanel;
   }
 
   /**
