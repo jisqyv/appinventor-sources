@@ -130,6 +130,7 @@ public class LoginServlet extends HttpServlet {
     String galleryId = params.get("galleryId");
     String redirect = params.get("redirect");
     String autoload = params.get("autoload");
+    String newGalleryId = params.get("ng");
 
     if (DEBUG) {
       LOG.info("locale = " + locale + " bundle: " + new Locale(locale));
@@ -274,6 +275,7 @@ public class LoginServlet extends HttpServlet {
     req.setAttribute("autoload", autoload);
     req.setAttribute("repo", repo);
     req.setAttribute("locale", locale);
+    req.setAttribute("ng", newGalleryId);
     req.setAttribute("galleryId", galleryId);
     try {
       req.getRequestDispatcher("/login.jsp").forward(req, resp);
@@ -344,6 +346,7 @@ public class LoginServlet extends HttpServlet {
     String locale = params.get("locale");
     String repo = params.get("repo");
     String galleryId = params.get("galleryId");
+    String newGalleryId = params.get("ng");
     String redirect = params.get("redirect");
     String autoload = params.get("autoload");
 
@@ -407,6 +410,7 @@ public class LoginServlet extends HttpServlet {
         .add("locale", locale)
         .add("repo", repo)
         .add("autoload", autoload)
+        .add("ng", newGalleryId)
         .add("galleryId", galleryId).build();
 
       resp.sendRedirect(uri);   // Logged in, go to service
@@ -539,6 +543,7 @@ public class LoginServlet extends HttpServlet {
       .add("locale", locale)
       .add("autoload", autoload)
       .add("repo", repo)
+      .add("ng", newGalleryId)
       .add("galleryId", galleryId).build();
     resp.sendRedirect(uri);
   }

@@ -15,6 +15,7 @@
    String googleClientId = Flag.createFlag("auth.googleclientid", "").get();
    boolean anonOK = Flag.createFlag("auth.useanon", false).get();
    boolean showLogin = Flag.createFlag("auth.showlogin", true).get();
+   String newGalleryId = StringEscapeUtils.escapeHtml4(request.getParameter("ng"));
    if (locale == null) {
        locale = "en";
    }
@@ -157,6 +158,10 @@ out.println("<center><font color=red><b>" + error + "</b></font></center><br/>")
    if (galleryId != null && !galleryId.equals("")) {
    %>
 <input type=hidden name=galleryId value="<%= galleryId %>">
+<% }
+   if (newGalleryId != null && !newGalleryId.equals("")) {
+   %>
+<input type=hidden name=ng value="<%= newGalleryId %>">
 <% } %>
 <% if (redirect != null && !redirect.equals("")) {
    %>
@@ -215,6 +220,7 @@ Your Revisit Code:&nbsp;<input type=text name=A value="" size=4 maxlength=4>-<in
                    .add("repo", repo)
                    .add("autoload", autoload)
                    .add("galleryId", galleryId)
+                   .add("ng", newGalleryId)
                    .add("redirect", redirect).build() %>"  style="text-decoration:none;" >English</a></center>
 <p></p>
 <center>

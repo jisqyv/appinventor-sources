@@ -136,6 +136,7 @@ import com.googlecode.gwt.crypto.bouncycastle.digests.MD5Digest;
 import java.util.Date;
 import java.util.Random;
 
+
 /**
  * Main entry point for Ode. Defines the startup UI elements in
  * {@link #onModuleLoad()}.
@@ -171,6 +172,11 @@ public class Ode implements EntryPoint {
   // Template path if set by /?repo=
   private String templatePath;
   private boolean templateLoadingFlag = false;
+
+  // New Gallery path if set by /?ng=
+  // Set to true if we are loading from the new Gallery
+  private boolean newGalleryLoadingFlag = false;
+  private String newGalleryId;
 
   // Nonce Information
   private String nonce;
@@ -502,6 +508,18 @@ public class Ode implements EntryPoint {
       };
       TemplateUploadWizard.openProjectFromTemplate(templatePath, callbackCommand);
       return true;
+    } else if (newGalleryLoadingFlag) {
+      final DialogBox dialog = galleryLoadingDialog();
+      NewProjectCommand callback = new NewProjectCommand() {
+          @Override
+          public void execute(Project project) {
+            newGalleryLoadingFlag = false;
+            dialog.hide();      // Get rid of the project loading dialog
+            Ode.getInstance().openYoungAndroidProjectInDesigner(project);
+          }
+        };
+      LoadGalleryProject.openProjectFromGallery(newGalleryId, callback);
+      return true;
     }
     return false;
   }
@@ -642,6 +660,22 @@ public class Ode implements EntryPoint {
       templateLoadingFlag = true;
     }
 
+    // OK, let's see if we are loading from the new gallery Note: If
+    // we are loading from a template (see above) then we ignore the
+    // "ng" parameter. It doesn't make sense to have both, but if we
+    // do, template loading wins.
+
+    if (!templateLoadingFlag) {
+      newGalleryId = Window.Location.getParameter("ng");
+      if (newGalleryId != null) {
+        OdeLog.wlog("Got a new Gallery ID of " + newGalleryId);
+        newGalleryLoadingFlag = true;
+      }
+    }
+
+    // We call this below to initialize the ConnectProgressBar
+    ConnectProgressBar.getInstance();
+
     // Get user information.
     OdeAsyncCallback<Config> callback = new OdeAsyncCallback<Config>(
         // failure message
@@ -654,6 +688,20 @@ public class Ode implements EntryPoint {
         isReadOnly = user.isReadOnly();
         if (user.getUserId().startsWith("anon-")) { // We are a anonymous user
           isAnon = true;
+        }
+
+        // Arrange to redirect to the new gallery, which is run as a
+        // separate server when we are started with a galleryId flag
+        // We process this as soon as we have the system config
+        // because we need the system config to tell us where the
+        // gallery is located!
+
+        String galleryId = Window.Location.getParameter("galleryId");
+        if (galleryId != null) {
+          // This will replace us with the gallery server, displaying the app in question
+          Window.open(config.getGalleryLocation() + "?galleryid=" + galleryId, "_self", null);
+          // Never get here...(?)
+          return;
         }
 
         // load the user's backpack if we are not using a shared
@@ -769,7 +817,7 @@ public class Ode implements EntryPoint {
       }
 
       private String makeUri(String base) {
-        String[] params = new String[] { "locale", "repo", "galleryId", "autoload" };
+        String[] params = new String[] { "locale", "repo", "galleryId", "autoload", "ng" };
         String separator = "?";
         StringBuilder sb = new StringBuilder(base);
         for (String param : params) {
@@ -1706,7 +1754,8 @@ public class Ode implements EntryPoint {
     projectManager.addProjectManagerEventListener(new ProjectManagerEventAdapter() {
       @Override
       public void onProjectsLoaded() {
-        if (ProjectListBox.getProjectListBox().getProjectList().getMyProjectsCount() == 0 && !templateLoadingFlag) {
+        if (ProjectListBox.getProjectListBox().getProjectList().getMyProjectsCount() == 0 && !templateLoadingFlag &&
+          !newGalleryLoadingFlag) {
           ErrorReporter.hide();  // hide the "Please choose a project" message
           createNoProjectsDialog(true);
         }
@@ -1819,7 +1868,8 @@ public class Ode implements EntryPoint {
     projectManager.addProjectManagerEventListener(new ProjectManagerEventAdapter() {
       @Override
       public void onProjectsLoaded() {
-        if (ProjectListBox.getProjectListBox().getProjectList().getMyProjectsCount() == 0 && !templateLoadingFlag) {
+        if (ProjectListBox.getProjectListBox().getProjectList().getMyProjectsCount() == 0 && !templateLoadingFlag
+          && !newGalleryLoadingFlag) {
           ErrorReporter.hide();  // hide the "Please choose a project" message
           showSplashScreens();
         }
@@ -2059,6 +2109,31 @@ public class Ode implements EntryPoint {
     DialogBoxContents.add(message);
     dialogBox.setWidget(DialogBoxContents);
     dialogBox.show();
+  }
+
+  /**
+   * galleryLoadingDialog -- Put up a dialog box while a Gallery
+   * project is loading.
+   *
+   */
+
+  private DialogBox galleryLoadingDialog() {
+    // Create the UI elements of the DialogBox
+    final DialogBox dialogBox = new DialogBox(false, true); // DialogBox(autohide, modal)
+    dialogBox.setStylePrimaryName("ode-DialogBox");
+    // dialogBox.setText(MESSAGES.galleryLoadingDialogText());
+    dialogBox.setHeight("100px");
+    dialogBox.setWidth("400px");
+    dialogBox.setGlassEnabled(true);
+    dialogBox.setAnimationEnabled(true);
+    dialogBox.center();
+    VerticalPanel DialogBoxContents = new VerticalPanel();
+    HTML message = new HTML(MESSAGES.galleryLoadingDialogText());
+    message.setStyleName("DialogBox-message");
+    DialogBoxContents.add(message);
+    dialogBox.setWidget(DialogBoxContents);
+    dialogBox.show();
+    return dialogBox;
   }
 
   /**
