@@ -40,6 +40,8 @@ public class ProjectToolbar extends Toolbar {
 
   private boolean galleryEnabled = false; // Is the new gallery enabled
 
+  private static volatile boolean lockPublishButton = false; // To prevent double clicking
+
   /**
    * Initializes and assembles all commands into buttons in the toolbar.
    */
@@ -64,8 +66,10 @@ public class ProjectToolbar extends Toolbar {
     if (galleryEnabled) {
       addButton(new ToolbarItem(WIDGET_NAME_LOGINTOGALLERY, MESSAGES.loginToGallery(),
           new LoginToGalleryAction()));
-      addButton(new ToolbarItem(WIDGET_NAME_SENDTONG, MESSAGES.publishToGalleryButton(),
-          new SendToGalleryAction()));
+      if (!Ode.getInstance().getGalleryReadOnly()) {
+        addButton(new ToolbarItem(WIDGET_NAME_SENDTONG, MESSAGES.publishToGalleryButton(),
+            new SendToGalleryAction()));
+      }
     }
 
     setTrashTabButtonsVisible(false);
@@ -218,25 +222,34 @@ public class ProjectToolbar extends Toolbar {
   // Send to the New Gallery
   private static class SendToGalleryAction implements Command {
     @Override
-      public void execute() {
+    public void execute() {
       List<Project> selectedProjects =
-          ProjectListBox.getProjectListBox().getProjectList().getSelectedProjects();
+        ProjectListBox.getProjectListBox().getProjectList().getSelectedProjects();
       if (selectedProjects.size() != 1) {
         ErrorReporter.reportInfo(MESSAGES.selectOnlyOneProject());
       } else {
-        Project project = selectedProjects.get(0);
-        Ode.getInstance().getProjectService().sendToGallery(project.getProjectId(),
-          new OdeAsyncCallback<RpcResult>(
-            MESSAGES.GallerySendingError()) {
-            @Override
-            public void onSuccess(RpcResult result) {
-              if (result.getResult() == RpcResult.SUCCESS) {
-                Window.open(result.getOutput(), "_blank", "");
-              } else {
-                ErrorReporter.reportError(result.getError());
+        if (!lockPublishButton) {
+          lockPublishButton = true;
+          Project project = selectedProjects.get(0);
+          Ode.getInstance().getProjectService().sendToGallery(project.getProjectId(),
+            new OdeAsyncCallback<RpcResult>(
+              MESSAGES.GallerySendingError()) {
+              @Override
+              public void onSuccess(RpcResult result) {
+                lockPublishButton = false;
+                if (result.getResult() == RpcResult.SUCCESS) {
+                  Window.open(result.getOutput(), "_blank", "");
+                } else {
+                  ErrorReporter.reportError(result.getError());
+                }
               }
-            }
-          });
+              @Override
+              public void onFailure(Throwable t) {
+                lockPublishButton = false;
+                super.onFailure(t);
+              }
+            });
+        }
       }
     }
   }

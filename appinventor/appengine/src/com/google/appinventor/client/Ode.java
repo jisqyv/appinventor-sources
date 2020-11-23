@@ -642,7 +642,7 @@ public class Ode implements EntryPoint {
             Window.open(BugReport.getBugReportLink(e), "_blank", "");
           }
         } else {
-          // Display a confirm dialog with error msg and if 'ok' open the debugging view	
+          // Display a confirm dialog with error msg and if 'ok' open the debugging view
           if (Window.confirm(MESSAGES.internalErrorClickOkDebuggingView())) {
             Ode.getInstance().switchToDebuggingView();
           }
@@ -2711,6 +2711,10 @@ public class Ode implements EntryPoint {
     } else {
       warnedBuild1 = value;
     }
+  }
+
+  public boolean getGalleryReadOnly() {
+    return config.getGalleryReadOnly();
   }
 
   /**

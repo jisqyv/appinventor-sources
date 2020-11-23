@@ -41,6 +41,7 @@ public class Config implements IsSerializable, Serializable {
                                      // target SDK).
   private boolean galleryEnabled;
   private String galleryLocation;
+  private boolean galleryReadOnly;
 
   public Config() {
   }
@@ -227,6 +228,14 @@ public class Config implements IsSerializable, Serializable {
 
   public void setGalleryLocation(String value) {
     galleryLocation = value;
+  }
+
+  public boolean getGalleryReadOnly() {
+    return galleryReadOnly;
+  }
+
+  public void setGalleryReadOnly(boolean value) {
+    galleryReadOnly = value;
   }
 
 }
