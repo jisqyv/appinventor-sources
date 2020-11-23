@@ -68,6 +68,7 @@
                  window.location = "<%= new UriBuilder("/")
                                                .add("locale", locale)
                                                .add("repo", repo)
+                                               .add("ng", newGalleryId)
                                                .add("galleryId", galleryId).build() %>";
              } else {
                  window.alert("Login Incorrect");
@@ -208,12 +209,14 @@ Your Revisit Code:&nbsp;<input type=text name=A value="" size=4 maxlength=4>-<in
                            .add("repo", repo)
                            .add("autoload", autoload)
                            .add("galleryId", galleryId)
+                           .add("ng", newGalleryId)
                            .add("redirect", redirect).build() %>"  style="text-decoration:none;" >中文</a>&nbsp;
 <a href="<%= new UriBuilder("/login")
                            .add("locale", "pt")
                            .add("repo", repo)
                            .add("autoload", autoload)
                            .add("galleryId", galleryId)
+                           .add("ng", newGalleryId)
                            .add("redirect", redirect).build() %>"  style="text-decoration:none;" >Português</a>&nbsp;
 <a href="<%= new UriBuilder("/login")
                    .add("locale", "en")
