@@ -148,9 +148,9 @@ public interface StorageIo {
    *
    * @param userId user ID
    * @param projectId project ID
-   * @param boolean flag
+   * @param flag
    */
-  void setMoveToTrashFlag(final String userId, final long projectId,boolean flag);
+  void setMoveToTrashFlag(final String userId, final long projectId, boolean flag);
 
   /**
    * Returns an array with the user's projects.
@@ -637,5 +637,7 @@ public interface StorageIo {
    * @throws SecurityException if the user doesn't have access to the project
    */
   void assertUserHasProject(String userId, long projectId);
+
+  List<String> getTutorialsUrlAllowed();
 
 }

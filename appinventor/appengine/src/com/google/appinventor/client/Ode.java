@@ -19,6 +19,7 @@ import com.google.appinventor.client.boxes.ViewerBox;
 
 import com.google.appinventor.client.editor.EditorManager;
 import com.google.appinventor.client.editor.FileEditor;
+import com.google.appinventor.client.editor.youngandroid.i18n.BlocklyMsg;
 import com.google.appinventor.client.editor.youngandroid.BlocklyPanel;
 import com.google.appinventor.client.editor.youngandroid.TutorialPanel;
 import com.google.appinventor.client.explorer.commands.ChainableCommand;
@@ -41,6 +42,7 @@ import com.google.appinventor.client.tracking.Tracking;
 import com.google.appinventor.client.utils.HTML5DragDrop;
 import com.google.appinventor.client.utils.PZAwarePositionCallback;
 
+import com.google.appinventor.client.widgets.ExpiredServiceOverlay;
 import com.google.appinventor.client.widgets.boxes.Box;
 import com.google.appinventor.client.widgets.boxes.ColumnLayout.Column;
 import com.google.appinventor.client.widgets.boxes.ColumnLayout;
@@ -211,8 +213,7 @@ public class Ode implements EntryPoint {
   public static final int PROJECTS = 1;
   public static final int USERADMIN = 2;
   public static final int TRASHCAN = 3;
-
-  public static int currentView = DESIGNER;
+  public static int currentView = PROJECTS;
 
   /*
    * The following fields define the general layout of the UI as seen in the following diagram:
@@ -432,6 +433,7 @@ public class Ode implements EntryPoint {
    */
 
   public void switchToTrash() {
+    Ode.getInstance().getTopToolbar().updateMoveToTrash("Delete From Trash");
     hideChaff();
     hideTutorials();
     ProjectListBox.getProjectListBox().loadTrashList();
@@ -707,12 +709,17 @@ public class Ode implements EntryPoint {
         // load the user's backpack if we are not using a shared
         // backpack
 
-        String backPackId = user.getBackpackId();
+        final String backPackId = user.getBackpackId();
         if (backPackId == null || backPackId.isEmpty()) {
           loadBackpack();
           OdeLog.log("backpack: No shared backpack");
         } else {
-          BlocklyPanel.setSharedBackpackId(backPackId);
+          BlocklyMsg.Loader.ensureTranslationsLoaded(new BlocklyMsg.LoadCallback() {
+            @Override
+            public void call() {
+              BlocklyPanel.setSharedBackpackId(backPackId);
+            }
+          });
           OdeLog.log("Have a shared backpack backPackId = " + backPackId);
         }
 
@@ -777,10 +784,6 @@ public class Ode implements EntryPoint {
               @Override
               public void onProjectsLoaded() {
                 projectManager.removeProjectManagerEventListener(this);
-                if (!handleQueryString() && shouldAutoloadLastProject()) {
-                  openPreviousProject();
-                }
-
                 // This handles any built-in templates stored in /war
                 // Retrieve template data stored in war/templates folder and
                 // and save it for later use in TemplateUploadWizard
@@ -792,6 +795,10 @@ public class Ode implements EntryPoint {
                       public void onSuccess(String json) {
                         // Save the templateData
                         TemplateUploadWizard.initializeBuiltInTemplates(json);
+
+                        if (!handleQueryString() && shouldAutoloadLastProject()) {
+                          openPreviousProject();
+                        }
                       }
                     };
                 Ode.getInstance().getProjectService().retrieveTemplateData(TemplateUploadWizard.TEMPLATES_ROOT_DIRECTORY, templateCallback);
@@ -903,6 +910,10 @@ public class Ode implements EntryPoint {
 
     Window.setTitle(MESSAGES.titleYoungAndroid());
     Window.enableScrolling(true);
+
+    if (config.getServerExpired()) {
+      RootPanel.get().add(new ExpiredServiceOverlay());
+    }
 
     topPanel = new TopPanel();
     statusPanel = new StatusPanel();
@@ -1527,6 +1538,7 @@ public class Ode implements EntryPoint {
         userSettings.saveSettings(null);
       }
     }
+    BlocklyMsg.Loader.ensureTranslationsLoaded();
     return true;
   }
 
@@ -2473,7 +2485,7 @@ public class Ode implements EntryPoint {
    * @return nonce
    */
   public String generateNonce() {
-    int v = random.nextInt(1000000);
+    int v = random.nextInt(10000000);
     nonce = Integer.toString(v, 36); // Base 36 string
     return nonce;
   }
@@ -2667,16 +2679,32 @@ public class Ode implements EntryPoint {
   }
 
   public void setTutorialURL(String newURL) {
-    if (newURL.isEmpty() || (!newURL.startsWith("http://appinventor.mit.edu/")
-        && !newURL.startsWith("http://appinv.us/"))) {
+    if (newURL.isEmpty()) {
+      designToolbar.setTutorialToggleVisible(false);
+      setTutorialVisible(false);
+      return;
+    }
+
+    boolean isUrlAllowed = false;
+    for (String candidate : config.getTutorialsUrlAllowed()) {
+      if (newURL.startsWith(candidate)) {
+        isUrlAllowed = true;
+        break;
+      }
+    }
+
+    if (!isUrlAllowed) {
       designToolbar.setTutorialToggleVisible(false);
       setTutorialVisible(false);
     } else {
+      String[] urlSplits = newURL.split("//"); // [protocol, rest]
+      boolean isHttps = Window.Location.getProtocol() == "https:" || urlSplits[0] == "https:";
       String locale = Window.Location.getParameter("locale");
       if (locale != null) {
         newURL += (newURL.contains("?") ? "&" : "?") + "locale=" + locale;
       }
-      tutorialPanel.setUrl(newURL);
+      String effectiveUrl = (isHttps ? "https://" : "http://") + urlSplits[1];
+      tutorialPanel.setUrl(effectiveUrl);
       designToolbar.setTutorialToggleVisible(true);
       setTutorialVisible(true);
     }
@@ -2687,8 +2715,13 @@ public class Ode implements EntryPoint {
   private void loadBackpack() {
     userInfoService.getUserBackpack(new AsyncCallback<String>() {
         @Override
-        public void onSuccess(String backpack) {
-          BlocklyPanel.setInitialBackpack(backpack);
+        public void onSuccess(final String backpack) {
+          BlocklyMsg.Loader.ensureTranslationsLoaded(new BlocklyMsg.LoadCallback() {
+            @Override
+            public void call() {
+              BlocklyPanel.setInitialBackpack(backpack);
+            }
+          });
         }
         @Override
         public void onFailure(Throwable caught) {

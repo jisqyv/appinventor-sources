@@ -9,6 +9,7 @@ package com.google.appinventor.client.explorer.youngandroid;
 import com.google.appinventor.client.ErrorReporter;
 import com.google.appinventor.client.Ode;
 import com.google.appinventor.client.OdeAsyncCallback;
+import com.google.appinventor.client.TopToolbar;
 import com.google.appinventor.client.boxes.ProjectListBox;
 import com.google.appinventor.client.explorer.project.Project;
 import com.google.appinventor.client.widgets.Toolbar;
@@ -62,7 +63,7 @@ public class ProjectToolbar extends Toolbar {
     addButton(new ToolbarItem(WIDGET_NAME_RESTORE,MESSAGES.restoreProjectButton(),
         new RestoreProjectAction()));
     addButton(new ToolbarItem(WIDGET_NAME_DELETE_FROM_TRASH,MESSAGES.deleteFromTrashButton(),
-        new DeleteForeverProjectAction()));
+        new TopToolbar.DeleteForeverProjectAction()));
     if (galleryEnabled) {
       addButton(new ToolbarItem(WIDGET_NAME_LOGINTOGALLERY, MESSAGES.loginToGallery(),
           new LoginToGalleryAction()));
@@ -176,6 +177,7 @@ public class ProjectToolbar extends Toolbar {
       Ode.getInstance().getEditorManager().saveDirtyEditors(new Command() {
         @Override
         public void execute() {
+          Ode.getInstance().getTopToolbar().updateMoveToTrash("Move To Trash");
           Ode.getInstance().switchToProjectsView();
         }
       });
@@ -190,8 +192,8 @@ public class ProjectToolbar extends Toolbar {
       if (selectedProjects.size() > 0) {
         for (Project project : selectedProjects) {
           project.restoreFromTrash();
-          Ode.getInstance().switchToTrash();
         }
+        Ode.getInstance().switchToTrash();
       } else {
         // The user can select a project to resolve the
         // error.
@@ -254,47 +256,21 @@ public class ProjectToolbar extends Toolbar {
     }
   }
 
-  //Deleting the projects forever from trash list
-  private static class DeleteForeverProjectAction implements Command {
-    @Override
-    public void execute() {
-      Ode.getInstance().getEditorManager().saveDirtyEditors(new Command() {
-        @Override
-        public void execute() {
-          List<Project> deletedProjects = ProjectListBox.getProjectListBox().getProjectList().getSelectedProjects();
-          if (deletedProjects.size() > 0) {
-            // Show one confirmation window for selected projects.
-            if (deleteConfirmation(deletedProjects)) {
-              for (Project project : deletedProjects) {
-                project.deleteFromTrash();
-              }
-            }
-            Ode.getInstance().switchToTrash();
-          } else {
-            // The user can select a project to resolve the
-            // error.
-            ErrorReporter.reportInfo(MESSAGES.noProjectSelectedForDelete());
-          }
-        }
-      });
-    }
-
-    private boolean deleteConfirmation(List<Project> projects) {
-      String message;
-      if (projects.size() == 1) {
-        message = MESSAGES.confirmDeleteSingleProject(projects.get(0).getProjectName());
-      } else {
-        StringBuilder sb = new StringBuilder();
-        String separator = "";
-        for (Project project : projects) {
-          sb.append(separator).append(project.getProjectName());
-          separator = ", ";
-        }
-        String projectNames = sb.toString();
-        message = MESSAGES.confirmDeleteManyProjects(projectNames);
+  private boolean deleteConfirmation(List<Project> projects) {
+    String message;
+    if (projects.size() == 1) {
+      message = MESSAGES.confirmDeleteSingleProject(projects.get(0).getProjectName());
+    } else {
+      StringBuilder sb = new StringBuilder();
+      String separator = "";
+      for (Project project : projects) {
+        sb.append(separator).append(project.getProjectName());
+        separator = ", ";
       }
-      return Window.confirm(message);
+      String projectNames = sb.toString();
+      message = MESSAGES.confirmDeleteManyProjects(projectNames);
     }
+    return Window.confirm(message);
   }
 
   /**

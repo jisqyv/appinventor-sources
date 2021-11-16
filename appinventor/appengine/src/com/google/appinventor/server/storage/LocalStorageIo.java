@@ -2129,4 +2129,16 @@ public class LocalStorageIo implements  StorageIo {
         null, e);
     }
   }
+
+  @Override
+  public List<String> getTutorialsUrlAllowed() {
+    // Rather then store these in the database or the filesystem (or CEPH) we just
+    // hard code them here for now
+    return new ArrayList<> (Arrays.asList(
+        "http://appinventor.mit.edu/",
+        "https://appinventor.mit.edu/",
+        "http://appinv.us/",
+        "http://templates.appinventor.mit.edu/"));
+  }
+
 }

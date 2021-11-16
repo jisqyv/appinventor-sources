@@ -147,12 +147,12 @@ public class LoginServlet extends HttpServlet {
     if (page.equals("setpw")) {
       String uid = getParam(req);
       if (uid == null) {
-        fail(req, resp, "Invalid Set Password Link");
+        fail(req, resp, "Invalid Set Password Link", locale);
         return;
       }
       PWData data = storageIo.findPWData(uid);
       if (data == null) {
-        fail(req, resp, "Invalid Set Password Link");
+        fail(req, resp, "Invalid Set Password Link", locale);
         return;
       }
       if (DEBUG) {
@@ -196,27 +196,27 @@ public class LoginServlet extends HttpServlet {
     } else if (page.equals("token")) {
       String encodedToken = params.get("token");
       if (encodedToken == null) {
-        fail(req, resp, "No Authentication Token Provided");
+        fail(req, resp, "No Authentication Token Provided", locale);
         return;
       }
       TokenProto.token token = null;
       try {
         token = Token.verifyToken(encodedToken);
       } catch (TokenException e) {
-        fail(req, resp, e.getMessage());
+        fail(req, resp, e.getMessage(), locale);
         return;
       }
       // At this point we have a valid token, so use it to login!
       // need to make sure it is a SSOLOGIN token
       if (token.getCommand() != TokenProto.token.CommandType.SSOLOGIN) {
-        fail(req, resp, "Token Valid, but not a SSOLOGIN token.");
+        fail(req, resp, "Token Valid, but not a SSOLOGIN token.", locale);
         return;
       }
       long offset = System.currentTimeMillis() - token.getTs();
       offset /= 1000;  // Convert to seconds
       if (offset > 120) {       // Two minutes
         fail(req, resp, "Token Expired. Was valid until " +
-          new Date(token.getTs()));
+          new Date(token.getTs()), locale);
         return;
       }
       // At this point we have a valid SSOLOGIN token
@@ -235,7 +235,7 @@ public class LoginServlet extends HttpServlet {
       User user = storageIo.getUser(uuid); // Attempt a lookup on UUID
       if (user == null) {                   // UUID doesn't exist in the system
         if (uuid.indexOf("@") < 0) {
-          fail(req, resp, "Cannot create account which is not an Email address");
+          fail(req, resp, "Cannot create account which is not an Email address", locale);
         } else {
           user = storageIo.getUserFromEmail(uuid);
         }
@@ -363,13 +363,13 @@ public class LoginServlet extends HttpServlet {
     if (page.equals("sendlink")) {
       String email = params.get("email");
       if (email == null) {
-        fail(req, resp, "No Email Address Provided");
+        fail(req, resp, "No Email Address Provided", locale);
         return;
       }
       // Send email here, for now we put it in the error string and redirect
       PWData pwData = storageIo.createPWData(email);
       if (pwData == null) {
-        fail(req, resp, "Internal Error");
+        fail(req, resp, "Internal Error", locale);
         return;
       }
       String link = trimPage(req) + pwData.id + "/setpw";
@@ -380,23 +380,23 @@ public class LoginServlet extends HttpServlet {
       return;
     } else if (page.equals("setpw")) {
       if (userInfo == null || userInfo.getUserId().equals("")) {
-        fail(req, resp, "Session Timed Out");
+        fail(req, resp, "Session Timed Out", locale);
         return;
       }
       User user = storageIo.getUser(userInfo.getUserId());
       String password = params.get("password");
       if (password == null || password.equals("")) {
-        fail(req, resp, bundle.getString("nopassword"));
+        fail(req, resp, bundle.getString("nopassword"), locale);
         return;
       }
       String hashedPassword;
       try {
         hashedPassword = PasswordHash.createHash(password);
       } catch (NoSuchAlgorithmException e) {
-        fail(req, resp, "System Error hashing password");
+        fail(req, resp, "System Error hashing password", locale);
         return;
       } catch (InvalidKeySpecException e) {
-        fail(req, resp, "System Error hashing password");
+        fail(req, resp, "System Error hashing password", locale);
         return;
       }
 
@@ -451,7 +451,7 @@ public class LoginServlet extends HttpServlet {
         String D = params.get("D");
         if (A == null || B == null || C == null || D == null ||
             A.isEmpty() || B.isEmpty() || C.isEmpty() || D.isEmpty()) {
-          fail(req, resp, "Invalid Code");
+          fail(req, resp, "Invalid Code", locale);
           return;
         }
         String code = A.toUpperCase() + "-" + B.toUpperCase() + "-" +
@@ -460,12 +460,12 @@ public class LoginServlet extends HttpServlet {
         try {
           accountId = AccountUtil.codeToAccount(code);
         } catch (IllegalArgumentException e) {
-          fail(req, resp, "Invalid Code");
+          fail(req, resp, "Invalid Code", locale);
           return;
         }
         User user = storageIo.getUser(accountId);
         if (user == null) {
-          fail(req, resp, "Invalid Code");
+          fail(req, resp, "Invalid Code", locale);
           return;
         }
         // At this point we are logged in!
@@ -501,7 +501,7 @@ public class LoginServlet extends HttpServlet {
 
     String hash = user.getPassword();
     if ((hash == null) || hash.equals("")) {
-      fail(req, resp, "No Password Set for User");
+      fail(req, resp, "No Password Set for User", locale);
       return;
     }
 
@@ -512,7 +512,7 @@ public class LoginServlet extends HttpServlet {
     }
 
     if (!validLogin) {
-      fail(req, resp, bundle.getString("invalidpassword"));
+      fail(req, resp, bundle.getString("invalidpassword"), locale);
       return;
     }
 
@@ -591,8 +591,8 @@ public class LoginServlet extends HttpServlet {
     return sb.toString();
   }
 
-  private void fail(HttpServletRequest req, HttpServletResponse resp, String error) throws IOException {
-    resp.sendRedirect("/login/?error=" + sanitizer.sanitize(error));
+  private void fail(HttpServletRequest req, HttpServletResponse resp, String error, String locale) throws IOException {
+    resp.sendRedirect("/login/?locale=" + sanitizer.sanitize(locale) + "&error=" + sanitizer.sanitize(error));
     return;
   }
 

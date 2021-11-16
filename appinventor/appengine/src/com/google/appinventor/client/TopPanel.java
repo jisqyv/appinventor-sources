@@ -42,7 +42,12 @@ import com.google.gwt.resources.client.TextResource;
 
 import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.Window;
-import com.google.gwt.user.client.ui.*;
+import com.google.gwt.user.client.ui.Composite;
+import com.google.gwt.user.client.ui.HorizontalPanel;
+import com.google.gwt.user.client.ui.Image;
+import com.google.gwt.user.client.ui.Label;
+import com.google.gwt.user.client.ui.VerticalPanel;
+
 import java.util.List;
 import java.util.MissingResourceException;
 import static com.google.appinventor.client.Ode.MESSAGES;
@@ -126,6 +131,7 @@ public class TopPanel extends Composite {
     myProjects.addClickHandler(new ClickHandler() {
       @Override
       public void onClick(ClickEvent event) {
+        Ode.getInstance().getTopToolbar().updateMoveToTrash("Move To Trash");
         ode.switchToProjectsView();
       }
     });
