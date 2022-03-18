@@ -53,6 +53,20 @@
   </servlet-mapping>
 
   <servlet>
+    <servlet-name>longcache</servlet-name>
+    <servlet-class>org.eclipse.jetty.servlet.DefaultServlet</servlet-class>
+    <load-on-startup>1</load-on-startup>
+    <init-param>
+      <param-name>cacheControl</param-name>
+      <param-value>public, max-age=31536000</param-value> <!-- 365 days -->
+    </init-param>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>longcache</servlet-name>
+    <url-pattern>*.cache.js</url-pattern>
+  </servlet-mapping>
+
+  <servlet>
     <servlet-name>default</servlet-name>
     <servlet-class>org.eclipse.jetty.servlet.DefaultServlet</servlet-class>
     <load-on-startup>1</load-on-startup>
