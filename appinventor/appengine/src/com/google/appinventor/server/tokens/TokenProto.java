@@ -6,7 +6,13 @@ package com.google.appinventor.server.tokens;
 public final class TokenProto {
   private TokenProto() {}
   public static void registerAllExtensions(
+      com.google.protobuf.ExtensionRegistryLite registry) {
+  }
+
+  public static void registerAllExtensions(
       com.google.protobuf.ExtensionRegistry registry) {
+    registerAllExtensions(
+        (com.google.protobuf.ExtensionRegistryLite) registry);
   }
   public interface tokenOrBuilder extends
       // @@protoc_insertion_point(interface_extends:tokens.token)
@@ -22,108 +28,108 @@ public final class TokenProto {
     com.google.appinventor.server.tokens.TokenProto.token.CommandType getCommand();
 
     /**
-     * <code>optional uint64 ts = 2;</code>
-     *
      * <pre>
      * Current timestamp (as a Java time, millis since 1970)
      * </pre>
+     *
+     * <code>optional uint64 ts = 2;</code>
      */
     boolean hasTs();
     /**
-     * <code>optional uint64 ts = 2;</code>
-     *
      * <pre>
      * Current timestamp (as a Java time, millis since 1970)
      * </pre>
+     *
+     * <code>optional uint64 ts = 2;</code>
      */
     long getTs();
 
     /**
-     * <code>optional string uuid = 3;</code>
-     *
      * <pre>
      * userId (which is usually a uuid, but always a string)
      * </pre>
+     *
+     * <code>optional string uuid = 3;</code>
      */
     boolean hasUuid();
     /**
-     * <code>optional string uuid = 3;</code>
-     *
      * <pre>
      * userId (which is usually a uuid, but always a string)
      * </pre>
+     *
+     * <code>optional string uuid = 3;</code>
      */
     java.lang.String getUuid();
     /**
-     * <code>optional string uuid = 3;</code>
-     *
      * <pre>
      * userId (which is usually a uuid, but always a string)
      * </pre>
+     *
+     * <code>optional string uuid = 3;</code>
      */
     com.google.protobuf.ByteString
         getUuidBytes();
 
     /**
-     * <code>optional uint64 projectid = 4;</code>
-     *
      * <pre>
      * When showing a project, this is its ID, not used for SSOLOGIN
      * </pre>
+     *
+     * <code>optional uint64 projectid = 4;</code>
      */
     boolean hasProjectid();
     /**
-     * <code>optional uint64 projectid = 4;</code>
-     *
      * <pre>
      * When showing a project, this is its ID, not used for SSOLOGIN
      * </pre>
+     *
+     * <code>optional uint64 projectid = 4;</code>
      */
     long getProjectid();
 
     /**
-     * <code>optional string name = 5;</code>
-     *
      * <pre>
      * this argument also is used in create project as the
      * source project to copy
      * </pre>
+     *
+     * <code>optional string name = 5;</code>
      */
     boolean hasName();
     /**
-     * <code>optional string name = 5;</code>
-     *
      * <pre>
      * this argument also is used in create project as the
      * source project to copy
      * </pre>
+     *
+     * <code>optional string name = 5;</code>
      */
     java.lang.String getName();
     /**
-     * <code>optional string name = 5;</code>
-     *
      * <pre>
      * this argument also is used in create project as the
      * source project to copy
      * </pre>
+     *
+     * <code>optional string name = 5;</code>
      */
     com.google.protobuf.ByteString
         getNameBytes();
 
     /**
-     * <code>optional uint64 oneProjectId = 6;</code>
-     *
      * <pre>
-     * non-zero to open a specific project
+     * Also used for FETCHUID, contains email to lookup
      * </pre>
+     *
+     * <code>optional uint64 oneProjectId = 6;</code>
      */
     boolean hasOneProjectId();
     /**
-     * <code>optional uint64 oneProjectId = 6;</code>
-     *
      * <pre>
-     * non-zero to open a specific project
+     * Also used for FETCHUID, contains email to lookup
      * </pre>
+     *
+     * <code>optional uint64 oneProjectId = 6;</code>
      */
     long getOneProjectId();
 
@@ -137,137 +143,237 @@ public final class TokenProto {
     boolean getReadOnly();
 
     /**
-     * <code>optional uint64 duedate = 21;</code>
-     *
      * <pre>
      * Date when the project is due 0 = never due
      * </pre>
+     *
+     * <code>optional uint64 duedate = 21;</code>
      */
     boolean hasDuedate();
     /**
-     * <code>optional uint64 duedate = 21;</code>
-     *
      * <pre>
      * Date when the project is due 0 = never due
      * </pre>
+     *
+     * <code>optional uint64 duedate = 21;</code>
      */
     long getDuedate();
 
     /**
-     * <code>optional string displayprojectname = 22;</code>
-     *
      * <pre>
      * or not an assignment
      * </pre>
+     *
+     * <code>optional string displayprojectname = 22;</code>
      */
     boolean hasDisplayprojectname();
     /**
-     * <code>optional string displayprojectname = 22;</code>
-     *
      * <pre>
      * or not an assignment
      * </pre>
+     *
+     * <code>optional string displayprojectname = 22;</code>
      */
     java.lang.String getDisplayprojectname();
     /**
-     * <code>optional string displayprojectname = 22;</code>
-     *
      * <pre>
      * or not an assignment
      * </pre>
+     *
+     * <code>optional string displayprojectname = 22;</code>
      */
     com.google.protobuf.ByteString
         getDisplayprojectnameBytes();
 
     /**
-     * <code>optional string displayaccountname = 23;</code>
-     *
      * <pre>
      * User name to display instead of email address
      * </pre>
+     *
+     * <code>optional string displayaccountname = 23;</code>
      */
     boolean hasDisplayaccountname();
     /**
-     * <code>optional string displayaccountname = 23;</code>
-     *
      * <pre>
      * User name to display instead of email address
      * </pre>
+     *
+     * <code>optional string displayaccountname = 23;</code>
      */
     java.lang.String getDisplayaccountname();
     /**
-     * <code>optional string displayaccountname = 23;</code>
-     *
      * <pre>
      * User name to display instead of email address
      * </pre>
+     *
+     * <code>optional string displayaccountname = 23;</code>
      */
     com.google.protobuf.ByteString
         getDisplayaccountnameBytes();
 
     /**
-     * <code>optional string backpackid = 24;</code>
-     *
      * <pre>
      * accounts created by the HK portal have "ugly" account
      * names, so they provide something "better" to display instead
      * </pre>
+     *
+     * <code>optional string backpackid = 24;</code>
      */
     boolean hasBackpackid();
     /**
-     * <code>optional string backpackid = 24;</code>
-     *
      * <pre>
      * accounts created by the HK portal have "ugly" account
      * names, so they provide something "better" to display instead
      * </pre>
+     *
+     * <code>optional string backpackid = 24;</code>
      */
     java.lang.String getBackpackid();
     /**
-     * <code>optional string backpackid = 24;</code>
-     *
      * <pre>
      * accounts created by the HK portal have "ugly" account
      * names, so they provide something "better" to display instead
      * </pre>
+     *
+     * <code>optional string backpackid = 24;</code>
      */
     com.google.protobuf.ByteString
         getBackpackidBytes();
+
+    /**
+     * <pre>
+     * Class user is associated with
+     * </pre>
+     *
+     * <code>optional string classname = 25;</code>
+     */
+    boolean hasClassname();
+    /**
+     * <pre>
+     * Class user is associated with
+     * </pre>
+     *
+     * <code>optional string classname = 25;</code>
+     */
+    java.lang.String getClassname();
+    /**
+     * <pre>
+     * Class user is associated with
+     * </pre>
+     *
+     * <code>optional string classname = 25;</code>
+     */
+    com.google.protobuf.ByteString
+        getClassnameBytes();
+
+    /**
+     * <pre>
+     * Vendor ID for Anonymous Alexa Accounts
+     * </pre>
+     *
+     * <code>optional string vendorid = 26;</code>
+     */
+    boolean hasVendorid();
+    /**
+     * <pre>
+     * Vendor ID for Anonymous Alexa Accounts
+     * </pre>
+     *
+     * <code>optional string vendorid = 26;</code>
+     */
+    java.lang.String getVendorid();
+    /**
+     * <pre>
+     * Vendor ID for Anonymous Alexa Accounts
+     * </pre>
+     *
+     * <code>optional string vendorid = 26;</code>
+     */
+    com.google.protobuf.ByteString
+        getVendoridBytes();
+
+    /**
+     * <pre>
+     * Refresh Token for Anonymous Alexa Account
+     * </pre>
+     *
+     * <code>optional string refreshtoken = 27;</code>
+     */
+    boolean hasRefreshtoken();
+    /**
+     * <pre>
+     * Refresh Token for Anonymous Alexa Account
+     * </pre>
+     *
+     * <code>optional string refreshtoken = 27;</code>
+     */
+    java.lang.String getRefreshtoken();
+    /**
+     * <pre>
+     * Refresh Token for Anonymous Alexa Account
+     * </pre>
+     *
+     * <code>optional string refreshtoken = 27;</code>
+     */
+    com.google.protobuf.ByteString
+        getRefreshtokenBytes();
+
+    /**
+     * <pre>
+     * Alexa Account is anonymous
+     * </pre>
+     *
+     * <code>optional bool anon = 28;</code>
+     */
+    boolean hasAnon();
+    /**
+     * <pre>
+     * Alexa Account is anonymous
+     * </pre>
+     *
+     * <code>optional bool anon = 28;</code>
+     */
+    boolean getAnon();
   }
   /**
    * Protobuf type {@code tokens.token}
    */
-  public static final class token extends
-      com.google.protobuf.GeneratedMessage implements
+  public  static final class token extends
+      com.google.protobuf.GeneratedMessageV3 implements
       // @@protoc_insertion_point(message_implements:tokens.token)
       tokenOrBuilder {
     // Use token.newBuilder() to construct.
-    private token(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
+    private token(com.google.protobuf.GeneratedMessageV3.Builder<?> builder) {
       super(builder);
-      this.unknownFields = builder.getUnknownFields();
     }
-    private token(boolean noInit) { this.unknownFields = com.google.protobuf.UnknownFieldSet.getDefaultInstance(); }
-
-    private static final token defaultInstance;
-    public static token getDefaultInstance() {
-      return defaultInstance;
+    private token() {
+      command_ = 0;
+      ts_ = 0L;
+      uuid_ = "";
+      projectid_ = 0L;
+      name_ = "";
+      oneProjectId_ = 0L;
+      readOnly_ = false;
+      duedate_ = 0L;
+      displayprojectname_ = "";
+      displayaccountname_ = "";
+      backpackid_ = "";
+      classname_ = "";
+      vendorid_ = "";
+      refreshtoken_ = "";
+      anon_ = false;
     }
 
-    public token getDefaultInstanceForType() {
-      return defaultInstance;
-    }
-
-    private final com.google.protobuf.UnknownFieldSet unknownFields;
     @java.lang.Override
     public final com.google.protobuf.UnknownFieldSet
-        getUnknownFields() {
+    getUnknownFields() {
       return this.unknownFields;
     }
     private token(
         com.google.protobuf.CodedInputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
-      initFields();
+      this();
       int mutable_bitField0_ = 0;
       com.google.protobuf.UnknownFieldSet.Builder unknownFields =
           com.google.protobuf.UnknownFieldSet.newBuilder();
@@ -293,7 +399,7 @@ public final class TokenProto {
                 unknownFields.mergeVarintField(1, rawValue);
               } else {
                 bitField0_ |= 0x00000001;
-                command_ = value;
+                command_ = rawValue;
               }
               break;
             }
@@ -352,13 +458,36 @@ public final class TokenProto {
               backpackid_ = bs;
               break;
             }
+            case 202: {
+              com.google.protobuf.ByteString bs = input.readBytes();
+              bitField0_ |= 0x00000800;
+              classname_ = bs;
+              break;
+            }
+            case 210: {
+              com.google.protobuf.ByteString bs = input.readBytes();
+              bitField0_ |= 0x00001000;
+              vendorid_ = bs;
+              break;
+            }
+            case 218: {
+              com.google.protobuf.ByteString bs = input.readBytes();
+              bitField0_ |= 0x00002000;
+              refreshtoken_ = bs;
+              break;
+            }
+            case 224: {
+              bitField0_ |= 0x00004000;
+              anon_ = input.readBool();
+              break;
+            }
           }
         }
       } catch (com.google.protobuf.InvalidProtocolBufferException e) {
         throw e.setUnfinishedMessage(this);
       } catch (java.io.IOException e) {
         throw new com.google.protobuf.InvalidProtocolBufferException(
-            e.getMessage()).setUnfinishedMessage(this);
+            e).setUnfinishedMessage(this);
       } finally {
         this.unknownFields = unknownFields.build();
         makeExtensionsImmutable();
@@ -369,26 +498,11 @@ public final class TokenProto {
       return com.google.appinventor.server.tokens.TokenProto.internal_static_tokens_token_descriptor;
     }
 
-    protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+    protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
         internalGetFieldAccessorTable() {
       return com.google.appinventor.server.tokens.TokenProto.internal_static_tokens_token_fieldAccessorTable
           .ensureFieldAccessorsInitialized(
               com.google.appinventor.server.tokens.TokenProto.token.class, com.google.appinventor.server.tokens.TokenProto.token.Builder.class);
-    }
-
-    public static com.google.protobuf.Parser<token> PARSER =
-        new com.google.protobuf.AbstractParser<token>() {
-      public token parsePartialFrom(
-          com.google.protobuf.CodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-          throws com.google.protobuf.InvalidProtocolBufferException {
-        return new token(input, extensionRegistry);
-      }
-    };
-
-    @java.lang.Override
-    public com.google.protobuf.Parser<token> getParserForType() {
-      return PARSER;
     }
 
     /**
@@ -397,32 +511,88 @@ public final class TokenProto {
     public enum CommandType
         implements com.google.protobuf.ProtocolMessageEnum {
       /**
+       * <pre>
+       * Redirect only
+       * </pre>
+       *
        * <code>SSOLOGIN = 0;</code>
        */
-      SSOLOGIN(0, 0),
+      SSOLOGIN(0),
       /**
        * <code>SHOWPROJECT = 1;</code>
        */
-      SHOWPROJECT(1, 1),
+      SHOWPROJECT(1),
       /**
        * <code>CREATEACCOUNT = 2;</code>
        */
-      CREATEACCOUNT(2, 2),
+      CREATEACCOUNT(2),
       /**
        * <code>CREATEPROJECT = 3;</code>
        */
-      CREATEPROJECT(3, 3),
+      CREATEPROJECT(3),
       /**
        * <code>LOGOUT = 4;</code>
        */
-      LOGOUT(4, 4),
+      LOGOUT(4),
       /**
+       * <pre>
+       * Redirect only
+       * </pre>
+       *
+       * <code>SSOLOGIN2 = 5;</code>
+       */
+      SSOLOGIN2(5),
+      /**
+       * <pre>
+       * RestServlet, get UID from email
+       * </pre>
+       *
+       * <code>FETCHUUID = 6;</code>
+       */
+      FETCHUUID(6),
+      /**
+       * <pre>
+       * FETCHUID return token, uuid contains return value
+       * </pre>
+       *
+       * <code>UUIDRETURN = 7;</code>
+       */
+      UUIDRETURN(7),
+      /**
+       * <pre>
+       * name contains name from original FETCHUUID
+       * </pre>
+       *
+       * <code>SSOLOGIN3 = 8;</code>
+       */
+      SSOLOGIN3(8),
+      /**
+       * <pre>
+       * (email). Will lookup account by uuid and if it fails
+       * by email. If that fails, the account will be created
+       * The difference between this use and SSOLOGIN is that
+       * SSOLOGIN does not require an name (email) and will never
+       * create an account
+       * </pre>
+       *
        * <code>NOOP = 20;</code>
        */
-      NOOP(5, 20),
+      NOOP(20),
+      /**
+       * <pre>
+       * Delete the account identified by uuid and name
+       * </pre>
+       *
+       * <code>DELETEACCOUNT = 21;</code>
+       */
+      DELETEACCOUNT(21),
       ;
 
       /**
+       * <pre>
+       * Redirect only
+       * </pre>
+       *
        * <code>SSOLOGIN = 0;</code>
        */
       public static final int SSOLOGIN_VALUE = 0;
@@ -443,21 +613,84 @@ public final class TokenProto {
        */
       public static final int LOGOUT_VALUE = 4;
       /**
+       * <pre>
+       * Redirect only
+       * </pre>
+       *
+       * <code>SSOLOGIN2 = 5;</code>
+       */
+      public static final int SSOLOGIN2_VALUE = 5;
+      /**
+       * <pre>
+       * RestServlet, get UID from email
+       * </pre>
+       *
+       * <code>FETCHUUID = 6;</code>
+       */
+      public static final int FETCHUUID_VALUE = 6;
+      /**
+       * <pre>
+       * FETCHUID return token, uuid contains return value
+       * </pre>
+       *
+       * <code>UUIDRETURN = 7;</code>
+       */
+      public static final int UUIDRETURN_VALUE = 7;
+      /**
+       * <pre>
+       * name contains name from original FETCHUUID
+       * </pre>
+       *
+       * <code>SSOLOGIN3 = 8;</code>
+       */
+      public static final int SSOLOGIN3_VALUE = 8;
+      /**
+       * <pre>
+       * (email). Will lookup account by uuid and if it fails
+       * by email. If that fails, the account will be created
+       * The difference between this use and SSOLOGIN is that
+       * SSOLOGIN does not require an name (email) and will never
+       * create an account
+       * </pre>
+       *
        * <code>NOOP = 20;</code>
        */
       public static final int NOOP_VALUE = 20;
+      /**
+       * <pre>
+       * Delete the account identified by uuid and name
+       * </pre>
+       *
+       * <code>DELETEACCOUNT = 21;</code>
+       */
+      public static final int DELETEACCOUNT_VALUE = 21;
 
 
-      public final int getNumber() { return value; }
+      public final int getNumber() {
+        return value;
+      }
 
+      /**
+       * @deprecated Use {@link #forNumber(int)} instead.
+       */
+      @java.lang.Deprecated
       public static CommandType valueOf(int value) {
+        return forNumber(value);
+      }
+
+      public static CommandType forNumber(int value) {
         switch (value) {
           case 0: return SSOLOGIN;
           case 1: return SHOWPROJECT;
           case 2: return CREATEACCOUNT;
           case 3: return CREATEPROJECT;
           case 4: return LOGOUT;
+          case 5: return SSOLOGIN2;
+          case 6: return FETCHUUID;
+          case 7: return UUIDRETURN;
+          case 8: return SSOLOGIN3;
           case 20: return NOOP;
+          case 21: return DELETEACCOUNT;
           default: return null;
         }
       }
@@ -466,17 +699,17 @@ public final class TokenProto {
           internalGetValueMap() {
         return internalValueMap;
       }
-      private static com.google.protobuf.Internal.EnumLiteMap<CommandType>
-          internalValueMap =
+      private static final com.google.protobuf.Internal.EnumLiteMap<
+          CommandType> internalValueMap =
             new com.google.protobuf.Internal.EnumLiteMap<CommandType>() {
               public CommandType findValueByNumber(int number) {
-                return CommandType.valueOf(number);
+                return CommandType.forNumber(number);
               }
             };
 
       public final com.google.protobuf.Descriptors.EnumValueDescriptor
           getValueDescriptor() {
-        return getDescriptor().getValues().get(index);
+        return getDescriptor().getValues().get(ordinal());
       }
       public final com.google.protobuf.Descriptors.EnumDescriptor
           getDescriptorForType() {
@@ -498,11 +731,9 @@ public final class TokenProto {
         return VALUES[desc.getIndex()];
       }
 
-      private final int index;
       private final int value;
 
-      private CommandType(int index, int value) {
-        this.index = index;
+      private CommandType(int value) {
         this.value = value;
       }
 
@@ -511,7 +742,7 @@ public final class TokenProto {
 
     private int bitField0_;
     public static final int COMMAND_FIELD_NUMBER = 1;
-    private com.google.appinventor.server.tokens.TokenProto.token.CommandType command_;
+    private int command_;
     /**
      * <code>required .tokens.token.CommandType command = 1;</code>
      */
@@ -522,50 +753,51 @@ public final class TokenProto {
      * <code>required .tokens.token.CommandType command = 1;</code>
      */
     public com.google.appinventor.server.tokens.TokenProto.token.CommandType getCommand() {
-      return command_;
+      com.google.appinventor.server.tokens.TokenProto.token.CommandType result = com.google.appinventor.server.tokens.TokenProto.token.CommandType.valueOf(command_);
+      return result == null ? com.google.appinventor.server.tokens.TokenProto.token.CommandType.SSOLOGIN : result;
     }
 
     public static final int TS_FIELD_NUMBER = 2;
     private long ts_;
     /**
-     * <code>optional uint64 ts = 2;</code>
-     *
      * <pre>
      * Current timestamp (as a Java time, millis since 1970)
      * </pre>
+     *
+     * <code>optional uint64 ts = 2;</code>
      */
     public boolean hasTs() {
       return ((bitField0_ & 0x00000002) == 0x00000002);
     }
     /**
-     * <code>optional uint64 ts = 2;</code>
-     *
      * <pre>
      * Current timestamp (as a Java time, millis since 1970)
      * </pre>
+     *
+     * <code>optional uint64 ts = 2;</code>
      */
     public long getTs() {
       return ts_;
     }
 
     public static final int UUID_FIELD_NUMBER = 3;
-    private java.lang.Object uuid_;
+    private volatile java.lang.Object uuid_;
     /**
-     * <code>optional string uuid = 3;</code>
-     *
      * <pre>
      * userId (which is usually a uuid, but always a string)
      * </pre>
+     *
+     * <code>optional string uuid = 3;</code>
      */
     public boolean hasUuid() {
       return ((bitField0_ & 0x00000004) == 0x00000004);
     }
     /**
-     * <code>optional string uuid = 3;</code>
-     *
      * <pre>
      * userId (which is usually a uuid, but always a string)
      * </pre>
+     *
+     * <code>optional string uuid = 3;</code>
      */
     public java.lang.String getUuid() {
       java.lang.Object ref = uuid_;
@@ -582,11 +814,11 @@ public final class TokenProto {
       }
     }
     /**
-     * <code>optional string uuid = 3;</code>
-     *
      * <pre>
      * userId (which is usually a uuid, but always a string)
      * </pre>
+     *
+     * <code>optional string uuid = 3;</code>
      */
     public com.google.protobuf.ByteString
         getUuidBytes() {
@@ -605,46 +837,46 @@ public final class TokenProto {
     public static final int PROJECTID_FIELD_NUMBER = 4;
     private long projectid_;
     /**
-     * <code>optional uint64 projectid = 4;</code>
-     *
      * <pre>
      * When showing a project, this is its ID, not used for SSOLOGIN
      * </pre>
+     *
+     * <code>optional uint64 projectid = 4;</code>
      */
     public boolean hasProjectid() {
       return ((bitField0_ & 0x00000008) == 0x00000008);
     }
     /**
-     * <code>optional uint64 projectid = 4;</code>
-     *
      * <pre>
      * When showing a project, this is its ID, not used for SSOLOGIN
      * </pre>
+     *
+     * <code>optional uint64 projectid = 4;</code>
      */
     public long getProjectid() {
       return projectid_;
     }
 
     public static final int NAME_FIELD_NUMBER = 5;
-    private java.lang.Object name_;
+    private volatile java.lang.Object name_;
     /**
-     * <code>optional string name = 5;</code>
-     *
      * <pre>
      * this argument also is used in create project as the
      * source project to copy
      * </pre>
+     *
+     * <code>optional string name = 5;</code>
      */
     public boolean hasName() {
       return ((bitField0_ & 0x00000010) == 0x00000010);
     }
     /**
-     * <code>optional string name = 5;</code>
-     *
      * <pre>
      * this argument also is used in create project as the
      * source project to copy
      * </pre>
+     *
+     * <code>optional string name = 5;</code>
      */
     public java.lang.String getName() {
       java.lang.Object ref = name_;
@@ -661,12 +893,12 @@ public final class TokenProto {
       }
     }
     /**
-     * <code>optional string name = 5;</code>
-     *
      * <pre>
      * this argument also is used in create project as the
      * source project to copy
      * </pre>
+     *
+     * <code>optional string name = 5;</code>
      */
     public com.google.protobuf.ByteString
         getNameBytes() {
@@ -685,21 +917,21 @@ public final class TokenProto {
     public static final int ONEPROJECTID_FIELD_NUMBER = 6;
     private long oneProjectId_;
     /**
-     * <code>optional uint64 oneProjectId = 6;</code>
-     *
      * <pre>
-     * non-zero to open a specific project
+     * Also used for FETCHUID, contains email to lookup
      * </pre>
+     *
+     * <code>optional uint64 oneProjectId = 6;</code>
      */
     public boolean hasOneProjectId() {
       return ((bitField0_ & 0x00000020) == 0x00000020);
     }
     /**
-     * <code>optional uint64 oneProjectId = 6;</code>
-     *
      * <pre>
-     * non-zero to open a specific project
+     * Also used for FETCHUID, contains email to lookup
      * </pre>
+     *
+     * <code>optional uint64 oneProjectId = 6;</code>
      */
     public long getOneProjectId() {
       return oneProjectId_;
@@ -723,44 +955,44 @@ public final class TokenProto {
     public static final int DUEDATE_FIELD_NUMBER = 21;
     private long duedate_;
     /**
-     * <code>optional uint64 duedate = 21;</code>
-     *
      * <pre>
      * Date when the project is due 0 = never due
      * </pre>
+     *
+     * <code>optional uint64 duedate = 21;</code>
      */
     public boolean hasDuedate() {
       return ((bitField0_ & 0x00000080) == 0x00000080);
     }
     /**
-     * <code>optional uint64 duedate = 21;</code>
-     *
      * <pre>
      * Date when the project is due 0 = never due
      * </pre>
+     *
+     * <code>optional uint64 duedate = 21;</code>
      */
     public long getDuedate() {
       return duedate_;
     }
 
     public static final int DISPLAYPROJECTNAME_FIELD_NUMBER = 22;
-    private java.lang.Object displayprojectname_;
+    private volatile java.lang.Object displayprojectname_;
     /**
-     * <code>optional string displayprojectname = 22;</code>
-     *
      * <pre>
      * or not an assignment
      * </pre>
+     *
+     * <code>optional string displayprojectname = 22;</code>
      */
     public boolean hasDisplayprojectname() {
       return ((bitField0_ & 0x00000100) == 0x00000100);
     }
     /**
-     * <code>optional string displayprojectname = 22;</code>
-     *
      * <pre>
      * or not an assignment
      * </pre>
+     *
+     * <code>optional string displayprojectname = 22;</code>
      */
     public java.lang.String getDisplayprojectname() {
       java.lang.Object ref = displayprojectname_;
@@ -777,11 +1009,11 @@ public final class TokenProto {
       }
     }
     /**
-     * <code>optional string displayprojectname = 22;</code>
-     *
      * <pre>
      * or not an assignment
      * </pre>
+     *
+     * <code>optional string displayprojectname = 22;</code>
      */
     public com.google.protobuf.ByteString
         getDisplayprojectnameBytes() {
@@ -798,23 +1030,23 @@ public final class TokenProto {
     }
 
     public static final int DISPLAYACCOUNTNAME_FIELD_NUMBER = 23;
-    private java.lang.Object displayaccountname_;
+    private volatile java.lang.Object displayaccountname_;
     /**
-     * <code>optional string displayaccountname = 23;</code>
-     *
      * <pre>
      * User name to display instead of email address
      * </pre>
+     *
+     * <code>optional string displayaccountname = 23;</code>
      */
     public boolean hasDisplayaccountname() {
       return ((bitField0_ & 0x00000200) == 0x00000200);
     }
     /**
-     * <code>optional string displayaccountname = 23;</code>
-     *
      * <pre>
      * User name to display instead of email address
      * </pre>
+     *
+     * <code>optional string displayaccountname = 23;</code>
      */
     public java.lang.String getDisplayaccountname() {
       java.lang.Object ref = displayaccountname_;
@@ -831,11 +1063,11 @@ public final class TokenProto {
       }
     }
     /**
-     * <code>optional string displayaccountname = 23;</code>
-     *
      * <pre>
      * User name to display instead of email address
      * </pre>
+     *
+     * <code>optional string displayaccountname = 23;</code>
      */
     public com.google.protobuf.ByteString
         getDisplayaccountnameBytes() {
@@ -852,25 +1084,25 @@ public final class TokenProto {
     }
 
     public static final int BACKPACKID_FIELD_NUMBER = 24;
-    private java.lang.Object backpackid_;
+    private volatile java.lang.Object backpackid_;
     /**
-     * <code>optional string backpackid = 24;</code>
-     *
      * <pre>
      * accounts created by the HK portal have "ugly" account
      * names, so they provide something "better" to display instead
      * </pre>
+     *
+     * <code>optional string backpackid = 24;</code>
      */
     public boolean hasBackpackid() {
       return ((bitField0_ & 0x00000400) == 0x00000400);
     }
     /**
-     * <code>optional string backpackid = 24;</code>
-     *
      * <pre>
      * accounts created by the HK portal have "ugly" account
      * names, so they provide something "better" to display instead
      * </pre>
+     *
+     * <code>optional string backpackid = 24;</code>
      */
     public java.lang.String getBackpackid() {
       java.lang.Object ref = backpackid_;
@@ -887,12 +1119,12 @@ public final class TokenProto {
       }
     }
     /**
-     * <code>optional string backpackid = 24;</code>
-     *
      * <pre>
      * accounts created by the HK portal have "ugly" account
      * names, so they provide something "better" to display instead
      * </pre>
+     *
+     * <code>optional string backpackid = 24;</code>
      */
     public com.google.protobuf.ByteString
         getBackpackidBytes() {
@@ -908,19 +1140,191 @@ public final class TokenProto {
       }
     }
 
-    private void initFields() {
-      command_ = com.google.appinventor.server.tokens.TokenProto.token.CommandType.SSOLOGIN;
-      ts_ = 0L;
-      uuid_ = "";
-      projectid_ = 0L;
-      name_ = "";
-      oneProjectId_ = 0L;
-      readOnly_ = false;
-      duedate_ = 0L;
-      displayprojectname_ = "";
-      displayaccountname_ = "";
-      backpackid_ = "";
+    public static final int CLASSNAME_FIELD_NUMBER = 25;
+    private volatile java.lang.Object classname_;
+    /**
+     * <pre>
+     * Class user is associated with
+     * </pre>
+     *
+     * <code>optional string classname = 25;</code>
+     */
+    public boolean hasClassname() {
+      return ((bitField0_ & 0x00000800) == 0x00000800);
     }
+    /**
+     * <pre>
+     * Class user is associated with
+     * </pre>
+     *
+     * <code>optional string classname = 25;</code>
+     */
+    public java.lang.String getClassname() {
+      java.lang.Object ref = classname_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        if (bs.isValidUtf8()) {
+          classname_ = s;
+        }
+        return s;
+      }
+    }
+    /**
+     * <pre>
+     * Class user is associated with
+     * </pre>
+     *
+     * <code>optional string classname = 25;</code>
+     */
+    public com.google.protobuf.ByteString
+        getClassnameBytes() {
+      java.lang.Object ref = classname_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        classname_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int VENDORID_FIELD_NUMBER = 26;
+    private volatile java.lang.Object vendorid_;
+    /**
+     * <pre>
+     * Vendor ID for Anonymous Alexa Accounts
+     * </pre>
+     *
+     * <code>optional string vendorid = 26;</code>
+     */
+    public boolean hasVendorid() {
+      return ((bitField0_ & 0x00001000) == 0x00001000);
+    }
+    /**
+     * <pre>
+     * Vendor ID for Anonymous Alexa Accounts
+     * </pre>
+     *
+     * <code>optional string vendorid = 26;</code>
+     */
+    public java.lang.String getVendorid() {
+      java.lang.Object ref = vendorid_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        if (bs.isValidUtf8()) {
+          vendorid_ = s;
+        }
+        return s;
+      }
+    }
+    /**
+     * <pre>
+     * Vendor ID for Anonymous Alexa Accounts
+     * </pre>
+     *
+     * <code>optional string vendorid = 26;</code>
+     */
+    public com.google.protobuf.ByteString
+        getVendoridBytes() {
+      java.lang.Object ref = vendorid_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        vendorid_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int REFRESHTOKEN_FIELD_NUMBER = 27;
+    private volatile java.lang.Object refreshtoken_;
+    /**
+     * <pre>
+     * Refresh Token for Anonymous Alexa Account
+     * </pre>
+     *
+     * <code>optional string refreshtoken = 27;</code>
+     */
+    public boolean hasRefreshtoken() {
+      return ((bitField0_ & 0x00002000) == 0x00002000);
+    }
+    /**
+     * <pre>
+     * Refresh Token for Anonymous Alexa Account
+     * </pre>
+     *
+     * <code>optional string refreshtoken = 27;</code>
+     */
+    public java.lang.String getRefreshtoken() {
+      java.lang.Object ref = refreshtoken_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        if (bs.isValidUtf8()) {
+          refreshtoken_ = s;
+        }
+        return s;
+      }
+    }
+    /**
+     * <pre>
+     * Refresh Token for Anonymous Alexa Account
+     * </pre>
+     *
+     * <code>optional string refreshtoken = 27;</code>
+     */
+    public com.google.protobuf.ByteString
+        getRefreshtokenBytes() {
+      java.lang.Object ref = refreshtoken_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        refreshtoken_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int ANON_FIELD_NUMBER = 28;
+    private boolean anon_;
+    /**
+     * <pre>
+     * Alexa Account is anonymous
+     * </pre>
+     *
+     * <code>optional bool anon = 28;</code>
+     */
+    public boolean hasAnon() {
+      return ((bitField0_ & 0x00004000) == 0x00004000);
+    }
+    /**
+     * <pre>
+     * Alexa Account is anonymous
+     * </pre>
+     *
+     * <code>optional bool anon = 28;</code>
+     */
+    public boolean getAnon() {
+      return anon_;
+    }
+
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
       byte isInitialized = memoizedIsInitialized;
@@ -937,21 +1341,20 @@ public final class TokenProto {
 
     public void writeTo(com.google.protobuf.CodedOutputStream output)
                         throws java.io.IOException {
-      getSerializedSize();
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        output.writeEnum(1, command_.getNumber());
+        output.writeEnum(1, command_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         output.writeUInt64(2, ts_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        output.writeBytes(3, getUuidBytes());
+        com.google.protobuf.GeneratedMessageV3.writeString(output, 3, uuid_);
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
         output.writeUInt64(4, projectid_);
       }
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
-        output.writeBytes(5, getNameBytes());
+        com.google.protobuf.GeneratedMessageV3.writeString(output, 5, name_);
       }
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
         output.writeUInt64(6, oneProjectId_);
@@ -963,42 +1366,51 @@ public final class TokenProto {
         output.writeUInt64(21, duedate_);
       }
       if (((bitField0_ & 0x00000100) == 0x00000100)) {
-        output.writeBytes(22, getDisplayprojectnameBytes());
+        com.google.protobuf.GeneratedMessageV3.writeString(output, 22, displayprojectname_);
       }
       if (((bitField0_ & 0x00000200) == 0x00000200)) {
-        output.writeBytes(23, getDisplayaccountnameBytes());
+        com.google.protobuf.GeneratedMessageV3.writeString(output, 23, displayaccountname_);
       }
       if (((bitField0_ & 0x00000400) == 0x00000400)) {
-        output.writeBytes(24, getBackpackidBytes());
+        com.google.protobuf.GeneratedMessageV3.writeString(output, 24, backpackid_);
       }
-      getUnknownFields().writeTo(output);
+      if (((bitField0_ & 0x00000800) == 0x00000800)) {
+        com.google.protobuf.GeneratedMessageV3.writeString(output, 25, classname_);
+      }
+      if (((bitField0_ & 0x00001000) == 0x00001000)) {
+        com.google.protobuf.GeneratedMessageV3.writeString(output, 26, vendorid_);
+      }
+      if (((bitField0_ & 0x00002000) == 0x00002000)) {
+        com.google.protobuf.GeneratedMessageV3.writeString(output, 27, refreshtoken_);
+      }
+      if (((bitField0_ & 0x00004000) == 0x00004000)) {
+        output.writeBool(28, anon_);
+      }
+      unknownFields.writeTo(output);
     }
 
-    private int memoizedSerializedSize = -1;
     public int getSerializedSize() {
-      int size = memoizedSerializedSize;
+      int size = memoizedSize;
       if (size != -1) return size;
 
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeEnumSize(1, command_.getNumber());
+          .computeEnumSize(1, command_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         size += com.google.protobuf.CodedOutputStream
           .computeUInt64Size(2, ts_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(3, getUuidBytes());
+        size += com.google.protobuf.GeneratedMessageV3.computeStringSize(3, uuid_);
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
         size += com.google.protobuf.CodedOutputStream
           .computeUInt64Size(4, projectid_);
       }
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(5, getNameBytes());
+        size += com.google.protobuf.GeneratedMessageV3.computeStringSize(5, name_);
       }
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
         size += com.google.protobuf.CodedOutputStream
@@ -1013,27 +1425,198 @@ public final class TokenProto {
           .computeUInt64Size(21, duedate_);
       }
       if (((bitField0_ & 0x00000100) == 0x00000100)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(22, getDisplayprojectnameBytes());
+        size += com.google.protobuf.GeneratedMessageV3.computeStringSize(22, displayprojectname_);
       }
       if (((bitField0_ & 0x00000200) == 0x00000200)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(23, getDisplayaccountnameBytes());
+        size += com.google.protobuf.GeneratedMessageV3.computeStringSize(23, displayaccountname_);
       }
       if (((bitField0_ & 0x00000400) == 0x00000400)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(24, getBackpackidBytes());
+        size += com.google.protobuf.GeneratedMessageV3.computeStringSize(24, backpackid_);
       }
-      size += getUnknownFields().getSerializedSize();
-      memoizedSerializedSize = size;
+      if (((bitField0_ & 0x00000800) == 0x00000800)) {
+        size += com.google.protobuf.GeneratedMessageV3.computeStringSize(25, classname_);
+      }
+      if (((bitField0_ & 0x00001000) == 0x00001000)) {
+        size += com.google.protobuf.GeneratedMessageV3.computeStringSize(26, vendorid_);
+      }
+      if (((bitField0_ & 0x00002000) == 0x00002000)) {
+        size += com.google.protobuf.GeneratedMessageV3.computeStringSize(27, refreshtoken_);
+      }
+      if (((bitField0_ & 0x00004000) == 0x00004000)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBoolSize(28, anon_);
+      }
+      size += unknownFields.getSerializedSize();
+      memoizedSize = size;
       return size;
     }
 
     private static final long serialVersionUID = 0L;
     @java.lang.Override
-    protected java.lang.Object writeReplace()
-        throws java.io.ObjectStreamException {
-      return super.writeReplace();
+    public boolean equals(final java.lang.Object obj) {
+      if (obj == this) {
+       return true;
+      }
+      if (!(obj instanceof com.google.appinventor.server.tokens.TokenProto.token)) {
+        return super.equals(obj);
+      }
+      com.google.appinventor.server.tokens.TokenProto.token other = (com.google.appinventor.server.tokens.TokenProto.token) obj;
+
+      boolean result = true;
+      result = result && (hasCommand() == other.hasCommand());
+      if (hasCommand()) {
+        result = result && command_ == other.command_;
+      }
+      result = result && (hasTs() == other.hasTs());
+      if (hasTs()) {
+        result = result && (getTs()
+            == other.getTs());
+      }
+      result = result && (hasUuid() == other.hasUuid());
+      if (hasUuid()) {
+        result = result && getUuid()
+            .equals(other.getUuid());
+      }
+      result = result && (hasProjectid() == other.hasProjectid());
+      if (hasProjectid()) {
+        result = result && (getProjectid()
+            == other.getProjectid());
+      }
+      result = result && (hasName() == other.hasName());
+      if (hasName()) {
+        result = result && getName()
+            .equals(other.getName());
+      }
+      result = result && (hasOneProjectId() == other.hasOneProjectId());
+      if (hasOneProjectId()) {
+        result = result && (getOneProjectId()
+            == other.getOneProjectId());
+      }
+      result = result && (hasReadOnly() == other.hasReadOnly());
+      if (hasReadOnly()) {
+        result = result && (getReadOnly()
+            == other.getReadOnly());
+      }
+      result = result && (hasDuedate() == other.hasDuedate());
+      if (hasDuedate()) {
+        result = result && (getDuedate()
+            == other.getDuedate());
+      }
+      result = result && (hasDisplayprojectname() == other.hasDisplayprojectname());
+      if (hasDisplayprojectname()) {
+        result = result && getDisplayprojectname()
+            .equals(other.getDisplayprojectname());
+      }
+      result = result && (hasDisplayaccountname() == other.hasDisplayaccountname());
+      if (hasDisplayaccountname()) {
+        result = result && getDisplayaccountname()
+            .equals(other.getDisplayaccountname());
+      }
+      result = result && (hasBackpackid() == other.hasBackpackid());
+      if (hasBackpackid()) {
+        result = result && getBackpackid()
+            .equals(other.getBackpackid());
+      }
+      result = result && (hasClassname() == other.hasClassname());
+      if (hasClassname()) {
+        result = result && getClassname()
+            .equals(other.getClassname());
+      }
+      result = result && (hasVendorid() == other.hasVendorid());
+      if (hasVendorid()) {
+        result = result && getVendorid()
+            .equals(other.getVendorid());
+      }
+      result = result && (hasRefreshtoken() == other.hasRefreshtoken());
+      if (hasRefreshtoken()) {
+        result = result && getRefreshtoken()
+            .equals(other.getRefreshtoken());
+      }
+      result = result && (hasAnon() == other.hasAnon());
+      if (hasAnon()) {
+        result = result && (getAnon()
+            == other.getAnon());
+      }
+      result = result && unknownFields.equals(other.unknownFields);
+      return result;
+    }
+
+    @java.lang.Override
+    public int hashCode() {
+      if (memoizedHashCode != 0) {
+        return memoizedHashCode;
+      }
+      int hash = 41;
+      hash = (19 * hash) + getDescriptorForType().hashCode();
+      if (hasCommand()) {
+        hash = (37 * hash) + COMMAND_FIELD_NUMBER;
+        hash = (53 * hash) + command_;
+      }
+      if (hasTs()) {
+        hash = (37 * hash) + TS_FIELD_NUMBER;
+        hash = (53 * hash) + com.google.protobuf.Internal.hashLong(
+            getTs());
+      }
+      if (hasUuid()) {
+        hash = (37 * hash) + UUID_FIELD_NUMBER;
+        hash = (53 * hash) + getUuid().hashCode();
+      }
+      if (hasProjectid()) {
+        hash = (37 * hash) + PROJECTID_FIELD_NUMBER;
+        hash = (53 * hash) + com.google.protobuf.Internal.hashLong(
+            getProjectid());
+      }
+      if (hasName()) {
+        hash = (37 * hash) + NAME_FIELD_NUMBER;
+        hash = (53 * hash) + getName().hashCode();
+      }
+      if (hasOneProjectId()) {
+        hash = (37 * hash) + ONEPROJECTID_FIELD_NUMBER;
+        hash = (53 * hash) + com.google.protobuf.Internal.hashLong(
+            getOneProjectId());
+      }
+      if (hasReadOnly()) {
+        hash = (37 * hash) + READONLY_FIELD_NUMBER;
+        hash = (53 * hash) + com.google.protobuf.Internal.hashBoolean(
+            getReadOnly());
+      }
+      if (hasDuedate()) {
+        hash = (37 * hash) + DUEDATE_FIELD_NUMBER;
+        hash = (53 * hash) + com.google.protobuf.Internal.hashLong(
+            getDuedate());
+      }
+      if (hasDisplayprojectname()) {
+        hash = (37 * hash) + DISPLAYPROJECTNAME_FIELD_NUMBER;
+        hash = (53 * hash) + getDisplayprojectname().hashCode();
+      }
+      if (hasDisplayaccountname()) {
+        hash = (37 * hash) + DISPLAYACCOUNTNAME_FIELD_NUMBER;
+        hash = (53 * hash) + getDisplayaccountname().hashCode();
+      }
+      if (hasBackpackid()) {
+        hash = (37 * hash) + BACKPACKID_FIELD_NUMBER;
+        hash = (53 * hash) + getBackpackid().hashCode();
+      }
+      if (hasClassname()) {
+        hash = (37 * hash) + CLASSNAME_FIELD_NUMBER;
+        hash = (53 * hash) + getClassname().hashCode();
+      }
+      if (hasVendorid()) {
+        hash = (37 * hash) + VENDORID_FIELD_NUMBER;
+        hash = (53 * hash) + getVendorid().hashCode();
+      }
+      if (hasRefreshtoken()) {
+        hash = (37 * hash) + REFRESHTOKEN_FIELD_NUMBER;
+        hash = (53 * hash) + getRefreshtoken().hashCode();
+      }
+      if (hasAnon()) {
+        hash = (37 * hash) + ANON_FIELD_NUMBER;
+        hash = (53 * hash) + com.google.protobuf.Internal.hashBoolean(
+            getAnon());
+      }
+      hash = (29 * hash) + unknownFields.hashCode();
+      memoizedHashCode = hash;
+      return hash;
     }
 
     public static com.google.appinventor.server.tokens.TokenProto.token parseFrom(
@@ -1059,46 +1642,57 @@ public final class TokenProto {
     }
     public static com.google.appinventor.server.tokens.TokenProto.token parseFrom(java.io.InputStream input)
         throws java.io.IOException {
-      return PARSER.parseFrom(input);
+      return com.google.protobuf.GeneratedMessageV3
+          .parseWithIOException(PARSER, input);
     }
     public static com.google.appinventor.server.tokens.TokenProto.token parseFrom(
         java.io.InputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
-      return PARSER.parseFrom(input, extensionRegistry);
+      return com.google.protobuf.GeneratedMessageV3
+          .parseWithIOException(PARSER, input, extensionRegistry);
     }
     public static com.google.appinventor.server.tokens.TokenProto.token parseDelimitedFrom(java.io.InputStream input)
         throws java.io.IOException {
-      return PARSER.parseDelimitedFrom(input);
+      return com.google.protobuf.GeneratedMessageV3
+          .parseDelimitedWithIOException(PARSER, input);
     }
     public static com.google.appinventor.server.tokens.TokenProto.token parseDelimitedFrom(
         java.io.InputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
-      return PARSER.parseDelimitedFrom(input, extensionRegistry);
+      return com.google.protobuf.GeneratedMessageV3
+          .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
     }
     public static com.google.appinventor.server.tokens.TokenProto.token parseFrom(
         com.google.protobuf.CodedInputStream input)
         throws java.io.IOException {
-      return PARSER.parseFrom(input);
+      return com.google.protobuf.GeneratedMessageV3
+          .parseWithIOException(PARSER, input);
     }
     public static com.google.appinventor.server.tokens.TokenProto.token parseFrom(
         com.google.protobuf.CodedInputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
-      return PARSER.parseFrom(input, extensionRegistry);
+      return com.google.protobuf.GeneratedMessageV3
+          .parseWithIOException(PARSER, input, extensionRegistry);
     }
 
-    public static Builder newBuilder() { return Builder.create(); }
     public Builder newBuilderForType() { return newBuilder(); }
-    public static Builder newBuilder(com.google.appinventor.server.tokens.TokenProto.token prototype) {
-      return newBuilder().mergeFrom(prototype);
+    public static Builder newBuilder() {
+      return DEFAULT_INSTANCE.toBuilder();
     }
-    public Builder toBuilder() { return newBuilder(this); }
+    public static Builder newBuilder(com.google.appinventor.server.tokens.TokenProto.token prototype) {
+      return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
+    }
+    public Builder toBuilder() {
+      return this == DEFAULT_INSTANCE
+          ? new Builder() : new Builder().mergeFrom(this);
+    }
 
     @java.lang.Override
     protected Builder newBuilderForType(
-        com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+        com.google.protobuf.GeneratedMessageV3.BuilderParent parent) {
       Builder builder = new Builder(parent);
       return builder;
     }
@@ -1106,7 +1700,7 @@ public final class TokenProto {
      * Protobuf type {@code tokens.token}
      */
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessage.Builder<Builder> implements
+        com.google.protobuf.GeneratedMessageV3.Builder<Builder> implements
         // @@protoc_insertion_point(builder_implements:tokens.token)
         com.google.appinventor.server.tokens.TokenProto.tokenOrBuilder {
       public static final com.google.protobuf.Descriptors.Descriptor
@@ -1114,7 +1708,7 @@ public final class TokenProto {
         return com.google.appinventor.server.tokens.TokenProto.internal_static_tokens_token_descriptor;
       }
 
-      protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
           internalGetFieldAccessorTable() {
         return com.google.appinventor.server.tokens.TokenProto.internal_static_tokens_token_fieldAccessorTable
             .ensureFieldAccessorsInitialized(
@@ -1127,21 +1721,18 @@ public final class TokenProto {
       }
 
       private Builder(
-          com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+          com.google.protobuf.GeneratedMessageV3.BuilderParent parent) {
         super(parent);
         maybeForceBuilderInitialization();
       }
       private void maybeForceBuilderInitialization() {
-        if (com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders) {
+        if (com.google.protobuf.GeneratedMessageV3
+                .alwaysUseFieldBuilders) {
         }
       }
-      private static Builder create() {
-        return new Builder();
-      }
-
       public Builder clear() {
         super.clear();
-        command_ = com.google.appinventor.server.tokens.TokenProto.token.CommandType.SSOLOGIN;
+        command_ = 0;
         bitField0_ = (bitField0_ & ~0x00000001);
         ts_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000002);
@@ -1163,11 +1754,15 @@ public final class TokenProto {
         bitField0_ = (bitField0_ & ~0x00000200);
         backpackid_ = "";
         bitField0_ = (bitField0_ & ~0x00000400);
+        classname_ = "";
+        bitField0_ = (bitField0_ & ~0x00000800);
+        vendorid_ = "";
+        bitField0_ = (bitField0_ & ~0x00001000);
+        refreshtoken_ = "";
+        bitField0_ = (bitField0_ & ~0x00002000);
+        anon_ = false;
+        bitField0_ = (bitField0_ & ~0x00004000);
         return this;
-      }
-
-      public Builder clone() {
-        return create().mergeFrom(buildPartial());
       }
 
       public com.google.protobuf.Descriptors.Descriptor
@@ -1235,11 +1830,53 @@ public final class TokenProto {
           to_bitField0_ |= 0x00000400;
         }
         result.backpackid_ = backpackid_;
+        if (((from_bitField0_ & 0x00000800) == 0x00000800)) {
+          to_bitField0_ |= 0x00000800;
+        }
+        result.classname_ = classname_;
+        if (((from_bitField0_ & 0x00001000) == 0x00001000)) {
+          to_bitField0_ |= 0x00001000;
+        }
+        result.vendorid_ = vendorid_;
+        if (((from_bitField0_ & 0x00002000) == 0x00002000)) {
+          to_bitField0_ |= 0x00002000;
+        }
+        result.refreshtoken_ = refreshtoken_;
+        if (((from_bitField0_ & 0x00004000) == 0x00004000)) {
+          to_bitField0_ |= 0x00004000;
+        }
+        result.anon_ = anon_;
         result.bitField0_ = to_bitField0_;
         onBuilt();
         return result;
       }
 
+      public Builder clone() {
+        return (Builder) super.clone();
+      }
+      public Builder setField(
+          com.google.protobuf.Descriptors.FieldDescriptor field,
+          Object value) {
+        return (Builder) super.setField(field, value);
+      }
+      public Builder clearField(
+          com.google.protobuf.Descriptors.FieldDescriptor field) {
+        return (Builder) super.clearField(field);
+      }
+      public Builder clearOneof(
+          com.google.protobuf.Descriptors.OneofDescriptor oneof) {
+        return (Builder) super.clearOneof(oneof);
+      }
+      public Builder setRepeatedField(
+          com.google.protobuf.Descriptors.FieldDescriptor field,
+          int index, Object value) {
+        return (Builder) super.setRepeatedField(field, index, value);
+      }
+      public Builder addRepeatedField(
+          com.google.protobuf.Descriptors.FieldDescriptor field,
+          Object value) {
+        return (Builder) super.addRepeatedField(field, value);
+      }
       public Builder mergeFrom(com.google.protobuf.Message other) {
         if (other instanceof com.google.appinventor.server.tokens.TokenProto.token) {
           return mergeFrom((com.google.appinventor.server.tokens.TokenProto.token)other);
@@ -1294,13 +1931,31 @@ public final class TokenProto {
           backpackid_ = other.backpackid_;
           onChanged();
         }
-        this.mergeUnknownFields(other.getUnknownFields());
+        if (other.hasClassname()) {
+          bitField0_ |= 0x00000800;
+          classname_ = other.classname_;
+          onChanged();
+        }
+        if (other.hasVendorid()) {
+          bitField0_ |= 0x00001000;
+          vendorid_ = other.vendorid_;
+          onChanged();
+        }
+        if (other.hasRefreshtoken()) {
+          bitField0_ |= 0x00002000;
+          refreshtoken_ = other.refreshtoken_;
+          onChanged();
+        }
+        if (other.hasAnon()) {
+          setAnon(other.getAnon());
+        }
+        this.mergeUnknownFields(other.unknownFields);
+        onChanged();
         return this;
       }
 
       public final boolean isInitialized() {
         if (!hasCommand()) {
-          
           return false;
         }
         return true;
@@ -1315,7 +1970,7 @@ public final class TokenProto {
           parsedMessage = PARSER.parsePartialFrom(input, extensionRegistry);
         } catch (com.google.protobuf.InvalidProtocolBufferException e) {
           parsedMessage = (com.google.appinventor.server.tokens.TokenProto.token) e.getUnfinishedMessage();
-          throw e;
+          throw e.unwrapIOException();
         } finally {
           if (parsedMessage != null) {
             mergeFrom(parsedMessage);
@@ -1325,7 +1980,7 @@ public final class TokenProto {
       }
       private int bitField0_;
 
-      private com.google.appinventor.server.tokens.TokenProto.token.CommandType command_ = com.google.appinventor.server.tokens.TokenProto.token.CommandType.SSOLOGIN;
+      private int command_ = 0;
       /**
        * <code>required .tokens.token.CommandType command = 1;</code>
        */
@@ -1336,7 +1991,8 @@ public final class TokenProto {
        * <code>required .tokens.token.CommandType command = 1;</code>
        */
       public com.google.appinventor.server.tokens.TokenProto.token.CommandType getCommand() {
-        return command_;
+        com.google.appinventor.server.tokens.TokenProto.token.CommandType result = com.google.appinventor.server.tokens.TokenProto.token.CommandType.valueOf(command_);
+        return result == null ? com.google.appinventor.server.tokens.TokenProto.token.CommandType.SSOLOGIN : result;
       }
       /**
        * <code>required .tokens.token.CommandType command = 1;</code>
@@ -1346,7 +2002,7 @@ public final class TokenProto {
           throw new NullPointerException();
         }
         bitField0_ |= 0x00000001;
-        command_ = value;
+        command_ = value.getNumber();
         onChanged();
         return this;
       }
@@ -1355,38 +2011,38 @@ public final class TokenProto {
        */
       public Builder clearCommand() {
         bitField0_ = (bitField0_ & ~0x00000001);
-        command_ = com.google.appinventor.server.tokens.TokenProto.token.CommandType.SSOLOGIN;
+        command_ = 0;
         onChanged();
         return this;
       }
 
       private long ts_ ;
       /**
-       * <code>optional uint64 ts = 2;</code>
-       *
        * <pre>
        * Current timestamp (as a Java time, millis since 1970)
        * </pre>
+       *
+       * <code>optional uint64 ts = 2;</code>
        */
       public boolean hasTs() {
         return ((bitField0_ & 0x00000002) == 0x00000002);
       }
       /**
-       * <code>optional uint64 ts = 2;</code>
-       *
        * <pre>
        * Current timestamp (as a Java time, millis since 1970)
        * </pre>
+       *
+       * <code>optional uint64 ts = 2;</code>
        */
       public long getTs() {
         return ts_;
       }
       /**
-       * <code>optional uint64 ts = 2;</code>
-       *
        * <pre>
        * Current timestamp (as a Java time, millis since 1970)
        * </pre>
+       *
+       * <code>optional uint64 ts = 2;</code>
        */
       public Builder setTs(long value) {
         bitField0_ |= 0x00000002;
@@ -1395,11 +2051,11 @@ public final class TokenProto {
         return this;
       }
       /**
-       * <code>optional uint64 ts = 2;</code>
-       *
        * <pre>
        * Current timestamp (as a Java time, millis since 1970)
        * </pre>
+       *
+       * <code>optional uint64 ts = 2;</code>
        */
       public Builder clearTs() {
         bitField0_ = (bitField0_ & ~0x00000002);
@@ -1410,21 +2066,21 @@ public final class TokenProto {
 
       private java.lang.Object uuid_ = "";
       /**
-       * <code>optional string uuid = 3;</code>
-       *
        * <pre>
        * userId (which is usually a uuid, but always a string)
        * </pre>
+       *
+       * <code>optional string uuid = 3;</code>
        */
       public boolean hasUuid() {
         return ((bitField0_ & 0x00000004) == 0x00000004);
       }
       /**
-       * <code>optional string uuid = 3;</code>
-       *
        * <pre>
        * userId (which is usually a uuid, but always a string)
        * </pre>
+       *
+       * <code>optional string uuid = 3;</code>
        */
       public java.lang.String getUuid() {
         java.lang.Object ref = uuid_;
@@ -1441,11 +2097,11 @@ public final class TokenProto {
         }
       }
       /**
-       * <code>optional string uuid = 3;</code>
-       *
        * <pre>
        * userId (which is usually a uuid, but always a string)
        * </pre>
+       *
+       * <code>optional string uuid = 3;</code>
        */
       public com.google.protobuf.ByteString
           getUuidBytes() {
@@ -1461,11 +2117,11 @@ public final class TokenProto {
         }
       }
       /**
-       * <code>optional string uuid = 3;</code>
-       *
        * <pre>
        * userId (which is usually a uuid, but always a string)
        * </pre>
+       *
+       * <code>optional string uuid = 3;</code>
        */
       public Builder setUuid(
           java.lang.String value) {
@@ -1478,11 +2134,11 @@ public final class TokenProto {
         return this;
       }
       /**
-       * <code>optional string uuid = 3;</code>
-       *
        * <pre>
        * userId (which is usually a uuid, but always a string)
        * </pre>
+       *
+       * <code>optional string uuid = 3;</code>
        */
       public Builder clearUuid() {
         bitField0_ = (bitField0_ & ~0x00000004);
@@ -1491,11 +2147,11 @@ public final class TokenProto {
         return this;
       }
       /**
-       * <code>optional string uuid = 3;</code>
-       *
        * <pre>
        * userId (which is usually a uuid, but always a string)
        * </pre>
+       *
+       * <code>optional string uuid = 3;</code>
        */
       public Builder setUuidBytes(
           com.google.protobuf.ByteString value) {
@@ -1510,31 +2166,31 @@ public final class TokenProto {
 
       private long projectid_ ;
       /**
-       * <code>optional uint64 projectid = 4;</code>
-       *
        * <pre>
        * When showing a project, this is its ID, not used for SSOLOGIN
        * </pre>
+       *
+       * <code>optional uint64 projectid = 4;</code>
        */
       public boolean hasProjectid() {
         return ((bitField0_ & 0x00000008) == 0x00000008);
       }
       /**
-       * <code>optional uint64 projectid = 4;</code>
-       *
        * <pre>
        * When showing a project, this is its ID, not used for SSOLOGIN
        * </pre>
+       *
+       * <code>optional uint64 projectid = 4;</code>
        */
       public long getProjectid() {
         return projectid_;
       }
       /**
-       * <code>optional uint64 projectid = 4;</code>
-       *
        * <pre>
        * When showing a project, this is its ID, not used for SSOLOGIN
        * </pre>
+       *
+       * <code>optional uint64 projectid = 4;</code>
        */
       public Builder setProjectid(long value) {
         bitField0_ |= 0x00000008;
@@ -1543,11 +2199,11 @@ public final class TokenProto {
         return this;
       }
       /**
-       * <code>optional uint64 projectid = 4;</code>
-       *
        * <pre>
        * When showing a project, this is its ID, not used for SSOLOGIN
        * </pre>
+       *
+       * <code>optional uint64 projectid = 4;</code>
        */
       public Builder clearProjectid() {
         bitField0_ = (bitField0_ & ~0x00000008);
@@ -1558,23 +2214,23 @@ public final class TokenProto {
 
       private java.lang.Object name_ = "";
       /**
-       * <code>optional string name = 5;</code>
-       *
        * <pre>
        * this argument also is used in create project as the
        * source project to copy
        * </pre>
+       *
+       * <code>optional string name = 5;</code>
        */
       public boolean hasName() {
         return ((bitField0_ & 0x00000010) == 0x00000010);
       }
       /**
-       * <code>optional string name = 5;</code>
-       *
        * <pre>
        * this argument also is used in create project as the
        * source project to copy
        * </pre>
+       *
+       * <code>optional string name = 5;</code>
        */
       public java.lang.String getName() {
         java.lang.Object ref = name_;
@@ -1591,12 +2247,12 @@ public final class TokenProto {
         }
       }
       /**
-       * <code>optional string name = 5;</code>
-       *
        * <pre>
        * this argument also is used in create project as the
        * source project to copy
        * </pre>
+       *
+       * <code>optional string name = 5;</code>
        */
       public com.google.protobuf.ByteString
           getNameBytes() {
@@ -1612,12 +2268,12 @@ public final class TokenProto {
         }
       }
       /**
-       * <code>optional string name = 5;</code>
-       *
        * <pre>
        * this argument also is used in create project as the
        * source project to copy
        * </pre>
+       *
+       * <code>optional string name = 5;</code>
        */
       public Builder setName(
           java.lang.String value) {
@@ -1630,12 +2286,12 @@ public final class TokenProto {
         return this;
       }
       /**
-       * <code>optional string name = 5;</code>
-       *
        * <pre>
        * this argument also is used in create project as the
        * source project to copy
        * </pre>
+       *
+       * <code>optional string name = 5;</code>
        */
       public Builder clearName() {
         bitField0_ = (bitField0_ & ~0x00000010);
@@ -1644,12 +2300,12 @@ public final class TokenProto {
         return this;
       }
       /**
-       * <code>optional string name = 5;</code>
-       *
        * <pre>
        * this argument also is used in create project as the
        * source project to copy
        * </pre>
+       *
+       * <code>optional string name = 5;</code>
        */
       public Builder setNameBytes(
           com.google.protobuf.ByteString value) {
@@ -1664,31 +2320,31 @@ public final class TokenProto {
 
       private long oneProjectId_ ;
       /**
-       * <code>optional uint64 oneProjectId = 6;</code>
-       *
        * <pre>
-       * non-zero to open a specific project
+       * Also used for FETCHUID, contains email to lookup
        * </pre>
+       *
+       * <code>optional uint64 oneProjectId = 6;</code>
        */
       public boolean hasOneProjectId() {
         return ((bitField0_ & 0x00000020) == 0x00000020);
       }
       /**
-       * <code>optional uint64 oneProjectId = 6;</code>
-       *
        * <pre>
-       * non-zero to open a specific project
+       * Also used for FETCHUID, contains email to lookup
        * </pre>
+       *
+       * <code>optional uint64 oneProjectId = 6;</code>
        */
       public long getOneProjectId() {
         return oneProjectId_;
       }
       /**
-       * <code>optional uint64 oneProjectId = 6;</code>
-       *
        * <pre>
-       * non-zero to open a specific project
+       * Also used for FETCHUID, contains email to lookup
        * </pre>
+       *
+       * <code>optional uint64 oneProjectId = 6;</code>
        */
       public Builder setOneProjectId(long value) {
         bitField0_ |= 0x00000020;
@@ -1697,11 +2353,11 @@ public final class TokenProto {
         return this;
       }
       /**
-       * <code>optional uint64 oneProjectId = 6;</code>
-       *
        * <pre>
-       * non-zero to open a specific project
+       * Also used for FETCHUID, contains email to lookup
        * </pre>
+       *
+       * <code>optional uint64 oneProjectId = 6;</code>
        */
       public Builder clearOneProjectId() {
         bitField0_ = (bitField0_ & ~0x00000020);
@@ -1744,31 +2400,31 @@ public final class TokenProto {
 
       private long duedate_ ;
       /**
-       * <code>optional uint64 duedate = 21;</code>
-       *
        * <pre>
        * Date when the project is due 0 = never due
        * </pre>
+       *
+       * <code>optional uint64 duedate = 21;</code>
        */
       public boolean hasDuedate() {
         return ((bitField0_ & 0x00000080) == 0x00000080);
       }
       /**
-       * <code>optional uint64 duedate = 21;</code>
-       *
        * <pre>
        * Date when the project is due 0 = never due
        * </pre>
+       *
+       * <code>optional uint64 duedate = 21;</code>
        */
       public long getDuedate() {
         return duedate_;
       }
       /**
-       * <code>optional uint64 duedate = 21;</code>
-       *
        * <pre>
        * Date when the project is due 0 = never due
        * </pre>
+       *
+       * <code>optional uint64 duedate = 21;</code>
        */
       public Builder setDuedate(long value) {
         bitField0_ |= 0x00000080;
@@ -1777,11 +2433,11 @@ public final class TokenProto {
         return this;
       }
       /**
-       * <code>optional uint64 duedate = 21;</code>
-       *
        * <pre>
        * Date when the project is due 0 = never due
        * </pre>
+       *
+       * <code>optional uint64 duedate = 21;</code>
        */
       public Builder clearDuedate() {
         bitField0_ = (bitField0_ & ~0x00000080);
@@ -1792,21 +2448,21 @@ public final class TokenProto {
 
       private java.lang.Object displayprojectname_ = "";
       /**
-       * <code>optional string displayprojectname = 22;</code>
-       *
        * <pre>
        * or not an assignment
        * </pre>
+       *
+       * <code>optional string displayprojectname = 22;</code>
        */
       public boolean hasDisplayprojectname() {
         return ((bitField0_ & 0x00000100) == 0x00000100);
       }
       /**
-       * <code>optional string displayprojectname = 22;</code>
-       *
        * <pre>
        * or not an assignment
        * </pre>
+       *
+       * <code>optional string displayprojectname = 22;</code>
        */
       public java.lang.String getDisplayprojectname() {
         java.lang.Object ref = displayprojectname_;
@@ -1823,11 +2479,11 @@ public final class TokenProto {
         }
       }
       /**
-       * <code>optional string displayprojectname = 22;</code>
-       *
        * <pre>
        * or not an assignment
        * </pre>
+       *
+       * <code>optional string displayprojectname = 22;</code>
        */
       public com.google.protobuf.ByteString
           getDisplayprojectnameBytes() {
@@ -1843,11 +2499,11 @@ public final class TokenProto {
         }
       }
       /**
-       * <code>optional string displayprojectname = 22;</code>
-       *
        * <pre>
        * or not an assignment
        * </pre>
+       *
+       * <code>optional string displayprojectname = 22;</code>
        */
       public Builder setDisplayprojectname(
           java.lang.String value) {
@@ -1860,11 +2516,11 @@ public final class TokenProto {
         return this;
       }
       /**
-       * <code>optional string displayprojectname = 22;</code>
-       *
        * <pre>
        * or not an assignment
        * </pre>
+       *
+       * <code>optional string displayprojectname = 22;</code>
        */
       public Builder clearDisplayprojectname() {
         bitField0_ = (bitField0_ & ~0x00000100);
@@ -1873,11 +2529,11 @@ public final class TokenProto {
         return this;
       }
       /**
-       * <code>optional string displayprojectname = 22;</code>
-       *
        * <pre>
        * or not an assignment
        * </pre>
+       *
+       * <code>optional string displayprojectname = 22;</code>
        */
       public Builder setDisplayprojectnameBytes(
           com.google.protobuf.ByteString value) {
@@ -1892,21 +2548,21 @@ public final class TokenProto {
 
       private java.lang.Object displayaccountname_ = "";
       /**
-       * <code>optional string displayaccountname = 23;</code>
-       *
        * <pre>
        * User name to display instead of email address
        * </pre>
+       *
+       * <code>optional string displayaccountname = 23;</code>
        */
       public boolean hasDisplayaccountname() {
         return ((bitField0_ & 0x00000200) == 0x00000200);
       }
       /**
-       * <code>optional string displayaccountname = 23;</code>
-       *
        * <pre>
        * User name to display instead of email address
        * </pre>
+       *
+       * <code>optional string displayaccountname = 23;</code>
        */
       public java.lang.String getDisplayaccountname() {
         java.lang.Object ref = displayaccountname_;
@@ -1923,11 +2579,11 @@ public final class TokenProto {
         }
       }
       /**
-       * <code>optional string displayaccountname = 23;</code>
-       *
        * <pre>
        * User name to display instead of email address
        * </pre>
+       *
+       * <code>optional string displayaccountname = 23;</code>
        */
       public com.google.protobuf.ByteString
           getDisplayaccountnameBytes() {
@@ -1943,11 +2599,11 @@ public final class TokenProto {
         }
       }
       /**
-       * <code>optional string displayaccountname = 23;</code>
-       *
        * <pre>
        * User name to display instead of email address
        * </pre>
+       *
+       * <code>optional string displayaccountname = 23;</code>
        */
       public Builder setDisplayaccountname(
           java.lang.String value) {
@@ -1960,11 +2616,11 @@ public final class TokenProto {
         return this;
       }
       /**
-       * <code>optional string displayaccountname = 23;</code>
-       *
        * <pre>
        * User name to display instead of email address
        * </pre>
+       *
+       * <code>optional string displayaccountname = 23;</code>
        */
       public Builder clearDisplayaccountname() {
         bitField0_ = (bitField0_ & ~0x00000200);
@@ -1973,11 +2629,11 @@ public final class TokenProto {
         return this;
       }
       /**
-       * <code>optional string displayaccountname = 23;</code>
-       *
        * <pre>
        * User name to display instead of email address
        * </pre>
+       *
+       * <code>optional string displayaccountname = 23;</code>
        */
       public Builder setDisplayaccountnameBytes(
           com.google.protobuf.ByteString value) {
@@ -1992,23 +2648,23 @@ public final class TokenProto {
 
       private java.lang.Object backpackid_ = "";
       /**
-       * <code>optional string backpackid = 24;</code>
-       *
        * <pre>
        * accounts created by the HK portal have "ugly" account
        * names, so they provide something "better" to display instead
        * </pre>
+       *
+       * <code>optional string backpackid = 24;</code>
        */
       public boolean hasBackpackid() {
         return ((bitField0_ & 0x00000400) == 0x00000400);
       }
       /**
-       * <code>optional string backpackid = 24;</code>
-       *
        * <pre>
        * accounts created by the HK portal have "ugly" account
        * names, so they provide something "better" to display instead
        * </pre>
+       *
+       * <code>optional string backpackid = 24;</code>
        */
       public java.lang.String getBackpackid() {
         java.lang.Object ref = backpackid_;
@@ -2025,12 +2681,12 @@ public final class TokenProto {
         }
       }
       /**
-       * <code>optional string backpackid = 24;</code>
-       *
        * <pre>
        * accounts created by the HK portal have "ugly" account
        * names, so they provide something "better" to display instead
        * </pre>
+       *
+       * <code>optional string backpackid = 24;</code>
        */
       public com.google.protobuf.ByteString
           getBackpackidBytes() {
@@ -2046,12 +2702,12 @@ public final class TokenProto {
         }
       }
       /**
-       * <code>optional string backpackid = 24;</code>
-       *
        * <pre>
        * accounts created by the HK portal have "ugly" account
        * names, so they provide something "better" to display instead
        * </pre>
+       *
+       * <code>optional string backpackid = 24;</code>
        */
       public Builder setBackpackid(
           java.lang.String value) {
@@ -2064,12 +2720,12 @@ public final class TokenProto {
         return this;
       }
       /**
-       * <code>optional string backpackid = 24;</code>
-       *
        * <pre>
        * accounts created by the HK portal have "ugly" account
        * names, so they provide something "better" to display instead
        * </pre>
+       *
+       * <code>optional string backpackid = 24;</code>
        */
       public Builder clearBackpackid() {
         bitField0_ = (bitField0_ & ~0x00000400);
@@ -2078,12 +2734,12 @@ public final class TokenProto {
         return this;
       }
       /**
-       * <code>optional string backpackid = 24;</code>
-       *
        * <pre>
        * accounts created by the HK portal have "ugly" account
        * names, so they provide something "better" to display instead
        * </pre>
+       *
+       * <code>optional string backpackid = 24;</code>
        */
       public Builder setBackpackidBytes(
           com.google.protobuf.ByteString value) {
@@ -2096,42 +2752,431 @@ public final class TokenProto {
         return this;
       }
 
+      private java.lang.Object classname_ = "";
+      /**
+       * <pre>
+       * Class user is associated with
+       * </pre>
+       *
+       * <code>optional string classname = 25;</code>
+       */
+      public boolean hasClassname() {
+        return ((bitField0_ & 0x00000800) == 0x00000800);
+      }
+      /**
+       * <pre>
+       * Class user is associated with
+       * </pre>
+       *
+       * <code>optional string classname = 25;</code>
+       */
+      public java.lang.String getClassname() {
+        java.lang.Object ref = classname_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          if (bs.isValidUtf8()) {
+            classname_ = s;
+          }
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <pre>
+       * Class user is associated with
+       * </pre>
+       *
+       * <code>optional string classname = 25;</code>
+       */
+      public com.google.protobuf.ByteString
+          getClassnameBytes() {
+        java.lang.Object ref = classname_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          classname_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <pre>
+       * Class user is associated with
+       * </pre>
+       *
+       * <code>optional string classname = 25;</code>
+       */
+      public Builder setClassname(
+          java.lang.String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000800;
+        classname_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <pre>
+       * Class user is associated with
+       * </pre>
+       *
+       * <code>optional string classname = 25;</code>
+       */
+      public Builder clearClassname() {
+        bitField0_ = (bitField0_ & ~0x00000800);
+        classname_ = getDefaultInstance().getClassname();
+        onChanged();
+        return this;
+      }
+      /**
+       * <pre>
+       * Class user is associated with
+       * </pre>
+       *
+       * <code>optional string classname = 25;</code>
+       */
+      public Builder setClassnameBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000800;
+        classname_ = value;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object vendorid_ = "";
+      /**
+       * <pre>
+       * Vendor ID for Anonymous Alexa Accounts
+       * </pre>
+       *
+       * <code>optional string vendorid = 26;</code>
+       */
+      public boolean hasVendorid() {
+        return ((bitField0_ & 0x00001000) == 0x00001000);
+      }
+      /**
+       * <pre>
+       * Vendor ID for Anonymous Alexa Accounts
+       * </pre>
+       *
+       * <code>optional string vendorid = 26;</code>
+       */
+      public java.lang.String getVendorid() {
+        java.lang.Object ref = vendorid_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          if (bs.isValidUtf8()) {
+            vendorid_ = s;
+          }
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <pre>
+       * Vendor ID for Anonymous Alexa Accounts
+       * </pre>
+       *
+       * <code>optional string vendorid = 26;</code>
+       */
+      public com.google.protobuf.ByteString
+          getVendoridBytes() {
+        java.lang.Object ref = vendorid_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          vendorid_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <pre>
+       * Vendor ID for Anonymous Alexa Accounts
+       * </pre>
+       *
+       * <code>optional string vendorid = 26;</code>
+       */
+      public Builder setVendorid(
+          java.lang.String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00001000;
+        vendorid_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <pre>
+       * Vendor ID for Anonymous Alexa Accounts
+       * </pre>
+       *
+       * <code>optional string vendorid = 26;</code>
+       */
+      public Builder clearVendorid() {
+        bitField0_ = (bitField0_ & ~0x00001000);
+        vendorid_ = getDefaultInstance().getVendorid();
+        onChanged();
+        return this;
+      }
+      /**
+       * <pre>
+       * Vendor ID for Anonymous Alexa Accounts
+       * </pre>
+       *
+       * <code>optional string vendorid = 26;</code>
+       */
+      public Builder setVendoridBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00001000;
+        vendorid_ = value;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object refreshtoken_ = "";
+      /**
+       * <pre>
+       * Refresh Token for Anonymous Alexa Account
+       * </pre>
+       *
+       * <code>optional string refreshtoken = 27;</code>
+       */
+      public boolean hasRefreshtoken() {
+        return ((bitField0_ & 0x00002000) == 0x00002000);
+      }
+      /**
+       * <pre>
+       * Refresh Token for Anonymous Alexa Account
+       * </pre>
+       *
+       * <code>optional string refreshtoken = 27;</code>
+       */
+      public java.lang.String getRefreshtoken() {
+        java.lang.Object ref = refreshtoken_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          if (bs.isValidUtf8()) {
+            refreshtoken_ = s;
+          }
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <pre>
+       * Refresh Token for Anonymous Alexa Account
+       * </pre>
+       *
+       * <code>optional string refreshtoken = 27;</code>
+       */
+      public com.google.protobuf.ByteString
+          getRefreshtokenBytes() {
+        java.lang.Object ref = refreshtoken_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          refreshtoken_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <pre>
+       * Refresh Token for Anonymous Alexa Account
+       * </pre>
+       *
+       * <code>optional string refreshtoken = 27;</code>
+       */
+      public Builder setRefreshtoken(
+          java.lang.String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00002000;
+        refreshtoken_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <pre>
+       * Refresh Token for Anonymous Alexa Account
+       * </pre>
+       *
+       * <code>optional string refreshtoken = 27;</code>
+       */
+      public Builder clearRefreshtoken() {
+        bitField0_ = (bitField0_ & ~0x00002000);
+        refreshtoken_ = getDefaultInstance().getRefreshtoken();
+        onChanged();
+        return this;
+      }
+      /**
+       * <pre>
+       * Refresh Token for Anonymous Alexa Account
+       * </pre>
+       *
+       * <code>optional string refreshtoken = 27;</code>
+       */
+      public Builder setRefreshtokenBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00002000;
+        refreshtoken_ = value;
+        onChanged();
+        return this;
+      }
+
+      private boolean anon_ ;
+      /**
+       * <pre>
+       * Alexa Account is anonymous
+       * </pre>
+       *
+       * <code>optional bool anon = 28;</code>
+       */
+      public boolean hasAnon() {
+        return ((bitField0_ & 0x00004000) == 0x00004000);
+      }
+      /**
+       * <pre>
+       * Alexa Account is anonymous
+       * </pre>
+       *
+       * <code>optional bool anon = 28;</code>
+       */
+      public boolean getAnon() {
+        return anon_;
+      }
+      /**
+       * <pre>
+       * Alexa Account is anonymous
+       * </pre>
+       *
+       * <code>optional bool anon = 28;</code>
+       */
+      public Builder setAnon(boolean value) {
+        bitField0_ |= 0x00004000;
+        anon_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <pre>
+       * Alexa Account is anonymous
+       * </pre>
+       *
+       * <code>optional bool anon = 28;</code>
+       */
+      public Builder clearAnon() {
+        bitField0_ = (bitField0_ & ~0x00004000);
+        anon_ = false;
+        onChanged();
+        return this;
+      }
+      public final Builder setUnknownFields(
+          final com.google.protobuf.UnknownFieldSet unknownFields) {
+        return super.setUnknownFields(unknownFields);
+      }
+
+      public final Builder mergeUnknownFields(
+          final com.google.protobuf.UnknownFieldSet unknownFields) {
+        return super.mergeUnknownFields(unknownFields);
+      }
+
+
       // @@protoc_insertion_point(builder_scope:tokens.token)
     }
 
+    // @@protoc_insertion_point(class_scope:tokens.token)
+    private static final com.google.appinventor.server.tokens.TokenProto.token DEFAULT_INSTANCE;
     static {
-      defaultInstance = new token(true);
-      defaultInstance.initFields();
+      DEFAULT_INSTANCE = new com.google.appinventor.server.tokens.TokenProto.token();
     }
 
-    // @@protoc_insertion_point(class_scope:tokens.token)
+    public static com.google.appinventor.server.tokens.TokenProto.token getDefaultInstance() {
+      return DEFAULT_INSTANCE;
+    }
+
+    @java.lang.Deprecated public static final com.google.protobuf.Parser<token>
+        PARSER = new com.google.protobuf.AbstractParser<token>() {
+      public token parsePartialFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+          return new token(input, extensionRegistry);
+      }
+    };
+
+    public static com.google.protobuf.Parser<token> parser() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public com.google.protobuf.Parser<token> getParserForType() {
+      return PARSER;
+    }
+
+    public com.google.appinventor.server.tokens.TokenProto.token getDefaultInstanceForType() {
+      return DEFAULT_INSTANCE;
+    }
+
   }
 
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_tokens_token_descriptor;
-  private static
-    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+  private static final 
+    com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
       internal_static_tokens_token_fieldAccessorTable;
 
   public static com.google.protobuf.Descriptors.FileDescriptor
       getDescriptor() {
     return descriptor;
   }
-  private static com.google.protobuf.Descriptors.FileDescriptor
+  private static  com.google.protobuf.Descriptors.FileDescriptor
       descriptor;
   static {
     java.lang.String[] descriptorData = {
-      "\n\013token.proto\022\006tokens\"\335\002\n\005token\022*\n\007comma" +
+      "\n\013token.proto\022\006tokens\"\367\003\n\005token\022*\n\007comma" +
       "nd\030\001 \002(\0162\031.tokens.token.CommandType\022\n\n\002t" +
       "s\030\002 \001(\004\022\014\n\004uuid\030\003 \001(\t\022\021\n\tprojectid\030\004 \001(\004" +
       "\022\014\n\004name\030\005 \001(\t\022\024\n\014oneProjectId\030\006 \001(\004\022\020\n\010" +
       "readOnly\030\024 \001(\010\022\017\n\007duedate\030\025 \001(\004\022\032\n\022displ" +
       "ayprojectname\030\026 \001(\t\022\032\n\022displayaccountnam" +
-      "e\030\027 \001(\t\022\022\n\nbackpackid\030\030 \001(\t\"h\n\013CommandTy" +
-      "pe\022\014\n\010SSOLOGIN\020\000\022\017\n\013SHOWPROJECT\020\001\022\021\n\rCRE" +
-      "ATEACCOUNT\020\002\022\021\n\rCREATEPROJECT\020\003\022\n\n\006LOGOU" +
-      "T\020\004\022\010\n\004NOOP\020\024B2\n$com.google.appinventor.",
-      "server.tokensB\nTokenProto"
+      "e\030\027 \001(\t\022\022\n\nbackpackid\030\030 \001(\t\022\021\n\tclassname" +
+      "\030\031 \001(\t\022\020\n\010vendorid\030\032 \001(\t\022\024\n\014refreshtoken" +
+      "\030\033 \001(\t\022\014\n\004anon\030\034 \001(\010\"\270\001\n\013CommandType\022\014\n\010" +
+      "SSOLOGIN\020\000\022\017\n\013SHOWPROJECT\020\001\022\021\n\rCREATEACC",
+      "OUNT\020\002\022\021\n\rCREATEPROJECT\020\003\022\n\n\006LOGOUT\020\004\022\r\n" +
+      "\tSSOLOGIN2\020\005\022\r\n\tFETCHUUID\020\006\022\016\n\nUUIDRETUR" +
+      "N\020\007\022\r\n\tSSOLOGIN3\020\010\022\010\n\004NOOP\020\024\022\021\n\rDELETEAC" +
+      "COUNT\020\025B2\n$com.google.appinventor.server" +
+      ".tokensB\nTokenProto"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
         new com.google.protobuf.Descriptors.FileDescriptor.    InternalDescriptorAssigner() {
@@ -2148,9 +3193,9 @@ public final class TokenProto {
     internal_static_tokens_token_descriptor =
       getDescriptor().getMessageTypes().get(0);
     internal_static_tokens_token_fieldAccessorTable = new
-      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+      com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_tokens_token_descriptor,
-        new java.lang.String[] { "Command", "Ts", "Uuid", "Projectid", "Name", "OneProjectId", "ReadOnly", "Duedate", "Displayprojectname", "Displayaccountname", "Backpackid", });
+        new java.lang.String[] { "Command", "Ts", "Uuid", "Projectid", "Name", "OneProjectId", "ReadOnly", "Duedate", "Displayprojectname", "Displayaccountname", "Backpackid", "Classname", "Vendorid", "Refreshtoken", "Anon", });
   }
 
   // @@protoc_insertion_point(outer_class_scope)

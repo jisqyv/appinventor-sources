@@ -73,4 +73,10 @@ public interface UserInfoServiceAsync {
    */
   void storeSharedBackpack(String backPackId, String content, AsyncCallback<Void> callback);
 
+  /**
+   * @see UserInfoService#deleteAccount()
+   */
+
+  void deleteAccount(AsyncCallback<String> callback);
+
 }

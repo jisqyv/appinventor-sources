@@ -50,6 +50,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
@@ -105,6 +106,20 @@ public class LoginServlet extends HttpServlet {
   private final PolicyFactory sanitizer = new HtmlPolicyBuilder().allowElements("p").toFactory();
   private static final boolean DEBUG = Flag.createFlag("appinventor.debugging", false).get();
 
+  private static final Set<LoginListener> loginListeners = new HashSet<>();
+
+  public interface LoginListener {
+    void onLogin(User user, TokenProto.token token);
+  }
+
+  public static void addLoginListener(LoginListener listener) {
+    loginListeners.add(listener);
+  }
+
+  public static void removeLoginListener(LoginListener listener) {
+    loginListeners.remove(listener);
+  }
+
   public void init(ServletConfig config) throws ServletException {
     super.init(config);
   }
@@ -143,6 +158,7 @@ public class LoginServlet extends HttpServlet {
     }
 
     // If we get here, local accounts are supported
+    // or we are the "token" page
 
     if (page.equals("setpw")) {
       String uid = getParam(req);

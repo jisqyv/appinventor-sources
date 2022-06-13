@@ -7,6 +7,7 @@
 package com.google.appinventor.client;
 
 import com.google.appinventor.client.boxes.MotdBox;
+import com.google.appinventor.client.boxes.ProjectListBox;
 
 import com.google.appinventor.client.explorer.commands.ChainableCommand;
 import com.google.appinventor.client.explorer.commands.SaveAllEditorsCommand;
@@ -64,6 +65,7 @@ public class TopPanel extends Composite {
   private final String WIDGET_NAME_SIGN_OUT = "Signout";
   private final String WIDGET_NAME_USER = "User";
   private static final String WIDGET_NAME_LANGUAGE = "Language";
+  private final String WIDGET_NAME_DELETE_ACCOUNT = "DeleteAccount";
 
   private static final String SIGNOUT_URL = "/ode/_logout";
   private static final String LOGO_IMAGE_URL = "/static/images/codi_long.png";
@@ -182,6 +184,7 @@ public class TopPanel extends Composite {
 
     // Sign Out
     userItems.add(new DropDownItem(WIDGET_NAME_SIGN_OUT, MESSAGES.signOutLink(), new SignOutAction()));
+    userItems.add(new DropDownItem(WIDGET_NAME_DELETE_ACCOUNT, MESSAGES.deleteAccountLink(), new DeleteAccountAction(), "ode-ContextMenuItem-Red"));
 
     accountButton = new DropDownButton(WIDGET_NAME_USER, " " , userItems, true);
     accountButton.setStyleName("ode-TopPanelButton");
@@ -315,6 +318,32 @@ public class TopPanel extends Composite {
             cmd.startExecuteChain(Tracking.PROJECT_ACTION_SAVE_YA, projectRootNode, finalCommand);
           }
         }, true);               // Wait for i/o
+    }
+  }
+
+  private static class DeleteAccountAction implements Command {
+    @Override
+    public void execute() {
+      if(ProjectListBox.getProjectListBox().getProjectList().getMyProjectsCount() > 0) {
+        Ode.getInstance().genericWarning(MESSAGES.warnHasProjects());
+      } else {
+        Ode.getInstance().getUserInfoService().deleteAccount(
+          new OdeAsyncCallback<String>(MESSAGES.accountDeletionFailed()) {
+            @Override
+            public void onSuccess(String delAccountUrl) {
+              if (delAccountUrl.equals("")) {
+                Ode.getInstance().genericWarning(MESSAGES.warnHasProjects());
+              } else {
+                if (delAccountUrl.equals("NONE")) {
+                  Window.Location.replace(SIGNOUT_URL);
+                } else {
+                  Window.Location.replace(delAccountUrl);
+                }
+              }
+            }
+          });
+      }
+      return;
     }
   }
 
