@@ -133,16 +133,4 @@ public final class YandexTranslate extends AndroidNonvisibleComponent {
       "used instead")
   public void ApiKey(String apiKey) {
   }
-
-  // This routine exists only in the branding to build the yandex key from
-  // the byte arrays "key1" and "key2" above. This is done by xor'ing the
-  // byte arrays together and turning the result into a string
-  private String gk() {
-    byte retval [] = new byte[key1.length];
-    for (int i = 0; i < key1.length; i++) {
-      retval[i] = (byte) (key1[i] ^ key2[i]);
-    }
-    return new String(retval);
-  }
-
 }

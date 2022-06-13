@@ -2141,4 +2141,62 @@ public class LocalStorageIo implements  StorageIo {
         "http://templates.appinventor.mit.edu/"));
   }
 
+  @Override
+  public boolean deleteAccount(final String userId) {
+    List<Long> projectIds = getProjects(userId);
+    // We iterate over the projects in two loops The first loop is
+    // just to determine that all remaining projects are in the trash.
+    // The second loop actually removes such projects.  We do it this
+    // way so that no projects are removed if any projects
+    // exist. Otherwise some trashed projects may get removed before
+    // we discover a live project.
+    for (long projectId : projectIds) {
+      UserProject data = getUserProject(userId, projectId);
+      if (!data.isInTrash()) {
+        return false;           // Have a live project
+      }
+    }
+    // Got here, no live projects, remove the remainders
+    // We do not actually have to remove the projects here
+    // because in the next step we are going to remove the
+    // user's entire directory, which includes all projects
+    File userDir = new File(storageRoot.get() + "/" + userId);
+    LOG.info("deleteAccount: path = " + userDir.getAbsolutePath());
+    if(!deleteDirectory(userDir)) {           // No going back now!
+      LOG.info("deleteAccount: deletion failed");
+    }
+    Connection conn = null;
+    try {
+      conn = userConn.get();
+      if (conn == null) {
+        conn = DriverManager.getConnection("jdbc:sqlite:" + USER_DATABASE);
+        userConn.set(conn);
+      }
+      PreparedStatement prep = conn.prepareStatement("delete from users where uuid = ?");
+      prep.setQueryTimeout(30);
+      prep.setString(1, userId);
+      prep.executeUpdate();
+      prep.close();
+    } catch (SQLException e) {
+      userConn.remove();
+      try {
+        conn.close();
+      } catch (Exception z) {
+      }
+      conn = null;
+      throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId), e);
+    }
+    return true;
+  }
+
+  private static boolean deleteDirectory(File directoryToBeDeleted) {
+    File[] allContents = directoryToBeDeleted.listFiles();
+    if (allContents != null) {
+      for (File file : allContents) {
+        deleteDirectory(file);
+      }
+    }
+    return directoryToBeDeleted.delete();
+  }
 }
+

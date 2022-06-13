@@ -11,7 +11,6 @@ import com.google.appinventor.server.project.youngandroid.YoungAndroidProjectSer
 
 import com.google.appinventor.server.storage.StorageIo;
 import com.google.appinventor.server.storage.StorageIoInstanceHolder;
-import com.google.appinventor.server.storage.StoredData.ProjectNotFoundException;
 
 import com.google.appinventor.server.storage.UserAlreadyExistsException;
 
