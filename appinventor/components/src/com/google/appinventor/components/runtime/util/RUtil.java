@@ -25,9 +25,14 @@ public class RUtil {
       if (path.startsWith("file:")) {
         path = path.substring(5);
       }
-      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.FROYO) {
-        return path.startsWith(Environment.getExternalStorageDirectory().getAbsolutePath());
+      if (path.startsWith(Environment.getExternalStorageDirectory().getAbsolutePath())) {
+          if (Build.VERSION.SDK_INT < Build.VERSION_CODES.FROYO) {
+              return true;
+          } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+              return false;
+          }
       }
+
       path = "file:" + path;
       return FileUtil.isExternalStorageUri(form, path)
           && !FileUtil.isAppSpecificExternalUri(form, path);
