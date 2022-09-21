@@ -45,6 +45,7 @@ public class Config implements IsSerializable, Serializable {
   private boolean galleryReadOnly;
   private List<String> tutorialUrlAllowed;
   private boolean serverExpired;
+  private boolean deleteAccountAllowed;
 
   public Config() {
   }
@@ -255,6 +256,14 @@ public class Config implements IsSerializable, Serializable {
 
   public void setServerExpired(boolean value) {
     serverExpired = value;
+  }
+
+  public boolean getDeleteAccountAllowed() {
+    return deleteAccountAllowed;
+  }
+
+  public void setDeleteAccountAllowed(boolean value) {
+    deleteAccountAllowed = value;
   }
 
 }
