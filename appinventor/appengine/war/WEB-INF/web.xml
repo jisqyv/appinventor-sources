@@ -49,7 +49,6 @@
   <servlet-mapping>
     <servlet-name>nocache</servlet-name>
     <url-pattern>/ode/ode.nocache.js</url-pattern>
-    <url-pattern>/blocklyframe.html</url-pattern>
   </servlet-mapping>
 
   <servlet>
