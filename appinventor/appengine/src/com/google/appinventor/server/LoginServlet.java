@@ -267,8 +267,11 @@ public class LoginServlet extends HttpServlet {
         resp.addCookie(cook);
       }
       String uri = "http://" + req.getServerName();
-      if (!publicPort.get().equals("80")) {
-        uri += ":" + publicPort.get();
+      String pPort = publicPort.get();
+      if (pPort.equals("443")) {
+        uri = "https://" + req.getServerName();
+      } else if (!pPort.equals("80")) {
+        uri += ":" + pPort;
       }
       uri += "/";
       resp.sendRedirect(new UriBuilder(uri)
@@ -419,8 +422,12 @@ public class LoginServlet extends HttpServlet {
 
       storageIo.setUserPassword(user.getUserId(),  hashedPassword);
       String uri = "http://" + req.getServerName();
-      if (!publicPort.get().equals("80")) {
-        uri += ":" + publicPort.get();
+      String pPort = publicPort.get();
+      if (pPort.equals("443")) {
+        uri = "https://" + req.getServerName();
+      }
+      else if (!pPort.equals("80")) {
+        uri += ":" + pPort;
       }
       uri += "/";
       uri = new UriBuilder(uri)
@@ -448,8 +455,12 @@ public class LoginServlet extends HttpServlet {
           resp.addCookie(cook);
         }
         String uri = "http://" + req.getServerName();
-        if (!publicPort.get().equals("80")) {
-          uri += ":" + publicPort.get();
+        String pPort = publicPort.get();
+        if (pPort.equals("443")) {
+          uri = "https://" + req.getServerName();
+        }
+        else if (!pPort.equals("80")) {
+          uri += ":" + pPort;
         }
         uri += "/";
         if (redirect != null && !redirect.equals("")) {
@@ -495,8 +506,12 @@ public class LoginServlet extends HttpServlet {
           resp.addCookie(cook);
         }
         String uri = "http://" + req.getServerName();
-        if (!publicPort.get().equals("80")) {
-          uri += ":" + publicPort.get();
+        String pPort = publicPort.get();
+        if (pPort.equals("443")) {
+          uri = "https://" + req.getServerName();
+        }
+        else if (!pPort.equals("80")) {
+          uri += ":" + pPort;
         }
         uri += "/";
         if (redirect != null && !redirect.equals("")) {
@@ -547,10 +562,13 @@ public class LoginServlet extends HttpServlet {
       cook.setPath("/");
       resp.addCookie(cook);
     }
-
     String uri = "http://" + req.getServerName();
-    if (!publicPort.get().equals("80")) {
-      uri += ":" + publicPort.get();
+    String pPort = publicPort.get();
+    if (pPort.equals("443")) {
+      uri = "https://" + req.getServerName();
+    }
+    else if (!pPort.equals("80")) {
+      uri += ":" + pPort;
     }
     uri += "/";
     if (redirect != null && !redirect.equals("")) {
