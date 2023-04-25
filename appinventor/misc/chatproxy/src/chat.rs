@@ -1,4 +1,4 @@
-// Automatically generated rust module for 'tr.proto' file
+// Automatically generated rust module for 'chat.proto' file
 
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
@@ -110,6 +110,7 @@ pub struct request {
     pub uuid: Option<String>,
     pub question: Option<String>,
     pub system: Option<String>,
+    pub apikey: Option<String>,
 }
 
 impl<'a> MessageRead<'a> for request {
@@ -125,6 +126,7 @@ impl<'a> MessageRead<'a> for request {
                 Ok(26) => msg.uuid = Some(r.read_string(bytes)?.to_owned()),
                 Ok(34) => msg.question = Some(r.read_string(bytes)?.to_owned()),
                 Ok(42) => msg.system = Some(r.read_string(bytes)?.to_owned()),
+                Ok(50) => msg.apikey = Some(r.read_string(bytes)?.to_owned()),
                 Ok(t) => { r.read_unknown(bytes, t)?; }
                 Err(e) => return Err(e),
             }
@@ -141,6 +143,7 @@ impl MessageWrite for request {
         + self.uuid.as_ref().map_or(0, |m| 1 + sizeof_len((m).len()))
         + self.question.as_ref().map_or(0, |m| 1 + sizeof_len((m).len()))
         + self.system.as_ref().map_or(0, |m| 1 + sizeof_len((m).len()))
+        + self.apikey.as_ref().map_or(0, |m| 1 + sizeof_len((m).len()))
     }
 
     fn write_message<W: WriterBackend>(&self, w: &mut Writer<W>) -> Result<()> {
@@ -149,6 +152,7 @@ impl MessageWrite for request {
         if let Some(ref s) = self.uuid { w.write_with_tag(26, |w| w.write_string(&**s))?; }
         if let Some(ref s) = self.question { w.write_with_tag(34, |w| w.write_string(&**s))?; }
         if let Some(ref s) = self.system { w.write_with_tag(42, |w| w.write_string(&**s))?; }
+        if let Some(ref s) = self.apikey { w.write_with_tag(50, |w| w.write_string(&**s))?; }
         Ok(())
     }
 }

@@ -1,4 +1,4 @@
-import tr_pb2
+import chat_pb2
 import requests
 import hmac
 import hashlib
@@ -6,14 +6,14 @@ import hashlib
 from google.protobuf.message import DecodeError
 
 def test(question, system=None, uuid=None):
-    us = tr_pb2.unsigned()
+    us = chat_pb2.unsigned()
     us.huuid = 'TEST'
     eus = us.SerializeToString()
     signature = hmac.new(
         b'This is a test',
         msg=eus,
         digestmod=hashlib.sha256)
-    request = tr_pb2.request()
+    request = chat_pb2.request()
     request.token.unsigned = eus
     request.token.signature = signature.digest()
     request.token.keyid = 1
@@ -25,7 +25,7 @@ def test(question, system=None, uuid=None):
     z = request.SerializeToString()
     r = requests.post('http://127.0.0.1:9001/chat/v1',
                   z)
-    z = tr_pb2.response()
+    z = chat_pb2.response()
     if r.status_code != 200:
         raise Exception("Status = %d" % r.status_code)
     global content
