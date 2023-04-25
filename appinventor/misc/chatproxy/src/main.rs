@@ -27,7 +27,7 @@ use sqlx::sqlite::{SqlitePool, SqlitePoolOptions};
 use sqlx::Row;
 use std::error::Error;
 
-mod tr;
+mod chat;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Config {
@@ -145,7 +145,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     let dbpool = dbpool.clone();
                     async move {
                         let mut reader = BytesReader::from_bytes(&data);
-                        let message = match tr::request::from_reader(&mut reader, &data) {
+                        let message = match chat::request::from_reader(&mut reader, &data) {
                             Ok(n) => n,
                             Err(_) => {
                                 debug_eprintln!("Reject 1");
@@ -153,6 +153,15 @@ fn main() -> Result<(), Box<dyn Error>> {
                                     ChatproxyError::Message("Invalid Request".to_string()).into()
                                 );
                             }
+                        };
+                        let apikey = if let Some(apikey) = message.apikey {
+                            if apikey.is_empty() {
+                                None
+                            } else {
+                                Some(apikey)
+                            }
+                        } else {
+                            None
                         };
                         let (huuid, _keyid) = if let Some(token) = message.token {
                             match parse_token(&token) {
@@ -170,12 +179,16 @@ fn main() -> Result<(), Box<dyn Error>> {
                             );
                         };
                         debug_eprintln!("huuid = {}", huuid);
-                        if !on_whitelist(&huuid, &dbpool).await {
-                            println!("Rejecting Request from {}, not on whitelist.", huuid);
-                            return Err(ChatproxyError::Unauthorized.into());
-                        };
-                        if CONFIG.blocklist.contains(&huuid) {
-                            return Err(ChatproxyError::OverQuota.into());
+                        if apikey.is_none() {
+                            // If they supply an apikey, then they are welcome
+                            // do not check whitelist or blocklist
+                            if !on_whitelist(&huuid, &dbpool).await {
+                                println!("Rejecting Request from {}, not on whitelist.", huuid);
+                                return Err(ChatproxyError::Unauthorized.into());
+                            };
+                            if CONFIG.blocklist.contains(&huuid) {
+                                return Err(ChatproxyError::OverQuota.into());
+                            }
                         }
                         let uuid = match message.uuid {
                             Some(n) => {
@@ -204,17 +217,18 @@ fn main() -> Result<(), Box<dyn Error>> {
                                 ChatproxyError::Message("Must Ask a Question".to_string()).into()
                             );
                         };
-                        let answer = match converse(&dbpool, &uuid, message.system, &question).await
-                        {
-                            Ok(n) => n,
-                            Err(e) => {
-                                return Err(ChatproxyError::Message(format!(
-                                    "Error from ChatBox: {}",
-                                    e
-                                ))
-                                .into());
-                            }
-                        };
+                        let answer =
+                            match converse(&dbpool, &uuid, message.system, &question, apikey).await
+                            {
+                                Ok(n) => n,
+                                Err(e) => {
+                                    return Err(ChatproxyError::Message(format!(
+                                        "Error from ChatBox: {}",
+                                        e
+                                    ))
+                                    .into());
+                                }
+                            };
                         let b = make_response(&answer, &uuid);
                         Ok::<Blob, Rejection>(b)
                     }
@@ -238,6 +252,7 @@ async fn converse(
     uuid: &str,
     system: Option<String>,
     question: &str,
+    apikey: Option<String>,
 ) -> Result<String, Box<dyn Error>> {
     let mut conversation: Conversation =
         match sqlx::query("select conversation from conversation where uuid = ?")
@@ -278,13 +293,18 @@ async fn converse(
         })
         .collect::<Result<Vec<ChatCompletionRequestMessage>, _>>()?;
 
-    let client = Client::new().with_api_key(&CONFIG.apikey);
+    let apikey = if let Some(apikey) = apikey {
+        apikey
+    } else {
+        CONFIG.apikey.clone()
+    };
+    debug_eprintln!("Using apikey = {}", apikey);
+    let client = Client::new().with_api_key(&apikey);
     let request = CreateChatCompletionRequestArgs::default()
         .max_tokens(512u16)
         .model("gpt-3.5-turbo")
         .messages(messages)
         .build()?;
-    debug_eprintln!("Request: {:#?}", request);
 
     let response = client.chat().create(request).await?;
     debug_eprintln!("Response: {:#?}", response);
@@ -306,7 +326,7 @@ async fn converse(
     Ok(retval)
 }
 
-fn parse_token(token: &tr::token) -> Result<(String, u64), Box<dyn Error>> {
+fn parse_token(token: &chat::token) -> Result<(String, u64), Box<dyn Error>> {
     use hmac::{Hmac, Mac};
     use sha2::Sha256;
     type HmacSha256 = Hmac<Sha256>;
@@ -339,7 +359,7 @@ fn parse_token(token: &tr::token) -> Result<(String, u64), Box<dyn Error>> {
         }
     };
     let mut reader = BytesReader::from_bytes(unsignedbytes);
-    let inner = tr::unsigned::from_reader(&mut reader, unsignedbytes)?;
+    let inner = chat::unsigned::from_reader(&mut reader, unsignedbytes)?;
     if let Some(huuid) = inner.huuid {
         Ok((huuid, keyid))
     } else {
@@ -349,7 +369,7 @@ fn parse_token(token: &tr::token) -> Result<(String, u64), Box<dyn Error>> {
 
 fn make_response(answer: &str, uuid: &str) -> Blob {
     let answer = answer.to_string();
-    let r = tr::response {
+    let r = chat::response {
         uuid: Some(uuid.to_string()),
         answer: Some(answer),
         version: 1,
@@ -361,8 +381,8 @@ fn make_response(answer: &str, uuid: &str) -> Blob {
     let mut writer = Writer::new(&mut out);
     debug_eprintln!("message = {:?}", r);
     writer.write_message(&r).unwrap();
-    debug_eprintln!("out.length = {}", out.len());
-    debug_eprintln!("out = {:?}", out);
+    // debug_eprintln!("out.length = {}", out.len());
+    // debug_eprintln!("out = {:?}", out);
     Blob {
         bytes: bytes::Bytes::from(trim(out)),
     }
