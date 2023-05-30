@@ -9,23 +9,24 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 
 
+use std::borrow::Cow;
 use quick_protobuf::{MessageRead, MessageWrite, BytesReader, Writer, WriterBackend, Result};
 use quick_protobuf::sizeofs::*;
 use super::*;
 
 #[derive(Debug, Default, PartialEq, Clone)]
-pub struct unsigned {
-    pub huuid: Option<String>,
+pub struct unsigned<'a> {
+    pub huuid: Option<Cow<'a, str>>,
     pub version: u64,
     pub generation: u64,
 }
 
-impl<'a> MessageRead<'a> for unsigned {
+impl<'a> MessageRead<'a> for unsigned<'a> {
     fn from_reader(r: &mut BytesReader, bytes: &'a [u8]) -> Result<Self> {
         let mut msg = Self::default();
         while !r.is_eof() {
             match r.next_tag(bytes) {
-                Ok(10) => msg.huuid = Some(r.read_string(bytes)?.to_owned()),
+                Ok(10) => msg.huuid = Some(r.read_string(bytes).map(Cow::Borrowed)?),
                 Ok(16) => msg.version = r.read_uint64(bytes)?,
                 Ok(24) => msg.generation = r.read_uint64(bytes)?,
                 Ok(t) => { r.read_unknown(bytes, t)?; }
@@ -36,7 +37,7 @@ impl<'a> MessageRead<'a> for unsigned {
     }
 }
 
-impl MessageWrite for unsigned {
+impl<'a> MessageWrite for unsigned<'a> {
     fn get_size(&self) -> usize {
         0
         + self.huuid.as_ref().map_or(0, |m| 1 + sizeof_len((m).len()))
@@ -53,15 +54,15 @@ impl MessageWrite for unsigned {
 }
 
 #[derive(Debug, Default, PartialEq, Clone)]
-pub struct token {
+pub struct token<'a> {
     pub version: u64,
     pub keyid: u64,
     pub generation: u64,
-    pub unsigned: Option<Vec<u8>>,
-    pub signature: Option<Vec<u8>>,
+    pub unsigned: Option<Cow<'a, [u8]>>,
+    pub signature: Option<Cow<'a, [u8]>>,
 }
 
-impl<'a> MessageRead<'a> for token {
+impl<'a> MessageRead<'a> for token<'a> {
     fn from_reader(r: &mut BytesReader, bytes: &'a [u8]) -> Result<Self> {
         let mut msg = token {
             version: 1u64,
@@ -73,8 +74,8 @@ impl<'a> MessageRead<'a> for token {
                 Ok(8) => msg.version = r.read_uint64(bytes)?,
                 Ok(16) => msg.keyid = r.read_uint64(bytes)?,
                 Ok(24) => msg.generation = r.read_uint64(bytes)?,
-                Ok(34) => msg.unsigned = Some(r.read_bytes(bytes)?.to_owned()),
-                Ok(42) => msg.signature = Some(r.read_bytes(bytes)?.to_owned()),
+                Ok(34) => msg.unsigned = Some(r.read_bytes(bytes).map(Cow::Borrowed)?),
+                Ok(42) => msg.signature = Some(r.read_bytes(bytes).map(Cow::Borrowed)?),
                 Ok(t) => { r.read_unknown(bytes, t)?; }
                 Err(e) => return Err(e),
             }
@@ -83,7 +84,7 @@ impl<'a> MessageRead<'a> for token {
     }
 }
 
-impl MessageWrite for token {
+impl<'a> MessageWrite for token<'a> {
     fn get_size(&self) -> usize {
         0
         + if self.version == 1u64 { 0 } else { 1 + sizeof_varint(*(&self.version) as u64) }
@@ -104,16 +105,16 @@ impl MessageWrite for token {
 }
 
 #[derive(Debug, Default, PartialEq, Clone)]
-pub struct request {
+pub struct request<'a> {
     pub version: u64,
-    pub token: Option<token>,
-    pub uuid: Option<String>,
-    pub question: Option<String>,
-    pub system: Option<String>,
-    pub apikey: Option<String>,
+    pub token: Option<token<'a>>,
+    pub uuid: Option<Cow<'a, str>>,
+    pub question: Option<Cow<'a, str>>,
+    pub system: Option<Cow<'a, str>>,
+    pub apikey: Option<Cow<'a, str>>,
 }
 
-impl<'a> MessageRead<'a> for request {
+impl<'a> MessageRead<'a> for request<'a> {
     fn from_reader(r: &mut BytesReader, bytes: &'a [u8]) -> Result<Self> {
         let mut msg = request {
             version: 1u64,
@@ -123,10 +124,10 @@ impl<'a> MessageRead<'a> for request {
             match r.next_tag(bytes) {
                 Ok(8) => msg.version = r.read_uint64(bytes)?,
                 Ok(18) => msg.token = Some(r.read_message::<token>(bytes)?),
-                Ok(26) => msg.uuid = Some(r.read_string(bytes)?.to_owned()),
-                Ok(34) => msg.question = Some(r.read_string(bytes)?.to_owned()),
-                Ok(42) => msg.system = Some(r.read_string(bytes)?.to_owned()),
-                Ok(50) => msg.apikey = Some(r.read_string(bytes)?.to_owned()),
+                Ok(26) => msg.uuid = Some(r.read_string(bytes).map(Cow::Borrowed)?),
+                Ok(34) => msg.question = Some(r.read_string(bytes).map(Cow::Borrowed)?),
+                Ok(42) => msg.system = Some(r.read_string(bytes).map(Cow::Borrowed)?),
+                Ok(50) => msg.apikey = Some(r.read_string(bytes).map(Cow::Borrowed)?),
                 Ok(t) => { r.read_unknown(bytes, t)?; }
                 Err(e) => return Err(e),
             }
@@ -135,7 +136,7 @@ impl<'a> MessageRead<'a> for request {
     }
 }
 
-impl MessageWrite for request {
+impl<'a> MessageWrite for request<'a> {
     fn get_size(&self) -> usize {
         0
         + if self.version == 1u64 { 0 } else { 1 + sizeof_varint(*(&self.version) as u64) }
@@ -158,14 +159,14 @@ impl MessageWrite for request {
 }
 
 #[derive(Debug, Default, PartialEq, Clone)]
-pub struct response {
+pub struct response<'a> {
     pub version: u64,
     pub status: u64,
-    pub uuid: Option<String>,
-    pub answer: Option<String>,
+    pub uuid: Option<Cow<'a, str>>,
+    pub answer: Option<Cow<'a, str>>,
 }
 
-impl<'a> MessageRead<'a> for response {
+impl<'a> MessageRead<'a> for response<'a> {
     fn from_reader(r: &mut BytesReader, bytes: &'a [u8]) -> Result<Self> {
         let mut msg = response {
             version: 1u64,
@@ -175,8 +176,8 @@ impl<'a> MessageRead<'a> for response {
             match r.next_tag(bytes) {
                 Ok(8) => msg.version = r.read_uint64(bytes)?,
                 Ok(16) => msg.status = r.read_uint64(bytes)?,
-                Ok(26) => msg.uuid = Some(r.read_string(bytes)?.to_owned()),
-                Ok(34) => msg.answer = Some(r.read_string(bytes)?.to_owned()),
+                Ok(26) => msg.uuid = Some(r.read_string(bytes).map(Cow::Borrowed)?),
+                Ok(34) => msg.answer = Some(r.read_string(bytes).map(Cow::Borrowed)?),
                 Ok(t) => { r.read_unknown(bytes, t)?; }
                 Err(e) => return Err(e),
             }
@@ -185,7 +186,7 @@ impl<'a> MessageRead<'a> for response {
     }
 }
 
-impl MessageWrite for response {
+impl<'a> MessageWrite for response<'a> {
     fn get_size(&self) -> usize {
         0
         + if self.version == 1u64 { 0 } else { 1 + sizeof_varint(*(&self.version) as u64) }
