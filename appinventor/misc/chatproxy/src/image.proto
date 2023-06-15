@@ -25,19 +25,22 @@ message token {
 }
 
 message request {
+    enum OperationType {
+       CREATE = 0;
+       EDIT = 1;
+    }
     optional uint64 version = 1 [default = 1];
-    optional token token = 2;
-    optional string uuid = 3;
-    optional string question = 4;
-    optional string system = 5;
-    optional string apikey = 6;
-    optional string provider = 7 [default = "chatgpt"];
-    optional string model = 8;
+    required OperationType operation = 2;
+    optional token token = 3;
+    optional string prompt = 4;
+    optional bytes source = 5;
+    optional bytes mask = 6;
+    optional string apikey = 7;
+    optional string size = 8;
 }
 
 message response {
     optional uint64 version = 1 [default = 1];
     optional uint64 status = 2 [default = 0]; // 0 = success, otherwise error code
-    optional string uuid = 3;
-    optional string answer = 4;
+    optional bytes image = 3;
 }
