@@ -83,14 +83,8 @@ pub async fn editimage(
     mask: Option<Cow<'_, [u8]>>,
 ) -> Result<Vec<u8>, Box<dyn Error>> {
     use reqwest::multipart::{Form, Part};
-    let source = source.ok_or_else(|| {
-        let e: Box<dyn Error> = String::from("Must provide source image").into();
-        e
-    })?;
-    let mask = mask.ok_or_else(|| {
-        let e: Box<dyn Error> = String::from("Must provide mask image").into();
-        e
-    })?;
+    let source = source.ok_or_else(|| Into::<Box<dyn Error>>::into("Must provide source image"))?;
+    let mask = mask.ok_or_else(|| Into::<Box<dyn Error>>::into("Must provide mask image"))?;
     let source_part = Part::bytes(Cow::Owned(source.into()))
         .file_name("source.png")
         .mime_str("image/png")?;
@@ -118,7 +112,19 @@ pub async fn editimage(
         .await?;
     debug_eprintln!("{:#?}", res);
     let content = res.text().await?;
-    let response: Response = serde_json::from_str(&content).unwrap();
+    let response: Response = match serde_json::from_str(&content) {
+        Ok(n) => n,
+        Err(e) => {
+            println!(
+                "Could not parse response from DALL-E: error = {} raw response = {}",
+                e, content
+            );
+            return Err(Into::<Box<dyn Error>>::into(format!(
+                "Could not parse resonse from DALL-E: error = {} raw response = {}",
+                e, content
+            )));
+        }
+    };
     let image = &response.data[0];
     {
         use base64::{engine::general_purpose, Engine as _};

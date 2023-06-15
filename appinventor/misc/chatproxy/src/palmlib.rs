@@ -87,7 +87,7 @@ pub async fn converse(
     };
 
     let data = serde_json::to_string(&p)?;
-    println!("{}", data);
+    debug_eprintln!("{}", data);
     let client = reqwest::Client::new();
     let res = client
         .post(format!("{}{}", URL, apikey))

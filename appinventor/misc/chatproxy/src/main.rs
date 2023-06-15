@@ -714,8 +714,8 @@ async fn on_whitelist(uuid: &str, dbpool: &SqlitePool, provider: &str) -> bool {
         .await
     {
         Ok(_) => true,
-        Err(e) => {
-            debug_eprintln!("on_whitelist: {:#?}", e);
+        Err(_e) => {
+            debug_eprintln!("on_whitelist: {:#?}", _e);
             false
         }
     }
