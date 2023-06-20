@@ -324,12 +324,13 @@ async fn do_image(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatp
     } else {
         return Err(ChatproxyError::Message("Invalid Auth Token".to_string()));
     };
-    debug_eprintln!("huuid = {}", huuid);
+    let ownkey: bool = request.apikey.is_some();
+    debug_eprintln!("huuid = {}, ownkey = {}", huuid, ownkey);
     let retval = match request.operation {
         image::mod_request::OperationType::CREATE => do_create_image(&request).await,
         image::mod_request::OperationType::EDIT => do_edit_image(request.clone()).await,
     };
-    record_usage(&huuid, 1, dbpool, "dalle")
+    record_usage(&huuid, 1, dbpool, "dalle", ownkey)
         .await
         .map_err(|e| ChatproxyError::Message(e.to_string()))?;
     retval
@@ -435,7 +436,7 @@ async fn do_edit_image(request: image::request<'_>) -> Result<Blob, ChatproxyErr
 }
 
 async fn converse_palm(
-    _huuid: &str,
+    huuid: &str,
     dbpool: &SqlitePool,
     uuid: &str,
     system: Option<Cow<'_, str>>,
@@ -456,8 +457,8 @@ async fn converse_palm(
             Err(_) => None,
         }
     };
-    let apikey_to_use = if let Some(ap) = apikey {
-        ap.into_owned()
+    let apikey_to_use = if let Some(ref ap) = apikey {
+        ap.clone().into_owned()
     } else {
         CONFIG.palm_apikey.clone()
     };
@@ -467,6 +468,7 @@ async fn converse_palm(
         .bind(uuid)
         .bind(serde_json::to_string(&answer.state)?)
         .execute(dbpool).await?;
+    record_usage(huuid, 1, dbpool, "palm", apikey.is_some()).await?;
     Ok(answer.answer)
 }
 
@@ -526,9 +528,11 @@ async fn converse_chatgpt<'a>(
     let request = CreateChatCompletionRequestArgs::default()
         .max_tokens(512u16)
         .model("gpt-3.5-turbo")
+        .user(huuid)
         .messages(messages)
         .build()?;
 
+    debug_eprintln!("Request = {:#?}", request);
     let response = client.chat().create(request).await?;
     let mut retval = "Unkonwn".to_string();
     let usage = if let Some(ref u) = response.usage {
@@ -536,7 +540,7 @@ async fn converse_chatgpt<'a>(
     } else {
         0
     };
-    record_usage(huuid, usage, dbpool, "chatgpt").await?;
+    record_usage(huuid, usage, dbpool, "chatgpt", apikey.is_some()).await?;
     if apikey.is_none() && CONFIG.chatgpt_use_limits {
         update_limit(huuid, usage.try_into().unwrap(), dbpool, "chatgpt", &CONFIG).await
     }
@@ -681,10 +685,10 @@ async fn setup(conf: &Config) -> Result<SqlitePool, Box<dyn Error>> {
     sqlx::query("create unique index if not exists whitelist_u_p on whitelist(uuid, provider)")
         .execute(&dbpool)
         .await?;
-    sqlx::query("create table if not exists usage (huuid text, usage integer, provider text)")
+    sqlx::query("create table if not exists usage (huuid text, usage integer, provider text, ownkey boolean)")
         .execute(&dbpool)
         .await?;
-    sqlx::query("create unique index if not exists usage_u_p on usage(huuid, provider)")
+    sqlx::query("create unique index if not exists usage_u_p on usage(huuid, provider, ownkey)")
         .execute(&dbpool)
         .await?;
     sqlx::query(
@@ -726,21 +730,25 @@ async fn record_usage(
     usage: u32,
     dbpool: &SqlitePool,
     provider: &str,
+    ownkey: bool,
 ) -> Result<(), Box<dyn Error>> {
-    let prior_usage = match sqlx::query("select usage from usage where huuid = ? and provider = ?")
-        .bind(huuid)
-        .bind(provider)
-        .fetch_one(dbpool)
-        .await
-    {
-        Ok(row) => row.get::<u32, usize>(0),
-        Err(_) => 0,
-    };
+    let prior_usage =
+        match sqlx::query("select usage from usage where huuid = ? and provider = ?, ownkey = ?")
+            .bind(huuid)
+            .bind(provider)
+            .bind(ownkey)
+            .fetch_one(dbpool)
+            .await
+        {
+            Ok(row) => row.get::<u32, usize>(0),
+            Err(_) => 0,
+        };
     let usage = usage + prior_usage;
-    sqlx::query("insert or replace into usage values (?, ?, ?)")
+    sqlx::query("insert or replace into usage values (?, ?, ?, ?)")
         .bind(huuid)
         .bind(usage)
         .bind(provider)
+        .bind(ownkey)
         .execute(dbpool)
         .await?;
     Ok(())
