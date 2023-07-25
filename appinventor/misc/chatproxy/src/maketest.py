@@ -4,7 +4,7 @@ import hashlib
 
 from google.protobuf.message import DecodeError
 
-def test(question, system=None, uuid=None, provider=None):
+def test(question, system=None, uuid=None, provider=None, model=None, apikey=None):
     import chat_pb2
     us = chat_pb2.unsigned()
     us.huuid = 'TEST'
@@ -17,6 +17,10 @@ def test(question, system=None, uuid=None, provider=None):
     request.token.unsigned = eus
     request.token.signature = signature.digest()
     request.token.keyid = 1
+    if apikey:
+        request.apikey = apikey
+    if model:
+        request.model = model
     if provider:
         request.provider = provider
     request.question = question

@@ -291,18 +291,47 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
             Uuid::new_v4().to_string()
         }
     };
+    let model = if let Some(m) = message.model {
+        m
+    } else {
+        Cow::Borrowed("gpt-3.5-turbo")
+    };
+    let model = &*model;
+    if apikey.is_none() {
+        match model {
+            "gpt-3.5-turbo" => (),
+            "gpt-4.0" | "gpt-4" => {
+                let b = make_response("MIT: gpt-4.0 not yet supported", &huuid);
+                return Ok(b);
+            }
+            _ => {
+                return Err(ChatproxyError::Message(format!(
+                    "Unsupported model {}",
+                    model
+                )));
+            }
+        };
+    }
     let question = if let Some(q) = message.question {
         q
     } else {
         return Err(ChatproxyError::Message("Must Ask a Question".to_string()));
     };
     let answer = match &*provider {
-        "chatgpt" => converse_chatgpt(&huuid, dbpool, &uuid, message.system, &question, apikey)
-            .await
-            .map_err(|e| {
-                debug_eprintln!("converse_chatgpt error: {:#?}", e);
-                ChatproxyError::Message(e.to_string())
-            })?,
+        "chatgpt" => converse_chatgpt(
+            &huuid,
+            dbpool,
+            &uuid,
+            message.system,
+            &question,
+            apikey,
+            model,
+        )
+        .await
+        .map_err(|e| {
+            debug_eprintln!("converse_chatgpt error: {:#?}", e);
+            ChatproxyError::Message(e.to_string())
+        })?,
         "palm" => converse_palm(&huuid, dbpool, &uuid, message.system, &question, apikey)
             .await
             .map_err(|_e| {
@@ -353,7 +382,7 @@ async fn do_create_image(request: &image::request<'_>) -> Result<Blob, Chatproxy
     } else {
         return Err(ChatproxyError::Message("Must provide size!".to_string()));
     };
-    let size = match size.clone() {
+    let size = match size {
         Cow::Borrowed("256x256") => "256x256",
         Cow::Borrowed("512x512") => "512x512",
         Cow::Borrowed("1024x1024") => "1024x1024",
@@ -479,6 +508,7 @@ async fn converse_chatgpt<'a>(
     system: Option<Cow<'_, str>>,
     question: &str,
     apikey: Option<Cow<'_, str>>,
+    model: &str,
 ) -> Result<String, Box<dyn Error>> {
     let mut conversation: Conversation =
         match sqlx::query("select conversation from conversation where uuid = ?")
@@ -527,7 +557,7 @@ async fn converse_chatgpt<'a>(
     let client = Client::new().with_api_key(&apikey_to_use);
     let request = CreateChatCompletionRequestArgs::default()
         .max_tokens(512u16)
-        .model("gpt-3.5-turbo")
+        .model(model)
         .user(huuid)
         .messages(messages)
         .build()?;
