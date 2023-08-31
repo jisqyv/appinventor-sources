@@ -918,6 +918,29 @@ public class LocalStorageIo implements  StorageIo {
   }
 
   @Override
+  public void setProjectName(String userId, long projectId, String name) {
+    Connection conn = null;
+    try {
+      conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
+      PreparedStatement prep = conn.prepareStatement("update projects set name = ? where rowid = ?");
+      prep.setQueryTimeout(30);
+      prep.setString(1, name);
+      prep.setLong(2, projectId);
+      prep.executeUpdate();
+    } catch (SQLException e) {
+      throw CrashReport.createAndLogError(LOG, null, null, e);
+    } finally {
+      if (conn != null) {
+        try {
+          conn.close();
+        } catch (Exception e) {
+          CrashReport.createAndLogError(LOG, null, collectUserProjectErrorInfo(userId, projectId), e);
+        }
+      }
+    }
+  }
+
+  @Override
   public long getProjectDateModified(final String userId, final long projectId) {
     return getProjectDates(userId, projectId, "modified");
   }
