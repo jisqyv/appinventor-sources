@@ -212,7 +212,7 @@ public final class ChatBot extends AndroidNonvisibleComponent {
   private static final boolean DEBUG = false;
 
   private String apiKey;        // User supplied actual ChatGPT API key
-  private String model;         // Model to use, provider dependent
+  private String model = "";    // Model to use, provider dependent
   private String provider = "chatgpt";      // The provider to use (default chatgpt)
   private SSLSocketFactory sslSockFactory = null; // Socket Factory for using
                                                   // SSL
@@ -230,7 +230,7 @@ public final class ChatBot extends AndroidNonvisibleComponent {
   }
 
   @SimpleFunction(description = "Reset the current conversation, Chat bot will forget " +
-    "any previous conversation when resonding in the future.")
+    "any previous conversation when responding in the future.")
   public void ResetConversation() {
     this.uuid = "";
   }
@@ -275,6 +275,9 @@ public final class ChatBot extends AndroidNonvisibleComponent {
       }
       if (apiKey != null && !apiKey.equals("")) {
         builder = builder.setApikey(apiKey);
+      }
+      if (!model.isEmpty()) {
+        builder.setModel(model);
       }
       ChatBotToken.request request = builder.build();
 
@@ -364,7 +367,7 @@ public final class ChatBot extends AndroidNonvisibleComponent {
       defaultValue = "")
   @SimpleProperty(description = "The MIT Access token to use. MIT App Inventor will automatically fill this " +
     "value in. You should not need to change it.",
-    userVisible = true)
+    userVisible = true, category = PropertyCategory.ADVANCED)
   public void Token(String token) {
     this.token = token;
   }
@@ -378,6 +381,7 @@ public final class ChatBot extends AndroidNonvisibleComponent {
    * (not perfect protection) of the key embedded in a packaged app.
    *
    */
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_STRING)
   @SimpleProperty(category = PropertyCategory.BEHAVIOR,
       description = "A ChatGPT API Key. If provided, it will be used instead of " +
          "the embedded APIKEY in the ChatBot proxy server")
@@ -434,7 +438,7 @@ public final class ChatBot extends AndroidNonvisibleComponent {
     "models. Leaving this blank will result in the default model set by " +
     "the provider being used",
     userVisible = true)
-  public void Model(String provider) {
+  public void Model(String model) {
     this.model = model;
   }
 

@@ -6,17 +6,16 @@
 
 package com.google.appinventor.client;
 
-import com.google.appinventor.client.output.OdeLog;
-
 import com.google.appinventor.shared.rpc.BlocksTruncatedException;
 import com.google.appinventor.shared.rpc.InvalidSessionException;
 import com.google.appinventor.shared.rpc.project.ChecksumedFileException;
-import com.google.appinventor.client.output.OdeLog;
 import com.google.gwt.http.client.Response;
 import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.gwt.user.client.rpc.IncompatibleRemoteServiceException;
 import com.google.gwt.user.client.rpc.StatusCodeException;
-import com.google.gwt.user.client.Window;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Provides common functionality for asynchronous callbacks from the ODE
@@ -32,6 +31,8 @@ import com.google.gwt.user.client.Window;
  * @param <T> type of object returned by successful RPC call
  */
 public abstract class OdeAsyncCallback<T> implements AsyncCallback<T> {
+
+  private static final Logger LOG = Logger.getLogger(OdeAsyncCallback.class.getName());
 
   private String failureMessage;
 
@@ -68,7 +69,7 @@ public abstract class OdeAsyncCallback<T> implements AsyncCallback<T> {
       return;
     }
     if (caught instanceof BlocksTruncatedException) {
-      OdeLog.log("Caught BlocksTruncatedException");
+      LOG.info("Caught BlocksTruncatedException");
       ErrorReporter.reportError("Caught BlocksTruncatedException");
       return;
     }
@@ -83,10 +84,6 @@ public abstract class OdeAsyncCallback<T> implements AsyncCallback<T> {
     String errorMessage =
         (failureMessage == null) ? caught.getMessage() : failureMessage;
     ErrorReporter.reportError(errorMessage);
-    OdeLog.elog("Got exception: " + caught.getMessage());
-    Throwable cause = caught.getCause();
-    if (cause != null) {
-      OdeLog.elog("Caused by: " + cause.getMessage());
-    }
+    LOG.log(Level.SEVERE, "Got exception", caught);
   }
 }
