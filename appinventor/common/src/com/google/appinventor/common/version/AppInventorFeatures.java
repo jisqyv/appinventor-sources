@@ -141,7 +141,7 @@ public final class AppInventorFeatures {
    */
 
   public static boolean enableHttpRedirect() {
-    return true;
+    return false;
   }
 
 }
