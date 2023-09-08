@@ -18,7 +18,7 @@ extern crate structopt;
 use async_openai::{
     types::{
         ChatCompletionRequestMessage, ChatCompletionRequestMessageArgs,
-        CreateChatCompletionRequestArgs, Role,
+        CreateChatCompletionRequestArgs, CreateModerationRequest, Role,
     },
     Client,
 };
@@ -136,6 +136,8 @@ enum ChatproxyError {
     Unauthorized,
     UnknownProvider,
     OverQuota,
+    UseOwnKey,
+    Blocked,
 }
 
 impl Error for ChatproxyError {}
@@ -156,6 +158,12 @@ impl fmt::Display for ChatproxyError {
             }
             ChatproxyError::UnknownProvider => {
                 write!(f, "Unknown provider").ok();
+            }
+            ChatproxyError::UseOwnKey => {
+                write!(f, "You need to use your own ApiKey, see https://appinv.us/ownkey for more information").ok();
+            }
+            ChatproxyError::Blocked => {
+                write!(f, "Your request was flagged by the moderation system").ok();
             }
         }
         Ok(())
@@ -251,9 +259,12 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
                     return Err(ChatproxyError::Unauthorized);
                 }
                 if CONFIG.chatgpt_use_limits
-                    && !check_limit(&huuid, dbpool, &provider)
-                        .await
-                        .map_err(|_| ChatproxyError::OverQuota)?
+                    && !check_limit(&huuid, dbpool, &provider).await.map_err(|e| {
+                        match *e.downcast().unwrap() {
+                            ChatproxyError::UseOwnKey => ChatproxyError::UseOwnKey,
+                            _ => ChatproxyError::OverQuota,
+                        }
+                    })?
                 {
                     return Err(ChatproxyError::OverQuota);
                 }
@@ -317,6 +328,12 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
     } else {
         return Err(ChatproxyError::Message("Must Ask a Question".to_string()));
     };
+    if moderate_chatgpt(&question)
+        .await
+        .map_err(|e| ChatproxyError::Message(e.to_string()))?
+    {
+        return Err(ChatproxyError::Blocked);
+    }
     let answer = match &*provider {
         "chatgpt" => converse_chatgpt(
             &huuid,
@@ -355,10 +372,26 @@ async fn do_image(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatp
     };
     let ownkey: bool = request.apikey.is_some();
     debug_eprintln!("huuid = {}, ownkey = {}", huuid, ownkey);
+    if !ownkey {
+        // not own key, implement quota
+        if CONFIG.chatgpt_use_limits
+            && !check_limit(&huuid, dbpool, "dalle").await.map_err(|e| {
+                match *e.downcast().unwrap() {
+                    ChatproxyError::UseOwnKey => ChatproxyError::UseOwnKey,
+                    _ => ChatproxyError::OverQuota,
+                }
+            })?
+        {
+            return Err(ChatproxyError::OverQuota);
+        }
+    }
     let retval = match request.operation {
         image::mod_request::OperationType::CREATE => do_create_image(&request).await,
         image::mod_request::OperationType::EDIT => do_edit_image(request.clone()).await,
     };
+    if !ownkey && CONFIG.chatgpt_use_limits {
+        update_limit(&huuid, 500, dbpool, "dalle", &CONFIG).await
+    }
     record_usage(&huuid, 1, dbpool, "dalle", ownkey)
         .await
         .map_err(|e| ChatproxyError::Message(e.to_string()))?;
@@ -632,6 +665,23 @@ fn parse_token(token: &dyn Token) -> Result<(String, u64), Box<dyn Error>> {
     }
 }
 
+async fn moderate_chatgpt(question: &str) -> Result<bool, Box<dyn Error>> {
+    let client = Client::new().with_api_key(&CONFIG.chatgpt_apikey);
+
+    let request = CreateModerationRequest {
+        input: question.into(),
+        ..Default::default()
+    };
+    let response = client.moderations().create(request).await?;
+    debug_eprintln!("Moderation Response: {:#?}", response);
+    for result in response.results {
+        if result.flagged {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 fn make_response(answer: &str, uuid: &str) -> Blob {
     let answer = answer.to_string();
     let r = chat::response {
@@ -670,6 +720,18 @@ async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
             ChatproxyError::UnknownProvider => {
                 let text = "Unknown Provider".to_string();
                 return Ok(warp::reply::with_status(text, StatusCode::BAD_REQUEST));
+            }
+            ChatproxyError::UseOwnKey => {
+                let text =
+                    "You need to use your own ApiKey, more information at https://appinv.us/ownkey"
+                        .to_string();
+                return Ok(warp::reply::with_status(text, StatusCode::BAD_REQUEST));
+            }
+            ChatproxyError::Blocked => {
+                return Ok(warp::reply::with_status(
+                    ChatproxyError::Blocked.to_string(),
+                    StatusCode::FORBIDDEN,
+                ));
             }
         }
     } else {
@@ -762,17 +824,18 @@ async fn record_usage(
     provider: &str,
     ownkey: bool,
 ) -> Result<(), Box<dyn Error>> {
-    let prior_usage =
-        match sqlx::query("select usage from usage where huuid = ? and provider = ?, ownkey = ?")
-            .bind(huuid)
-            .bind(provider)
-            .bind(ownkey)
-            .fetch_one(dbpool)
-            .await
-        {
-            Ok(row) => row.get::<u32, usize>(0),
-            Err(_) => 0,
-        };
+    let prior_usage = match sqlx::query(
+        "select usage from usage where huuid = ? and provider = ? and  ownkey = ?",
+    )
+    .bind(huuid)
+    .bind(provider)
+    .bind(ownkey)
+    .fetch_one(dbpool)
+    .await
+    {
+        Ok(row) => row.get::<u32, usize>(0),
+        Err(_) => 0,
+    };
     let usage = usage + prior_usage;
     sqlx::query("insert or replace into usage values (?, ?, ?, ?)")
         .bind(huuid)
@@ -860,6 +923,14 @@ async fn check_limit(
         }
         Err(_) => (0, CONFIG.default_quota, utime),
     };
+    // A quota of 0 means infinite!
+    if quota == 0 {
+        return Ok(true);
+    }
+    // If quota == -1, then tell them to use their own key
+    if quota == -1 {
+        return Err(ChatproxyError::UseOwnKey.into());
+    }
     let passed: i64 = utime - their_time;
     let v: i32 = (quota * passed as i32) / SECS_PER_DAY;
     let mut r = usage - v;
