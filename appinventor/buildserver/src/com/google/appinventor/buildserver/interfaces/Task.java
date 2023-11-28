@@ -5,14 +5,14 @@
 
 package com.google.appinventor.buildserver.interfaces;
 
-import com.google.appinventor.buildserver.CompilerContext;
 import com.google.appinventor.buildserver.TaskResult;
+import com.google.appinventor.buildserver.context.CompilerContext;
 
-public interface Task {
+public interface Task<C extends CompilerContext<?>> {
   /**
    * Main method to run the task.
    *
    * @return TaskResult
    */
-  TaskResult execute(CompilerContext context);
+  TaskResult execute(C context);
 }
