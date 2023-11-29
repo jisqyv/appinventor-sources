@@ -47,6 +47,8 @@ struct Config {
     chatgpt_use_limits: bool,
     palm_apikey: String,
     palm_use_allowlist: bool,
+    aws_access_key: String,
+    aws_access_secret: String,
 }
 
 impl ::std::default::Default for Config {
@@ -65,6 +67,8 @@ impl ::std::default::Default for Config {
             chatgpt_use_limits: true,
             palm_apikey: String::from("key-here"),
             palm_use_allowlist: true,
+            aws_access_key: String::from("aws-access-key-here"),
+            aws_access_secret: String::from("aws-access-secret-here"),
         }
     }
 }
@@ -89,6 +93,8 @@ impl Test for Config {
             chatgpt_use_limits: true,
             palm_apikey: String::from("key-here"),
             palm_use_allowlist: true,
+            aws_access_key: String::from("aws-access-key-here"),
+            aws_access_secret: String::from("aws-access-secret-here"),
         }
     }
 }
@@ -123,11 +129,62 @@ impl<'a> Token<'a> for image::token<'a> {
     }
 }
 
+#[derive(Clone, Serialize, Deserialize, Debug)]
+enum BedrockRole {
+    Human,
+    Assistant,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+struct BedrockPair {
+    role: BedrockRole,
+    text: String,
+}
+
+trait Converse {
+    fn prepare(&self) -> String;
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+struct BedrockConversation {
+    conversation: Vec<BedrockPair>,
+}
+
+impl Converse for BedrockConversation {
+    fn prepare(&self) -> String {
+        let mut retval: String = String::from("\n\n");
+        for c in &self.conversation {
+            match c.role {
+                BedrockRole::Human => {
+                    retval.push_str(&format!("Human:{}\n\n", c.text));
+                }
+                BedrockRole::Assistant => {
+                    retval.push_str(&format!("Assistant:{}\n\n", c.text));
+                }
+            }
+        }
+        retval.push_str("Assistant:\n\n");
+        retval
+    }
+}
+
 lazy_static! {
     static ref CONFIG: Config = {
         let args = Cli::from_args();
         confy::load_path(args.config_file).unwrap()
     };
+}
+
+use aws_credential_types::Credentials;
+
+fn aws_credentials_provider() -> Credentials {
+    Credentials::new(
+        &CONFIG.aws_access_key,
+        &CONFIG.aws_access_secret,
+        None,
+        None,
+        "toml_access_provider",
+    )
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -278,6 +335,7 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
                     return Err(ChatproxyError::Unauthorized);
                 }
             }
+            "bedrock" => (),
             _ => {
                 return Err(ChatproxyError::UnknownProvider);
             }
@@ -302,26 +360,48 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
             Uuid::new_v4().to_string()
         }
     };
-    let model = if let Some(m) = message.model {
+    let mut model = if let Some(ref m) = message.model {
         m
     } else {
-        Cow::Borrowed("gpt-3.5-turbo")
+        ""
     };
-    let model = &*model;
-    if apikey.is_none() {
-        match model {
-            "gpt-3.5-turbo" => (),
-            "gpt-4.0" | "gpt-4" => {
-                let b = make_response("MIT: gpt-4.0 not yet supported", &huuid);
-                return Ok(b);
+    match &*provider {
+        "chatgpt" => {
+            if apikey.is_none() {
+                match model {
+                    "" => {
+                        model = "gpt-3.5-turbo";
+                    }
+                    "gpt-3.5-turbo" => (),
+                    "gpt-4.0" | "gpt-4" => {
+                        let b = make_response("MIT: gpt-4.0 not yet supported", &huuid);
+                        return Ok(b);
+                    }
+                    _ => {
+                        return Err(ChatproxyError::Message(format!(
+                            "Unsupported model {}",
+                            model
+                        )));
+                    }
+                };
+            } else if model.is_empty() {
+                model = "gpt-3.5-turbo";
             }
+        }
+        "bedrock" => match model {
+            "" => {
+                model = "anthropic.claude-v2";
+            }
+            "anthropic.claude-v2" => (),
+            "anthropic.claude-v1" => (),
             _ => {
                 return Err(ChatproxyError::Message(format!(
-                    "Unsupported model {}",
+                    "Unsupported Model {}",
                     model
                 )));
             }
-        };
+        },
+        _ => (),
     }
     let question = if let Some(q) = message.question {
         q
@@ -351,9 +431,15 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
         })?,
         "palm" => converse_palm(&huuid, dbpool, &uuid, message.system, &question, apikey)
             .await
+            .map_err(|e| {
+                debug_eprintln!("converse_palm error: {:#?}", e);
+                ChatproxyError::Message(format!("PaLM Did not return a response: {}", e))
+            })?,
+        "bedrock" => converse_bedrock(&huuid, dbpool, &uuid, model, &question)
+            .await
             .map_err(|_e| {
-                debug_eprintln!("converse_palm error: {:#?}", _e);
-                ChatproxyError::Message("PaLM Did not return a response".into())
+                eprintln!("converse_bedrock: error: {:#?}", _e);
+                ChatproxyError::Message("Bedrock Did not return a response".into())
             })?,
         _ => "Unknown Provider".to_string(),
     };
@@ -622,6 +708,91 @@ async fn converse_chatgpt<'a>(
         .execute(dbpool)
         .await?;
     Ok(retval)
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Bedrockresponse {
+    completion: Option<String>,
+    stop_reason: Option<String>,
+    stop: Option<String>,
+}
+
+// Anthropic AWS model
+async fn converse_bedrock(
+    huuid: &str,
+    dbpool: &SqlitePool,
+    uuid: &str,
+    model: &str,
+    question: &str,
+) -> Result<String, Box<dyn Error>> {
+    use aws_sdk_bedrockruntime::primitives::Blob;
+    use serde_json::json;
+    let mut conversation: BedrockConversation =
+        match sqlx::query("select conversation from conversation where uuid = ?")
+            .bind(uuid)
+            .fetch_one(dbpool)
+            .await
+        {
+            Ok(n) => {
+                let s = n.get::<String, usize>(0);
+                serde_json::from_str(&s)?
+            }
+            Err(_e) => BedrockConversation {
+                conversation: vec![],
+            },
+        };
+    conversation.conversation.push(BedrockPair {
+        role: BedrockRole::Human,
+        text: question.to_string(),
+    });
+    let config = aws_config::from_env()
+        .credentials_provider(aws_credentials_provider())
+        .region(aws_types::region::Region::new("us-east-1"))
+        .load()
+        .await;
+    let client = aws_sdk_bedrockruntime::Client::new(&config);
+    let prompt = conversation.prepare();
+    debug_eprintln!("converse_bedrock: prompt = {},", prompt);
+    let body = json!({"prompt" : prompt,
+                      "temperature" : 0.5,
+                      "top_p" : 1,
+                      "top_k" : 400,
+                      "max_tokens_to_sample": 200})
+    .to_string();
+    debug_eprintln!("converse_bedrock: body = {:#?}", body);
+    let body = Blob::new(body);
+    let fluent_builder = client
+        .invoke_model()
+        .body(body)
+        .model_id(model)
+        .content_type("application/json");
+    let result = fluent_builder.send().await?;
+    if let Some(body) = result.body() {
+        let inner = body.clone().into_inner();
+        let response = String::from_utf8(inner)?;
+        let answer: Bedrockresponse = serde_json::from_str(&response)?;
+        debug_eprintln!("Beckrockresponse = {:#?}", answer);
+        if let Some(a) = answer.completion {
+            let word_count = a.split(' ').collect::<Vec<_>>().len();
+            record_usage(huuid, word_count as u32, dbpool, "bedrock", false)
+                .await
+                .ok();
+            conversation.conversation.push(BedrockPair {
+                role: BedrockRole::Assistant,
+                text: a.clone(),
+            });
+            sqlx::query("insert or replace into conversation (uuid, conversation, timestamp) values (?, ?, datetime())")
+                .bind(uuid)
+                .bind(serde_json::to_string(&conversation)?)
+                .execute(dbpool)
+                .await?;
+            Ok(a)
+        } else {
+            Err(Box::<dyn Error>::from("answer missing completion"))
+        }
+    } else {
+        Ok("DID NOT GET ANSWER".to_string())
+    }
 }
 
 fn parse_token(token: &dyn Token) -> Result<(String, u64), Box<dyn Error>> {
@@ -982,6 +1153,8 @@ mod tests {
                 chatgpt_use_limits: true,
                 palm_apikey: "none".to_string(),
                 palm_use_allowlist: true,
+                aws_access_key: String::from("aws-access-key-here"),
+                aws_access_secret: String::from("aws-access-secret-here"),
             }
         }
     }
