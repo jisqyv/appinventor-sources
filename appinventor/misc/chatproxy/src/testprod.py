@@ -7,10 +7,11 @@ from google.protobuf.message import DecodeError
 def test(question, system=None, uuid=None, provider=None, model=None, apikey=None):
     import chat_pb2
     us = chat_pb2.unsigned()
-    us.huuid = 'TEST'
+    # us.huuid = 'TEST'
+    us.huuid = '103327667211985548619'
     eus = us.SerializeToString()
     signature = hmac.new(
-        b'This is a test',
+        b'AwIRy/cNWFehWZE+nHqC1A',
         msg=eus,
         digestmod=hashlib.sha256)
     request = chat_pb2.request()
@@ -29,7 +30,7 @@ def test(question, system=None, uuid=None, provider=None, model=None, apikey=Non
     if uuid:
         request.uuid = uuid
     z = request.SerializeToString()
-    r = requests.post('http://127.0.0.1:9001/chat/v1',
+    r = requests.post('https://chatbot.appinventor.mit.edu/chat/v1',
                   z)
     z = chat_pb2.response()
     if r.status_code != 200:

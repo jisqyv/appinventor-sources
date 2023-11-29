@@ -27,5 +27,10 @@ sha1 = "0.10.1"
 sha2 = "0.10.2"
 hmac = "0.12.1"
 base64 = "0.21.2"
+aws-config = "0.56.1"
+aws-types = "0.56.1"
+aws-credential-types = "0.56.1"
+aws-sdk-bedrockruntime = "0.3.0"
+
 
 
