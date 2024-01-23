@@ -62,6 +62,8 @@ import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.mail.Authenticator;
+import javax.mail.PasswordAuthentication;
 import javax.mail.Message;
 import javax.mail.MessagingException;
 import javax.mail.Session;
@@ -709,8 +711,13 @@ public class LoginServlet extends HttpServlet {
           if (port != null) {
             props.put("mail.smtp.port", port);
           }
-          Session session = Session.getInstance(props, null);
-          session.setDebug(true);
+          Session session = Session.getInstance(props, new Authenticator() {
+              @Override
+              protected PasswordAuthentication getPasswordAuthentication() {
+                return new PasswordAuthentication(user, password);
+              }
+            });
+          // session.setDebug(true);
           try {
             MimeMessage msg = new MimeMessage(session);
             msg.setFrom(new InternetAddress(mailfrom));
@@ -720,11 +727,8 @@ public class LoginServlet extends HttpServlet {
             msg.setHeader("Content-Type", "text/plain; charset=utf-8");
             msg.setHeader("Content-Transfer-Encoding", "8bit");
             msg.setText(bundle.getString("mailbody") + sendUrl + bundle.getString("mailbody1"));
-            if (password != null) {
-              SMTPTransport.send(msg, user, password);
-            } else {
-              SMTPTransport.send(msg);
-            }
+            InternetAddress toAddresses[] = { new InternetAddress(email) };
+            SMTPTransport.send(msg);
           } catch (MessagingException e) {
             System.out.println("\n--Exception sending mail to " + email);
             e.printStackTrace();
