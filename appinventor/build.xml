@@ -128,7 +128,6 @@
         <include name="**"/>
       </fileset>
     </copy>
-    <copy tofile="package/jetty-runner.jar" file="lib/jettyrunner/jetty-runner-9.2.2.v20140723.jar"/>
     <copy tofile="package/appinventor.tpl" file="../jettybase/appinventor.tpl" />
     <copy tofile="package/appinventor.ini.sample" file="../jettybase/appinventor.ini.sample"/>
     <copy tofile="package/starter.jar" file="build/starter.jar" />

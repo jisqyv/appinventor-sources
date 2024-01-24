@@ -24,7 +24,6 @@ public class StartSystem {
       File execDir = new File(new File(StartSystem.class.getProtectionDomain().getCodeSource().getLocation().getPath()).getParent());
       Process s = null;
       Process build = null;
-      String port = "8888";
       String mailhost = null;
       String mailuser = null;
       String mailpassword = null;
@@ -112,19 +111,18 @@ public class StartSystem {
       if (mailpassword != null) {
           config.add("mail.smtp.password", mailpassword);
       }
+      config.add("jetty.base", "..");
       config.save();
       pArgs.add("-XX:+UseG1GC");
+      pArgs.add("-Djetty.base=..");
       pArgs.add("-jar");
-      pArgs.add("jetty-runner.jar");
-      pArgs.add("--port");
-      pArgs.add(port);
-      pArgs.add("appinventor.xml");
+      pArgs.add("../jetty-home/start.jar");
 
       ProcessBuilder server = new ProcessBuilder(pArgs);
       server.inheritIO();
       server.directory(execDir);
 
-      File buildserverLibs = new File(execDir.getPath() + "/buildserver");
+      File buildserverLibs = new File(execDir.getPath() + "/../buildserver");
       File [] fileList = buildserverLibs.listFiles();
       if (fileList == null) {
           System.err.println("Could not find buildserver libraries.");
@@ -198,18 +196,7 @@ public class StartSystem {
 
     private static class ConfigBuilder {
 
-        private static String footer = " <Get name=\"sessionHandler\">\n" +
-          "     <Set name=\"sessionManager\">\n" +
-          "         <New class=\"org.eclipse.jetty.server.session.HashSessionManager\">\n" +
-          "           <Set name=\"sessionCookie\">AppInventorId</Set>\n" +
-          "           <Set name=\"lazyLoad\">true</Set>\n" +
-          "           <Set name=\"storeDirectory\"><SystemProperty name=\"storage.root\"/>/SESSIONS</Set>\n" +
-          "           <Set name=\"scavengePeriod\">600</Set>\n" +
-          "           <Set name=\"savePeriod\">300</Set>\n" +
-          "         </New>\n" +
-          "     </Set>\n" +
-          "  </Get>\n" +
-          "</Configure>\n";
+        private static String footer = "</Configure>\n";
 
         // t1, t2 and t3 are template strings for writing out an XML file with the right goop
         // to set system properties
