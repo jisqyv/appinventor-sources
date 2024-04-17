@@ -114,6 +114,7 @@ pub struct request<'a> {
     pub apikey: Option<Cow<'a, str>>,
     pub provider: Cow<'a, str>,
     pub model: Option<Cow<'a, str>>,
+    pub inputimage: Option<Cow<'a, [u8]>>,
 }
 
 impl<'a> MessageRead<'a> for request<'a> {
@@ -133,6 +134,7 @@ impl<'a> MessageRead<'a> for request<'a> {
                 Ok(50) => msg.apikey = Some(r.read_string(bytes).map(Cow::Borrowed)?),
                 Ok(58) => msg.provider = r.read_string(bytes).map(Cow::Borrowed)?,
                 Ok(66) => msg.model = Some(r.read_string(bytes).map(Cow::Borrowed)?),
+                Ok(74) => msg.inputimage = Some(r.read_bytes(bytes).map(Cow::Borrowed)?),
                 Ok(t) => { r.read_unknown(bytes, t)?; }
                 Err(e) => return Err(e),
             }
@@ -152,6 +154,7 @@ impl<'a> MessageWrite for request<'a> {
         + self.apikey.as_ref().map_or(0, |m| 1 + sizeof_len((m).len()))
         + if self.provider == Cow::Borrowed("chatgpt") { 0 } else { 1 + sizeof_len((&self.provider).len()) }
         + self.model.as_ref().map_or(0, |m| 1 + sizeof_len((m).len()))
+        + self.inputimage.as_ref().map_or(0, |m| 1 + sizeof_len((m).len()))
     }
 
     fn write_message<W: WriterBackend>(&self, w: &mut Writer<W>) -> Result<()> {
@@ -163,6 +166,7 @@ impl<'a> MessageWrite for request<'a> {
         if let Some(ref s) = self.apikey { w.write_with_tag(50, |w| w.write_string(&**s))?; }
         if self.provider != Cow::Borrowed("chatgpt") { w.write_with_tag(58, |w| w.write_string(&**&self.provider))?; }
         if let Some(ref s) = self.model { w.write_with_tag(66, |w| w.write_string(&**s))?; }
+        if let Some(ref s) = self.inputimage { w.write_with_tag(74, |w| w.write_bytes(&**s))?; }
         Ok(())
     }
 }
