@@ -1,10 +1,12 @@
 #[macro_use]
 extern crate lazy_static;
+use base64::prelude::*;
 use quick_protobuf::{BytesReader, MessageRead, MessageWrite, Writer};
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode};
 use std::collections::BTreeMap;
 use std::convert::{From, Infallible};
 use std::fmt;
+use std::fmt::Debug;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::{borrow::Cow, u64};
@@ -16,9 +18,13 @@ use warp::reply::Response;
 use warp::{Filter, Reply};
 extern crate structopt;
 use async_openai::{
+    config::OpenAIConfig,
     types::{
-        ChatCompletionRequestMessage, ChatCompletionRequestMessageArgs,
-        CreateChatCompletionRequestArgs, CreateModerationRequest, Role,
+        ChatCompletionRequestAssistantMessage, ChatCompletionRequestMessage,
+        ChatCompletionRequestMessageContentPart, ChatCompletionRequestMessageContentPartImage,
+        ChatCompletionRequestSystemMessage, ChatCompletionRequestUserMessage,
+        ChatCompletionRequestUserMessageContent, CreateChatCompletionRequestArgs,
+        CreateModerationRequest, Role as ChatGPTRole,
     },
     Client,
 };
@@ -28,12 +34,18 @@ use sqlx::sqlite::{SqlitePool, SqlitePoolOptions};
 use sqlx::Row;
 use std::error::Error;
 
+use crate::anthropic::AnthropicConversation;
+use crate::titan::TitanConversation;
+
 const SECS_PER_DAY: i32 = 86400;
 
+mod anthropic;
 mod chat;
 mod dallelib;
+mod geminilib;
 mod image;
 mod palmlib;
+mod titan;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Config {
@@ -42,9 +54,7 @@ struct Config {
     dbfile: String,
     hmac_keys: BTreeMap<String, String>,
     chatgpt_apikey: String,
-    default_quota: i32,
     chatgpt_use_allowlist: bool,
-    chatgpt_use_limits: bool,
     palm_apikey: String,
     palm_use_allowlist: bool,
     aws_access_key: String,
@@ -62,9 +72,7 @@ impl ::std::default::Default for Config {
                 ("1".into(), "change or delete me!".into()),
             ]),
             chatgpt_apikey: String::from("sk-key-here"),
-            default_quota: 10000,
             chatgpt_use_allowlist: true,
-            chatgpt_use_limits: true,
             palm_apikey: String::from("key-here"),
             palm_use_allowlist: true,
             aws_access_key: String::from("aws-access-key-here"),
@@ -81,16 +89,14 @@ impl Test for Config {
     fn test() -> Self {
         Self {
             port: 9001,
-            nthreads: 0, // Means as many as cores
+            nthreads: 1, // Just the current thread
             dbfile: String::from("/ram/dbfile.sqlite"),
             hmac_keys: BTreeMap::from([
                 ("0".into(), "changeme!".into()),
                 ("1".into(), "change or delete me!".into()),
             ]),
             chatgpt_apikey: String::from("sk-key-here"),
-            default_quota: 10000,
             chatgpt_use_allowlist: true,
-            chatgpt_use_limits: true,
             palm_apikey: String::from("key-here"),
             palm_use_allowlist: true,
             aws_access_key: String::from("aws-access-key-here"),
@@ -103,6 +109,7 @@ trait Token<'a> {
     fn get_unsigned(&self) -> Option<Cow<'a, [u8]>>;
     fn get_signature(&self) -> Option<Cow<'a, [u8]>>;
     fn get_keyid(&self) -> u64;
+    fn display(&self) -> String;
 }
 
 impl<'a> Token<'a> for chat::token<'a> {
@@ -114,6 +121,9 @@ impl<'a> Token<'a> for chat::token<'a> {
     }
     fn get_keyid(&self) -> u64 {
         self.keyid
+    }
+    fn display(&self) -> String {
+        format!("{:#?}", self)
     }
 }
 
@@ -127,52 +137,72 @@ impl<'a> Token<'a> for image::token<'a> {
     fn get_keyid(&self) -> u64 {
         self.keyid
     }
+    fn display(&self) -> String {
+        format!("{:#?}", self)
+    }
+}
+
+pub trait Converse {
+    fn create_body(&self) -> String;
+    fn prepare(&self) -> String;
+    fn push(&mut self, role: Role, text: String);
+    fn serialize(&self) -> Result<String, Box<dyn Error>>;
+    fn parse_response(&self, response: &str) -> Result<String, Box<dyn Error>>;
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
-enum BedrockRole {
+pub enum Role {
     Human,
     Assistant,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
-struct BedrockPair {
-    role: BedrockRole,
-    text: String,
+enum AmazonFlavor {
+    Anthropic,
+    Titan,
 }
 
-trait Converse {
-    fn prepare(&self) -> String;
+#[cfg(test)]
+lazy_static! {
+    static ref CONFIG: Config = Config::test();
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
-struct BedrockConversation {
-    conversation: Vec<BedrockPair>,
-}
-
-impl Converse for BedrockConversation {
-    fn prepare(&self) -> String {
-        let mut retval: String = String::from("\n\n");
-        for c in &self.conversation {
-            match c.role {
-                BedrockRole::Human => {
-                    retval.push_str(&format!("Human:{}\n\n", c.text));
-                }
-                BedrockRole::Assistant => {
-                    retval.push_str(&format!("Assistant:{}\n\n", c.text));
-                }
-            }
-        }
-        retval.push_str("Assistant:\n\n");
-        retval
-    }
-}
-
+#[cfg(not(test))]
 lazy_static! {
     static ref CONFIG: Config = {
         let args = Cli::from_args();
         confy::load_path(args.config_file).unwrap()
     };
+}
+
+lazy_static! {
+    static ref RT: runtime::Runtime = match CONFIG.nthreads {
+        1 => runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap(),
+        0 => runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap(),
+        n => runtime::Builder::new_multi_thread()
+            .enable_all()
+            .worker_threads(n)
+            .build()
+            .unwrap(),
+    };
+    static ref DBPOOL: SqlitePool = {
+        RT.handle()
+            .block_on(async { setup(&CONFIG).await.unwrap() })
+    };
+    static ref CHATGPT_DEFAULT_QUOTA: i32 = RT.block_on(async {
+        let (_, quota) = get_defaults(&DBPOOL).await;
+        quota
+    });
+    static ref CHATGPT_USE_LIMITS: bool = RT.block_on(async {
+        let (limits, _) = get_defaults(&DBPOOL).await;
+        limits
+    });
 }
 
 use aws_credential_types::Credentials;
@@ -195,6 +225,7 @@ enum ChatproxyError {
     OverQuota,
     UseOwnKey,
     Blocked,
+    UnsupportedImageFormat,
 }
 
 impl Error for ChatproxyError {}
@@ -222,6 +253,9 @@ impl fmt::Display for ChatproxyError {
             ChatproxyError::Blocked => {
                 write!(f, "Your request was flagged by the moderation system").ok();
             }
+            ChatproxyError::UnsupportedImageFormat => {
+                write!(f, "Unsupported Image Format, use jpeg, gif or png").ok();
+            }
         }
         Ok(())
     }
@@ -229,14 +263,19 @@ impl fmt::Display for ChatproxyError {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Pair {
-    role: Role,
+    role: ChatGPTRole,
     text: String,
+    #[serde(default)]
+    image: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Conversation {
     uuid: String,
     content: Vec<Pair>,
+    multiplier: u32, // Cost multiplier, usage = tokens X multiplier
+    #[serde(default)]
+    model: String,
 }
 
 #[derive(Debug, StructOpt)]
@@ -247,21 +286,18 @@ struct Cli {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let rt = match CONFIG.nthreads {
-        1 => runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()?,
-        0 => runtime::Builder::new_multi_thread().enable_all().build()?,
-        n => runtime::Builder::new_multi_thread()
-            .enable_all()
-            .worker_threads(n)
-            .build()?,
-    };
-
-    rt.block_on(async {
-        let dbpool = setup(&CONFIG).await?;
+    // The lines below causes the lazy_static macro (above) to be
+    // called It is important that we do this here before we create
+    // our main tokio runtime, because the lazy_static block also
+    // creates a runtime, and you cannot create and run a runtime
+    // inside a runtime. Note: You *can* create a runtime inside a
+    // runtime, but you cannot call its block_on method!
+    let _ = DBPOOL.clone();
+    let _ = *CHATGPT_DEFAULT_QUOTA;
+    let _ = *CHATGPT_USE_LIMITS;
+    RT.block_on(async {
         let _t: Result<(), tokio::task::JoinError> = tokio::spawn(async move {
-            let cdbpool = dbpool.clone();
+            let cdbpool = DBPOOL.clone();
             let chatget = warp::path!("chat" / "v1")
                 .and(warp::post())
                 .and(warp::body::bytes())
@@ -276,7 +312,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .and(warp::post())
                 .and(warp::body::bytes())
                 .and_then(move |data: bytes::Bytes| {
-                    let dbpool = dbpool.clone();
+                    let dbpool = DBPOOL.clone();
                     async move {
                         let b: Blob = do_image(data, &dbpool).await?;
                         Ok::<Blob, Rejection>(b)
@@ -300,14 +336,32 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
     let mut reader = BytesReader::from_bytes(&data);
     let message = chat::request::from_reader(&mut reader, &data)
         .map_err(|e| ChatproxyError::Message(e.to_string()))?;
-    let apikey = message.apikey.filter(|apikey| !apikey.is_empty());
-    let (huuid, _keyid) = if let Some(token) = message.token {
+    let mut apikey = message.apikey.clone().filter(|apikey| !apikey.is_empty());
+    let (mut huuid, _keyid) = if let Some(token) = message.token.clone() {
         parse_token(&token).map_err(|e| ChatproxyError::Message(e.to_string()))?
     } else {
         return Err(ChatproxyError::Message("Invalid Auth Token".to_string()));
     };
+    let mut default_quota = *CHATGPT_DEFAULT_QUOTA;
+    // The code below is a bit of a kludge. If an apikey is 10 characters or shorter,
+    // we assume that it is an MIT issued key. If so, we set apikey to None, because
+    // we want to use the configured MIT api key. We then set huuid to the MIT issued
+    // api key. We then set default_quota = -1.
+    //
+    // MIT official keys have a quota already defined in the limits table. If someone
+    // provides a short api key which we do not already have an entry in the limits
+    // table, the default quota of -1 will cause them to get an error.
+    if let Some(ref ap) = apikey {
+        if ap.len() <= 10 {
+            debug_eprintln!("Found short apikey = {}", ap);
+            huuid = ap.to_lowercase();
+            apikey = None;
+            default_quota = -1;
+        }
+    }
+
     debug_eprintln!("huuid = {}", huuid);
-    let provider = message.provider;
+    let provider = message.provider.clone();
     if apikey.is_none() {
         match &*provider {
             "chatgpt" => {
@@ -315,18 +369,18 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
                     println!("Rejecting Request from {}, not on whitelist.", huuid);
                     return Err(ChatproxyError::Unauthorized);
                 }
-                if CONFIG.chatgpt_use_limits
-                    && !check_limit(&huuid, dbpool, &provider).await.map_err(|e| {
-                        match *e.downcast().unwrap() {
+                if *CHATGPT_USE_LIMITS
+                    && !check_limit(&huuid, dbpool, &provider, default_quota)
+                        .await
+                        .map_err(|e| match *e.downcast().unwrap() {
                             ChatproxyError::UseOwnKey => ChatproxyError::UseOwnKey,
                             _ => ChatproxyError::OverQuota,
-                        }
-                    })?
+                        })?
                 {
                     return Err(ChatproxyError::OverQuota);
                 }
             }
-            "palm" => {
+            "palm" | "gemini" => {
                 if CONFIG.palm_use_allowlist && !on_whitelist(&huuid, dbpool, &provider).await {
                     println!(
                         "PaLM: Rejecting Request from {}, not on whitelist provider = {}",
@@ -341,7 +395,7 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
             }
         }
     }
-    let uuid = match message.uuid {
+    let uuid = match message.uuid.clone() {
         Some(n) => {
             if message.system.is_some() && !n.is_empty() {
                 return Err(ChatproxyError::Message(
@@ -370,7 +424,11 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
             if apikey.is_none() {
                 match model {
                     "" => {
-                        model = "gpt-3.5-turbo";
+                        if message.inputimage.is_some() {
+                            model = "gpt-4-vision-preview";
+                        } else {
+                            model = "gpt-3.5-turbo";
+                        };
                     }
                     "gpt-3.5-turbo" => (),
                     "gpt-4.0" | "gpt-4" => {
@@ -385,7 +443,11 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
                     }
                 };
             } else if model.is_empty() {
-                model = "gpt-3.5-turbo";
+                if message.inputimage.is_some() {
+                    model = "gpt-4-vision-preview";
+                } else {
+                    model = "gpt-3.5-turbo";
+                };
             }
         }
         "bedrock" => match model {
@@ -394,16 +456,17 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
             }
             "anthropic.claude-v2" => (),
             "anthropic.claude-v1" => (),
-            _ => {
-                return Err(ChatproxyError::Message(format!(
-                    "Unsupported Model {}",
-                    model
-                )));
-            }
+            _ => (),
+            // _ => {
+            //     return Err(ChatproxyError::Message(format!(
+            //         "Unsupported Model {}",
+            //         model
+            //     )));
+            // }
         },
         _ => (),
     }
-    let question = if let Some(q) = message.question {
+    let question = if let Some(q) = message.question.clone() {
         q
     } else {
         return Err(ChatproxyError::Message("Must Ask a Question".to_string()));
@@ -415,25 +478,23 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
         return Err(ChatproxyError::Blocked);
     }
     let answer = match &*provider {
-        "chatgpt" => converse_chatgpt(
-            &huuid,
-            dbpool,
-            &uuid,
-            message.system,
-            &question,
-            apikey,
-            model,
-        )
-        .await
-        .map_err(|e| {
-            debug_eprintln!("converse_chatgpt error: {:#?}", e);
-            ChatproxyError::Message(e.to_string())
-        })?,
+        "chatgpt" => converse_chatgpt(&huuid, dbpool, &uuid, &message, apikey, model)
+            .await
+            .map_err(|e| {
+                debug_eprintln!("converse_chatgpt error: {:#?}", e);
+                ChatproxyError::Message(e.to_string())
+            })?,
         "palm" => converse_palm(&huuid, dbpool, &uuid, message.system, &question, apikey)
             .await
             .map_err(|e| {
                 debug_eprintln!("converse_palm error: {:#?}", e);
                 ChatproxyError::Message(format!("PaLM Did not return a response: {}", e))
+            })?,
+        "gemini" => converse_gemini(&huuid, dbpool, &uuid, &message, apikey)
+            .await
+            .map_err(|e| {
+                debug_eprintln!("converse_gemini error: {:#?}", e);
+                ChatproxyError::Message(format!("Gemini Did not return a response: {}", e))
             })?,
         "bedrock" => converse_bedrock(&huuid, dbpool, &uuid, model, &question)
             .await
@@ -451,32 +512,43 @@ async fn do_image(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatp
     let mut reader = BytesReader::from_bytes(&data);
     let request = image::request::from_reader(&mut reader, &data)
         .map_err(|e| ChatproxyError::Message(e.to_string()))?;
-    let (huuid, _keyid) = if let Some(ref token) = request.token {
+    let mut apikey = request.apikey.clone().filter(|apikey| !apikey.is_empty());
+    let (mut huuid, _keyid) = if let Some(ref token) = request.token {
         parse_token(token).map_err(|e| ChatproxyError::Message(e.to_string()))?
     } else {
         return Err(ChatproxyError::Message("Invalid Auth Token".to_string()));
     };
-    let ownkey: bool = request.apikey.is_some();
+    let mut default_quota = *CHATGPT_DEFAULT_QUOTA;
+    // Support MIT issued api keys, see comment in do_chat()
+    if let Some(ref ap) = apikey {
+        if ap.len() <= 10 {
+            debug_eprintln!("Found short apikey = {}", ap);
+            huuid = ap.to_lowercase();
+            apikey = None;
+            default_quota = -1;
+        }
+    }
+    let ownkey: bool = apikey.is_some();
     debug_eprintln!("huuid = {}, ownkey = {}", huuid, ownkey);
     if !ownkey {
         // not own key, implement quota
-        if CONFIG.chatgpt_use_limits
-            && !check_limit(&huuid, dbpool, "dalle").await.map_err(|e| {
-                match *e.downcast().unwrap() {
+        if *CHATGPT_USE_LIMITS
+            && !check_limit(&huuid, dbpool, "dalle", default_quota)
+                .await
+                .map_err(|e| match *e.downcast().unwrap() {
                     ChatproxyError::UseOwnKey => ChatproxyError::UseOwnKey,
                     _ => ChatproxyError::OverQuota,
-                }
-            })?
+                })?
         {
             return Err(ChatproxyError::OverQuota);
         }
     }
     let retval = match request.operation {
-        image::mod_request::OperationType::CREATE => do_create_image(&request).await,
-        image::mod_request::OperationType::EDIT => do_edit_image(request.clone()).await,
+        image::mod_request::OperationType::CREATE => do_create_image(&request, apikey).await,
+        image::mod_request::OperationType::EDIT => do_edit_image(request.clone(), apikey).await,
     };
-    if !ownkey && CONFIG.chatgpt_use_limits {
-        update_limit(&huuid, 500, dbpool, "dalle", &CONFIG).await
+    if !ownkey && *CHATGPT_USE_LIMITS {
+        update_limit(&huuid, 2000, dbpool, "dalle").await
     }
     record_usage(&huuid, 1, dbpool, "dalle", ownkey)
         .await
@@ -484,13 +556,15 @@ async fn do_image(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatp
     retval
 }
 
-async fn do_create_image(request: &image::request<'_>) -> Result<Blob, ChatproxyError> {
+async fn do_create_image<'a>(
+    request: &image::request<'_>,
+    apikey: Option<Cow<'a, str>>,
+) -> Result<Blob, ChatproxyError> {
     let prompt = if let Some(ref prompt) = request.prompt {
         prompt
     } else {
         return Err(ChatproxyError::Message("No Prompt Supplied".to_string()));
     };
-    let apikey = request.apikey.clone().filter(|apikey| !apikey.is_empty());
     let apikey_to_use = if let Some(ap) = apikey {
         ap.into_owned()
     } else {
@@ -533,14 +607,16 @@ async fn do_create_image(request: &image::request<'_>) -> Result<Blob, Chatproxy
     Ok(b)
 }
 
-async fn do_edit_image(request: image::request<'_>) -> Result<Blob, ChatproxyError> {
+async fn do_edit_image<'a>(
+    request: image::request<'_>,
+    apikey: Option<Cow<'a, str>>,
+) -> Result<Blob, ChatproxyError> {
     let prompt = if let Some(ref prompt) = request.prompt {
         prompt
     } else {
         return Err(ChatproxyError::Message("No Prompt Supplied".to_string()));
     };
     let request = request.clone();
-    let apikey = request.apikey.clone().filter(|apikey| !apikey.is_empty());
     let apikey_to_use = if let Some(ap) = apikey {
         ap.into_owned()
     } else {
@@ -593,16 +669,10 @@ async fn converse_palm(
 ) -> Result<String, Box<dyn Error>> {
     debug_eprintln!("converse_palm: system = {:#?}, uuid = {}", system, uuid);
     let state: Option<palmlib::State> = {
-        match sqlx::query("select conversation from conversation where uuid = ?")
-            .bind(uuid)
-            .fetch_one(dbpool)
-            .await
-        {
-            Ok(n) => {
-                let s = n.get::<String, usize>(0);
-                Some(serde_json::from_str(&s)?)
-            }
-            Err(_) => None,
+        if let Some(conversation_str) = get_conversation(uuid, "palm", dbpool).await {
+            Some(serde_json::from_str(&conversation_str)?)
+        } else {
+            None
         }
     };
     let apikey_to_use = if let Some(ref ap) = apikey {
@@ -612,10 +682,7 @@ async fn converse_palm(
     };
     let system = system.map(|s| s.to_string());
     let answer = palmlib::converse(question, system, &apikey_to_use, state).await?;
-    sqlx::query("insert or replace into conversation (uuid, conversation, timestamp) values (?, ?, datetime())")
-        .bind(uuid)
-        .bind(serde_json::to_string(&answer.state)?)
-        .execute(dbpool).await?;
+    store_conversation(uuid, "palm", dbpool, &serde_json::to_string(&answer.state)?).await?;
     record_usage(huuid, 1, dbpool, "palm", apikey.is_some()).await?;
     Ok(answer.answer)
 }
@@ -624,59 +691,112 @@ async fn converse_chatgpt<'a>(
     huuid: &str,
     dbpool: &SqlitePool,
     uuid: &str,
-    system: Option<Cow<'_, str>>,
-    question: &str,
+    message: &chat::request<'_>,
     apikey: Option<Cow<'_, str>>,
     model: &str,
 ) -> Result<String, Box<dyn Error>> {
+    let inputimage = &message.inputimage;
+    let system = &message.system;
+    let question = match message.question.clone() {
+        None => {
+            return Err(Box::new(ChatproxyError::Message(
+                "Must Ask a Question".to_string(),
+            )));
+        }
+        Some(q) => q,
+    };
     let mut conversation: Conversation =
-        match sqlx::query("select conversation from conversation where uuid = ?")
-            .bind(uuid)
-            .fetch_one(dbpool)
-            .await
-        {
-            Ok(n) => {
-                let s = n.get::<String, usize>(0);
-                serde_json::from_str(&s)?
-            }
-            Err(_e) => Conversation {
+        if let Some(conversation_str) = get_conversation(uuid, "chatgpt", dbpool).await {
+            serde_json::from_str(&conversation_str)?
+        } else {
+            Conversation {
                 uuid: uuid.to_string(),
                 content: vec![Pair {
-                    role: Role::System,
+                    role: ChatGPTRole::System,
                     text: if let Some(s) = system {
                         s.to_string()
                     } else {
                         "".to_string()
                     },
+                    image: None,
                 }],
-            },
+                multiplier: 1,
+                model: model.to_string(),
+            }
         };
+    if message.inputimage.is_some() {
+        conversation.multiplier = 20;
+        if conversation.model == "gpt-3.5-turbo" {
+            //  This is a kludge!
+            conversation.model = "gpt-4-vision-preview".to_string();
+        }
+    }
     conversation.content.push(Pair {
-        role: Role::User,
+        role: ChatGPTRole::User,
         text: question.to_string(),
+        image: inputimage
+            .clone()
+            .as_ref()
+            .map(|image| -> Result<String, Box<dyn Error>> { get_image_url(image) })
+            .transpose()?,
     });
     let messages = conversation
         .content
         .iter()
-        .map(|v| {
-            Ok::<ChatCompletionRequestMessage, Box<dyn Error>>(
-                ChatCompletionRequestMessageArgs::default()
-                    .role(v.role.clone())
-                    .content(&v.text)
-                    .build()?,
-            )
+        .map(|v| match v.role {
+            ChatGPTRole::User => {
+                if let Some(image) = v.image.clone() {
+                    let imagepart = ChatCompletionRequestMessageContentPartImage {
+                        image_url: image.into(),
+                        r#type: "image_url".to_string(),
+                    };
+                    let part = ChatCompletionRequestMessageContentPart::Image(imagepart);
+                    let text = ChatCompletionRequestMessageContentPart::Text(v.text.clone().into());
+                    let content = ChatCompletionRequestUserMessageContent::Array(vec![text, part]);
+                    ChatCompletionRequestMessage::from(ChatCompletionRequestUserMessage {
+                        content,
+                        role: ChatGPTRole::User,
+                        name: None,
+                    })
+                } else {
+                    ChatCompletionRequestMessage::from(ChatCompletionRequestUserMessage {
+                        content: ChatCompletionRequestUserMessageContent::Text(v.text.clone()),
+                        role: ChatGPTRole::User,
+                        name: None,
+                    })
+                }
+            }
+            ChatGPTRole::Assistant => {
+                ChatCompletionRequestMessage::from(ChatCompletionRequestAssistantMessage {
+                    content: Some(v.text.clone()),
+                    role: ChatGPTRole::Assistant,
+                    ..Default::default()
+                })
+            }
+            ChatGPTRole::System => {
+                ChatCompletionRequestMessage::from(ChatCompletionRequestSystemMessage {
+                    content: v.text.clone(),
+                    role: ChatGPTRole::System,
+                    name: None,
+                })
+            }
+            _ => {
+                debug_eprintln!("Result = {:#?}", v);
+                todo!()
+            }
         })
-        .collect::<Result<Vec<ChatCompletionRequestMessage>, _>>()?;
+        .collect::<Vec<ChatCompletionRequestMessage>>();
 
     let apikey_to_use = if let Some(apikey) = apikey.clone() {
         apikey.into_owned()
     } else {
         CONFIG.chatgpt_apikey.clone()
     };
-    let client = Client::new().with_api_key(&apikey_to_use);
+    let config = OpenAIConfig::new().with_api_key(&apikey_to_use);
+    let client = Client::with_config(config);
     let request = CreateChatCompletionRequestArgs::default()
         .max_tokens(512u16)
-        .model(model)
+        .model(&conversation.model)
         .user(huuid)
         .messages(messages)
         .build()?;
@@ -685,39 +805,49 @@ async fn converse_chatgpt<'a>(
     let response = client.chat().create(request).await?;
     let mut retval = "Unkonwn".to_string();
     let usage = if let Some(ref u) = response.usage {
-        u.total_tokens
+        u.total_tokens * conversation.multiplier
     } else {
         0
     };
+    debug_eprintln!("Usage = {} Multiplier = {}", usage, conversation.multiplier);
     record_usage(huuid, usage, dbpool, "chatgpt", apikey.is_some()).await?;
-    if apikey.is_none() && CONFIG.chatgpt_use_limits {
-        update_limit(huuid, usage.try_into().unwrap(), dbpool, "chatgpt", &CONFIG).await
+    if apikey.is_none() && *CHATGPT_USE_LIMITS {
+        update_limit(huuid, usage.try_into().unwrap(), dbpool, "chatgpt").await
     }
     for choice in response.choices {
-        if choice.message.role == Role::Assistant {
-            retval = choice.message.content.clone();
+        if choice.message.role == ChatGPTRole::Assistant {
+            if let Some(text) = choice.message.content {
+                retval = text.clone();
+            } else {
+                retval = "NO RESPONSE".to_string();
+            };
         };
         conversation.content.push(Pair {
             role: choice.message.role,
-            text: choice.message.content,
+            text: retval.clone(),
+            image: None,
         });
     }
-    sqlx::query("insert or replace into  conversation (uuid, conversation, timestamp) values(?, ?, datetime())")
-        .bind(conversation.uuid.clone())
-        .bind(serde_json::to_string(&conversation)?)
-        .execute(dbpool)
-        .await?;
+    store_conversation(
+        uuid,
+        "chatgpt",
+        dbpool,
+        &serde_json::to_string(&conversation)?,
+    )
+    .await?;
     Ok(retval)
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-struct Bedrockresponse {
-    completion: Option<String>,
-    stop_reason: Option<String>,
-    stop: Option<String>,
+fn get_amazon_flavor(model: &str) -> Result<AmazonFlavor, Box<dyn Error>> {
+    let mut z = model.split('.');
+    match z.next() {
+        Some("anthropic") => Ok(AmazonFlavor::Anthropic),
+        Some("amazon") => Ok(AmazonFlavor::Titan),
+        _ => Err(Box::<dyn Error>::from("Unknown Amazon Model")),
+    }
 }
 
-// Anthropic AWS model
+// AWS models
 async fn converse_bedrock(
     huuid: &str,
     dbpool: &SqlitePool,
@@ -726,25 +856,26 @@ async fn converse_bedrock(
     question: &str,
 ) -> Result<String, Box<dyn Error>> {
     use aws_sdk_bedrockruntime::primitives::Blob;
-    use serde_json::json;
-    let mut conversation: BedrockConversation =
-        match sqlx::query("select conversation from conversation where uuid = ?")
-            .bind(uuid)
-            .fetch_one(dbpool)
-            .await
-        {
-            Ok(n) => {
-                let s = n.get::<String, usize>(0);
-                serde_json::from_str(&s)?
+
+    let flavor = get_amazon_flavor(model)?;
+    let ctag = format!("bedrock-{}", model);
+    let mut conversation: Box<dyn Converse + Send> = match flavor {
+        AmazonFlavor::Anthropic => {
+            if let Some(conversation_str) = get_conversation(uuid, &ctag, dbpool).await {
+                AnthropicConversation::load(&conversation_str)?
+            } else {
+                AnthropicConversation::initial()
             }
-            Err(_e) => BedrockConversation {
-                conversation: vec![],
-            },
-        };
-    conversation.conversation.push(BedrockPair {
-        role: BedrockRole::Human,
-        text: question.to_string(),
-    });
+        }
+        AmazonFlavor::Titan => {
+            if let Some(conversation_str) = get_conversation(uuid, &ctag, dbpool).await {
+                TitanConversation::load(&conversation_str)?
+            } else {
+                TitanConversation::initial()
+            }
+        }
+    };
+    conversation.push(Role::Human, question.to_string());
     let config = aws_config::from_env()
         .credentials_provider(aws_credentials_provider())
         .region(aws_types::region::Region::new("us-east-1"))
@@ -753,12 +884,7 @@ async fn converse_bedrock(
     let client = aws_sdk_bedrockruntime::Client::new(&config);
     let prompt = conversation.prepare();
     debug_eprintln!("converse_bedrock: prompt = {},", prompt);
-    let body = json!({"prompt" : prompt,
-                      "temperature" : 0.5,
-                      "top_p" : 1,
-                      "top_k" : 400,
-                      "max_tokens_to_sample": 200})
-    .to_string();
+    let body = conversation.create_body();
     debug_eprintln!("converse_bedrock: body = {:#?}", body);
     let body = Blob::new(body);
     let fluent_builder = client
@@ -770,35 +896,58 @@ async fn converse_bedrock(
     if let Some(body) = result.body() {
         let inner = body.clone().into_inner();
         let response = String::from_utf8(inner)?;
-        let answer: Bedrockresponse = serde_json::from_str(&response)?;
-        debug_eprintln!("Beckrockresponse = {:#?}", answer);
-        if let Some(a) = answer.completion {
-            let word_count = a.split(' ').collect::<Vec<_>>().len();
-            record_usage(huuid, word_count as u32, dbpool, "bedrock", false)
-                .await
-                .ok();
-            conversation.conversation.push(BedrockPair {
-                role: BedrockRole::Assistant,
-                text: a.clone(),
-            });
-            sqlx::query("insert or replace into conversation (uuid, conversation, timestamp) values (?, ?, datetime())")
-                .bind(uuid)
-                .bind(serde_json::to_string(&conversation)?)
-                .execute(dbpool)
-                .await?;
-            Ok(a)
-        } else {
-            Err(Box::<dyn Error>::from("answer missing completion"))
-        }
+        debug_eprintln!("raw response = {}", response);
+        let answer = conversation.parse_response(&response)?;
+        debug_eprintln!("answer = {}", answer);
+        let word_count = answer.split(' ').collect::<Vec<_>>().len();
+        record_usage(huuid, word_count as u32, dbpool, &ctag, false)
+            .await
+            .ok();
+        conversation.push(Role::Assistant, answer.clone());
+        let conversation_str = conversation.serialize()?;
+        store_conversation(uuid, &ctag, dbpool, &conversation_str).await?;
+        Ok(answer)
     } else {
         Ok("DID NOT GET ANSWER".to_string())
     }
+}
+
+async fn converse_gemini(
+    huuid: &str,
+    dbpool: &SqlitePool,
+    uuid: &str,
+    message: &chat::request<'_>,
+    apikey: Option<Cow<'_, str>>,
+) -> Result<String, Box<dyn Error>> {
+    let state: Option<geminilib::State> = {
+        if let Some(conversation_str) = get_conversation(uuid, "gemini", dbpool).await {
+            Some(serde_json::from_str(&conversation_str)?)
+        } else {
+            None
+        }
+    };
+    let apikey_to_use = if let Some(ref ap) = apikey {
+        ap.clone().into_owned()
+    } else {
+        CONFIG.palm_apikey.clone()
+    };
+    let answer = geminilib::converse(message, &apikey_to_use, state).await?;
+    store_conversation(
+        uuid,
+        "gemini",
+        dbpool,
+        &serde_json::to_string(&answer.state)?,
+    )
+    .await?;
+    record_usage(huuid, 1, dbpool, "gemini", message.apikey.is_some()).await?;
+    Ok(answer.answer)
 }
 
 fn parse_token(token: &dyn Token) -> Result<(String, u64), Box<dyn Error>> {
     use hmac::{Hmac, Mac};
     use sha2::Sha256;
     type HmacSha256 = Hmac<Sha256>;
+    // debug_eprintln!("token = {}", token.display());
     let keyid = token.get_keyid();
     let hmac_key = match &CONFIG.hmac_keys.get(&keyid.to_string()) {
         Some(n) => <&String>::clone(n),
@@ -837,7 +986,8 @@ fn parse_token(token: &dyn Token) -> Result<(String, u64), Box<dyn Error>> {
 }
 
 async fn moderate_chatgpt(question: &str) -> Result<bool, Box<dyn Error>> {
-    let client = Client::new().with_api_key(&CONFIG.chatgpt_apikey);
+    let config = OpenAIConfig::new().with_api_key(&CONFIG.chatgpt_apikey);
+    let client = Client::with_config(config);
 
     let request = CreateModerationRequest {
         input: question.into(),
@@ -904,6 +1054,12 @@ async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
                     StatusCode::FORBIDDEN,
                 ));
             }
+            ChatproxyError::UnsupportedImageFormat => {
+                return Ok(warp::reply::with_status(
+                    ChatproxyError::UnsupportedImageFormat.to_string(),
+                    StatusCode::BAD_REQUEST,
+                ));
+            }
         }
     } else {
         "Unknown Error".to_string()
@@ -938,7 +1094,7 @@ async fn setup(conf: &Config) -> Result<SqlitePool, Box<dyn Error>> {
         .connect_with(options)
         .await?;
     sqlx::query(
-        "create table if not exists conversation (uuid text primary key, conversation blob, timestamp timestamp)",
+        "create table if not exists conversation (uuid text primary key, provider text, conversation blob, timestamp timestamp)",
     )
     .execute(&dbpool)
     .await?;
@@ -960,6 +1116,9 @@ async fn setup(conf: &Config) -> Result<SqlitePool, Box<dyn Error>> {
     .execute(&dbpool)
     .await?;
     sqlx::query("create unique index if not exists limits_u_p on limits (huuid, provider)")
+        .execute(&dbpool)
+        .await?;
+    sqlx::query("create table if not exists config (name text, value)")
         .execute(&dbpool)
         .await?;
     Ok(dbpool)
@@ -1018,7 +1177,7 @@ async fn record_usage(
     Ok(())
 }
 
-async fn update_limit(huuid: &str, usage: i32, dbpool: &SqlitePool, provider: &str, conf: &Config) {
+async fn update_limit(huuid: &str, usage: i32, dbpool: &SqlitePool, provider: &str) {
     debug_eprintln!("update_limit: entered");
     let mut transaction = dbpool.begin().await.unwrap();
     let (old_usage, quota, ts) = match sqlx::query(
@@ -1044,7 +1203,7 @@ async fn update_limit(huuid: &str, usage: i32, dbpool: &SqlitePool, provider: &s
                 .as_secs()
                 .try_into()
                 .unwrap();
-            (0, conf.default_quota, utime)
+            (0, *CHATGPT_DEFAULT_QUOTA, utime)
         }
     };
     let usage = old_usage + usage;
@@ -1059,6 +1218,39 @@ async fn update_limit(huuid: &str, usage: i32, dbpool: &SqlitePool, provider: &s
         .unwrap();
     transaction.commit().await.unwrap();
     debug_eprintln!("update_limit: leaving");
+}
+
+async fn get_conversation(uuid: &str, provider: &str, dbpool: &SqlitePool) -> Option<String> {
+    match sqlx::query("select conversation, provider  from conversation where uuid = ?")
+        .bind(uuid)
+        .fetch_one(dbpool)
+        .await
+    {
+        Ok(n) => {
+            let conversation_provider = n.get::<String, usize>(1);
+            if conversation_provider == provider {
+                Some(n.get::<String, usize>(0))
+            } else {
+                None // We switched provider!
+            }
+        }
+        Err(_) => None,
+    }
+}
+
+async fn store_conversation(
+    uuid: &str,
+    provider: &str,
+    dbpool: &SqlitePool,
+    value: &str,
+) -> Result<(), Box<dyn Error>> {
+    sqlx::query("insert or replace into conversation (uuid, conversation, provider, timestamp) values (?, ?, ?, datetime())")
+        .bind(uuid)
+        .bind(value)
+        .bind(provider)
+        .execute(dbpool)
+        .await?;
+    Ok(())
 }
 
 fn get_unix_now() -> Result<i64, Box<dyn Error>> {
@@ -1076,6 +1268,7 @@ async fn check_limit(
     huuid: &str,
     dbpool: &SqlitePool,
     provider: &str,
+    default_quota: i32,
 ) -> Result<bool, Box<dyn Error>> {
     let utime = get_unix_now()?;
     let (usage, quota, their_time) = match sqlx::query(
@@ -1092,7 +1285,7 @@ async fn check_limit(
             let timestamp = row.get::<i64, usize>(2);
             (usage, quota, timestamp)
         }
-        Err(_) => (0, CONFIG.default_quota, utime),
+        Err(_) => (0, default_quota, utime),
     };
     // A quota of 0 means infinite!
     if quota == 0 {
@@ -1102,13 +1295,24 @@ async fn check_limit(
     if quota == -1 {
         return Err(ChatproxyError::UseOwnKey.into());
     }
-    let passed: i64 = utime - their_time;
-    let v: i32 = (quota * passed as i32) / SECS_PER_DAY;
-    let mut r = usage - v;
+
+    let r = {
+        if their_time == 0 {
+            usage // So we can initialize limits entries with a zero timestamp
+        } else {
+            let passed: i64 = utime - their_time;
+            let v: i32 = (quota * passed as i32) / SECS_PER_DAY;
+            let r = usage - v;
+            if r < 0 {
+                0
+            } else {
+                r
+            }
+        }
+    };
+
     debug_eprintln!("check_limit: r = {}", r);
-    if r < 0 {
-        r = 0
-    }
+
     match sqlx::query("insert or replace into limits (huuid, usage, quota, timestamp, provider) values (?, ?, ?, ?, ?)")
         .bind(huuid)
         .bind(r)
@@ -1126,6 +1330,43 @@ async fn check_limit(
     } else {
         Ok(false)
     }
+}
+
+fn get_image_url(image: &[u8]) -> Result<String, Box<dyn Error>> {
+    let tag = imghdr::from_bytes(image);
+    let tag = match tag {
+        Some(imghdr::Type::Gif) => "gif",
+        Some(imghdr::Type::Jpeg) => "jpeg",
+        Some(imghdr::Type::Png) => "png",
+        _ => {
+            return Err(Box::new(ChatproxyError::UnsupportedImageFormat));
+        }
+    };
+    Ok(format!(
+        "data:image/{};base64,{}",
+        tag,
+        BASE64_STANDARD.encode(image)
+    ))
+}
+
+async fn get_defaults(dbpool: &SqlitePool) -> (bool, i32) {
+    let quota = match sqlx::query("select value from config where name = ?")
+        .bind("default_quota")
+        .fetch_one(dbpool)
+        .await
+    {
+        Ok(row) => row.get::<i32, usize>(0),
+        Err(_) => 10000,
+    };
+    let use_limits = match sqlx::query("select value from config where name = ?")
+        .bind("use_limits")
+        .fetch_one(dbpool)
+        .await
+    {
+        Ok(row) => row.get::<bool, usize>(0),
+        Err(_) => true,
+    };
+    (use_limits, quota)
 }
 
 #[cfg(test)]
@@ -1148,9 +1389,7 @@ mod tests {
                     ("1".into(), "change or delete me!".into()),
                 ]),
                 chatgpt_apikey: String::from("sk-key-here"),
-                default_quota: 10000,
                 chatgpt_use_allowlist: true,
-                chatgpt_use_limits: true,
                 palm_apikey: "none".to_string(),
                 palm_use_allowlist: true,
                 aws_access_key: String::from("aws-access-key-here"),
@@ -1159,26 +1398,43 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn verify_limits() {
-        debug_eprintln!("verify_limits");
-        let conf: Config = Config::test();
-        fs::remove_file(&conf.dbfile).ok();
-        fs::remove_file(format!("{}-wal", &conf.dbfile)).ok();
-        fs::remove_file(format!("{}-shm", &conf.dbfile)).ok();
-        let dbpool = setup(&conf).await.unwrap();
-        update_limit("12345", 10000, &dbpool, "chatgpt", &conf).await;
-        let now = get_unix_now().unwrap();
-        let then = now - (3600 * 12); // an hour ago
-                                      // Set timestamp back an hour
-        sqlx::query("update limits set timestamp = ? where huuid = ?")
-            .bind(then)
-            .bind("12345")
-            .execute(&dbpool)
-            .await
-            .unwrap();
-        let v = check_limit("12345", &dbpool, "chatgpt").await.unwrap();
-        debug_eprintln!("v = {}", v);
-        assert!(v);
+    #[test]
+    fn verify_limits() {
+        fs::remove_file(&CONFIG.dbfile).ok();
+        fs::remove_file(format!("{}-wal", &CONFIG.dbfile)).ok();
+        fs::remove_file(format!("{}-shm", &CONFIG.dbfile)).ok();
+        let _ = DBPOOL.clone(); // Make sure it is setup before we call block_on
+                                // otherwise we wind up calling block_on recursively, which is not permitted
+        let _ = *CHATGPT_DEFAULT_QUOTA;
+        RT.block_on(async {
+            debug_eprintln!("verify_limits");
+            debug_eprintln!("dbfile = {}", &CONFIG.dbfile);
+            let dbpool = DBPOOL.clone();
+            update_limit("12345", 10000, &dbpool, "chatgpt").await;
+            let now = get_unix_now().unwrap();
+            let then = now - (3600 * 12); // an hour ago
+                                          // Set timestamp back an hour
+            sqlx::query("update limits set timestamp = ? where huuid = ?")
+                .bind(then)
+                .bind("12345")
+                .execute(&dbpool)
+                .await
+                .unwrap();
+            let v = check_limit("12345", &dbpool, "chatgpt", *CHATGPT_DEFAULT_QUOTA)
+                .await
+                .unwrap();
+            debug_eprintln!("v = {}", v);
+            assert!(v);
+        });
+    }
+
+    #[test]
+    fn test_gemini_2() {
+        let mut state = geminilib::State::new();
+        debug_eprintln!(
+            "Output = {:#?}",
+            geminilib::build_gemini_prompt("Who won the World Series in 2004?", &mut state)
+                .unwrap()
+        );
     }
 }

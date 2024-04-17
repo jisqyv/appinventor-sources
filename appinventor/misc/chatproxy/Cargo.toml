@@ -18,7 +18,7 @@ debug_print = "1.0.0"
 structopt = "0.3.22"
 serde = { version = "1.0.123", features = ["serde_derive"]}
 serde_json =  { version = "1.0.62" }
-async-openai = "0.10.3"
+async-openai = "0.18.3"
 reqwest = { version = "0.11.18", features = ["json"] }
 # async-openai = {path = "../../async-openai"}
 tokio = { version = "1.25.0", features = ["full"] }
@@ -31,6 +31,9 @@ aws-config = "0.56.1"
 aws-types = "0.56.1"
 aws-credential-types = "0.56.1"
 aws-sdk-bedrockruntime = "0.3.0"
+imghdr = "0.7.0"
+
+
 
 
 
