@@ -1,7 +1,7 @@
 use debug_print::debug_eprintln;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
-use std::{u64};
+use std::u64;
 
 use crate::chat;
 use crate::ChatproxyError;
@@ -41,6 +41,7 @@ pub struct Parts {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[allow(non_camel_case_types)]
 enum Part {
     text(String),
     inline_data(InlineData),
