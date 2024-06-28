@@ -355,7 +355,12 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
         if ap.len() <= 10 {
             debug_eprintln!("Found short apikey = {}", ap);
             huuid = ap.to_lowercase();
-            apikey = None;
+            let retval = getapikey(dbpool, &*message.provider.clone(), ap).await;
+            if let Some(r) = retval {
+                apikey = Some(Cow::Owned(r));
+            } else {
+                apikey = None
+            }
             default_quota = -1;
         }
     }
@@ -477,6 +482,7 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
     {
         return Err(ChatproxyError::Blocked);
     }
+    debug_eprintln!("Using APIKEY {:#?} for {}", apikey, provider);
     let answer = match &*provider {
         "chatgpt" => converse_chatgpt(&huuid, dbpool, &uuid, &message, apikey, model)
             .await
@@ -524,7 +530,12 @@ async fn do_image(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatp
         if ap.len() <= 10 {
             debug_eprintln!("Found short apikey = {}", ap);
             huuid = ap.to_lowercase();
-            apikey = None;
+            let retval = getapikey(dbpool, "dalle", ap).await;
+            if let Some(r) = retval {
+                apikey = Some(Cow::Owned(r));
+            } else {
+                apikey = None
+            }
             default_quota = -1;
         }
     }
@@ -1032,7 +1043,7 @@ async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
                 return Ok(warp::reply::with_status(text, StatusCode::UNAUTHORIZED));
             }
             ChatproxyError::OverQuota => {
-                let text = "Usage Over Quota".to_string();
+                let text = "You have exceeded your free usage today, more information at https://appinv.us/ownkey".to_string();
                 return Ok(warp::reply::with_status(
                     text,
                     StatusCode::TOO_MANY_REQUESTS,
@@ -1121,6 +1132,11 @@ async fn setup(conf: &Config) -> Result<SqlitePool, Box<dyn Error>> {
     sqlx::query("create table if not exists config (name text, value)")
         .execute(&dbpool)
         .await?;
+    sqlx::query(
+        "create table if not exists apikeylist (shortapi text, provider text, apikey text)",
+    )
+    .execute(&dbpool)
+    .await?;
     Ok(dbpool)
 }
 
@@ -1367,6 +1383,21 @@ async fn get_defaults(dbpool: &SqlitePool) -> (bool, i32) {
         Err(_) => true,
     };
     (use_limits, quota)
+}
+
+/// Given a "short" API Key (the kind we issue) Check to see if there is a specific
+/// provider API key to use for this "short" key. If so, return it. Otherwise return
+/// None
+async fn getapikey(dbpool: &SqlitePool, provider: &str, inapi: &str) -> Option<String> {
+    match sqlx::query("select apikey from apikeylist where shortapi = ? and provider = ?")
+        .bind(inapi)
+        .bind(provider)
+        .fetch_one(dbpool)
+        .await
+    {
+        Ok(row) => Some(row.get::<String, usize>(0)),
+        Err(_) => None,
+    }
 }
 
 #[cfg(test)]
