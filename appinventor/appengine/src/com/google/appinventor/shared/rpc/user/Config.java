@@ -46,6 +46,7 @@ public class Config implements IsSerializable, Serializable {
   private List<String> tutorialUrlAllowed;
   private boolean serverExpired;
   private boolean deleteAccountAllowed;
+  private String iosExtensions;
 
   public Config() {
   }
@@ -264,6 +265,14 @@ public class Config implements IsSerializable, Serializable {
 
   public void setDeleteAccountAllowed(boolean value) {
     deleteAccountAllowed = value;
+  }
+
+  public String getIosExtensions() {
+    return iosExtensions;
+  }
+
+  public void setIosExtensions(String value) {
+    iosExtensions = value;
   }
 
 }

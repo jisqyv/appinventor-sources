@@ -885,7 +885,10 @@ public class YaVersion {
   // For CHATBOT_COMPONENT_VERSION: Initial Version
   // For CHATBOT_COMPONENT_VERSION 2:
   // - The ApiKey property was made visible in the designer view
-  public static final int CHATBOT_COMPONENT_VERSION = 2;
+  // For CHATBOT_COMPONENT_VERSION 3:
+  // - GPT-4 with Vision can be used to handle image inputs
+  // - The ConverseWithImage method was added
+  public static final int CHATBOT_COMPONENT_VERSION = 3;
 
   // For CHECKBOX_COMPONENT_VERSION 2:
   // - The Value property was renamed to Checked.
@@ -1115,7 +1118,9 @@ public class YaVersion {
   // For IMAGESPRITE_COMPONENT_VERSION 8:
   // - Adds dropdown blocks for Direction.
   // - Assets helper block was added.
-  public static final int IMAGESPRITE_COMPONENT_VERSION = 8;
+  // For IMAGESPRITE_COMPONENT_VERSION 9:
+  // - The MarkOrigin, OriginX, and OriginY properties were added.
+  public static final int IMAGESPRITE_COMPONENT_VERSION = 9;
 
   // For LABEL_COMPONENT_VERSION 2:
   // - The Alignment property was renamed to TextAlignment.
@@ -1670,17 +1675,17 @@ public class YaVersion {
 
   public static final String ACCEPTABLE_COMPANION_PACKAGE = "edu.mit.appinventor.aicompanion3";
 
-  public static final String PREFERRED_COMPANION = "2.69";
+  public static final String PREFERRED_COMPANION = "2.71";
   public static final String EMULATOR_UPDATE_URL = "/companions/Emulator.apk"; // Should be an APK
   public static final String COMPANION_UPDATE_URL = "/companions/MITAI2Companion.asc";
   public static final String COMPANION_UPDATE_URL1 = "/companions/MITAI2Companion.apk";
   public static final String COMPANION_UPDATE_EMULATOR_URL = "/companions/CompanionUpgradeHelper.asc";
-  public static final String [] ACCEPTABLE_COMPANIONS = { "2.65", "2.65u",
-                                                          "2.66", "2.66u",
+  public static final String [] ACCEPTABLE_COMPANIONS = { "2.66", "2.66u",
                                                           "2.67", "2.67u",
                                                           "2.68", "2.68u",
                                                           "2.69", "2.69u",
-                                                          "2.70", "2.70u" };
+                                                          "2.70", "2.70u",
+                                                          "2.71", "2.71u" };
 
   // Splash Screen Values
   public static final int SPLASH_SURVEY = 1;
