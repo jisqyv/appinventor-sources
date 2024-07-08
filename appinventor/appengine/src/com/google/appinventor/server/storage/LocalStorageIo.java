@@ -354,7 +354,7 @@ public class LocalStorageIo implements  StorageIo {
       projectDb = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + newId + "/projects.sqlite");
       Statement statement = projectDb.createStatement();
       // Note: the projectId is the rowid which is auto-created
-      statement.executeUpdate("create table projects (name string, settings string, created date, modified date, history string, deleted boolean, trashed boolean)");
+      statement.executeUpdate("create table projects (name string, settings string, created date, modified date, history string, deleted boolean, trashed boolean, built date)");
       statement.close();
     } finally {
       if (projectDb != null) {
@@ -775,19 +775,23 @@ public class LocalStorageIo implements  StorageIo {
       if (rs.next()) {
         java.sql.Date created = rs.getDate("created");
         java.sql.Date modified = rs.getDate("modified");
+        java.sql.Date built = rs.getDate("built");
         boolean trashed = rs.getBoolean("trashed");
         long cmillis = 0;
         long mmillis = 0;
+        long bmillis = 0;
         if (created != null) {
           cmillis = created.getTime();
         }
         if (modified != null) {
           mmillis = modified.getTime();
         }
+        if (built != null) {
+          bmillis = built.getTime();
+        }
         return new UserProject(projectId, rs.getString("name"),
-                               YoungAndroidProjectNode.YOUNG_ANDROID_PROJECT_TYPE,
-                               cmillis,
-                               mmillis, trashed);
+          YoungAndroidProjectNode.YOUNG_ANDROID_PROJECT_TYPE,
+          cmillis, mmillis, bmillis, trashed);
       } else {
         return null;
       }
@@ -816,14 +820,19 @@ public class LocalStorageIo implements  StorageIo {
       while (rs.next()) {
         java.sql.Date created = rs.getDate("created");
         java.sql.Date modified = rs.getDate("modified");
+        java.sql.Date built = rs.getDate("built");
         boolean trashed = rs.getBoolean("trashed");
         long cmillis = 0;
         long mmillis = 0;
+        long bmillis = 0;
         if (created != null) {
           cmillis = created.getTime();
         }
         if (modified != null) {
           mmillis = modified.getTime();
+        }
+        if (built != null) {
+          bmillis = built.getTime();
         }
         UserProject proj = new UserProject(rs.getInt("rowid"), rs.getString("name"),
           YoungAndroidProjectNode.YOUNG_ANDROID_PROJECT_TYPE,
@@ -938,6 +947,11 @@ public class LocalStorageIo implements  StorageIo {
         }
       }
     }
+  }
+
+  @Override
+  public long getProjectDateBuilt(final String userId, final long projectId) {
+    return getProjectDates(userId, projectId, "built");
   }
 
   @Override
@@ -1218,6 +1232,31 @@ public class LocalStorageIo implements  StorageIo {
         }
       }
     }
+  }
+
+  @Override
+  public long updateProjectBuiltDate(final String userId, final long projectId, final long builtDate) {
+    java.sql.Date built = new java.sql.Date(builtDate);
+    Connection conn = null;
+    try {
+      conn = DriverManager.getConnection("jdbc:sqlite:" + storageRoot.get() + "/" + userId + "/projects.sqlite");
+      PreparedStatement prep = conn.prepareStatement("update projects set built = ? where rowid = ?");
+      prep.setQueryTimeout(30);
+      prep.setDate(1, built);
+      prep.setLong(2, projectId);
+      prep.executeUpdate();
+    } catch (SQLException e) {
+      throw CrashReport.createAndLogError(LOG, null, null, e);
+    } finally {
+      if (conn != null) {
+        try {
+          conn.close();
+        } catch (Exception e) {
+          CrashReport.createAndLogError(LOG, null, collectUserProjectErrorInfo(userId, projectId), e);
+        }
+      }
+    }
+    return builtDate;
   }
 
   @Override
@@ -2137,7 +2176,14 @@ public class LocalStorageIo implements  StorageIo {
         if (sql.equals("create table projects (name string, settings string, created date, modified date, history string, deleted boolean)")) {
           rs.close();
           statement.executeUpdate("alter table projects add column trashed boolean");
-          statement.executeUpdate("update projects set trashed = 0");
+          statement.executeUpdate("alter table projects add column built date");
+          statement.executeUpdate("update projects set trashed = 0, built = 0");
+          statement.close();
+          return true;
+        } else if (sql.equals("create table projects (name string, settings string, created date, modified date, history string, deleted boolean, trashed boolean)")) {
+          rs.close();
+          statement.executeUpdate("alter table projects add column built date");
+          statement.executeUpdate("update projects set built = 0");
           statement.close();
           return true;
         } else {
@@ -2162,6 +2208,13 @@ public class LocalStorageIo implements  StorageIo {
         "https://appinventor.mit.edu/",
         "http://appinv.us/",
         "http://templates.appinventor.mit.edu/"));
+  }
+
+  @Override
+  public String getIosExtensionsConfig() {
+    // Rather then store these in the database or filesystem (or CEPH) we just
+    // hard code them here for now
+    return "[]";                // No allowed extensions
   }
 
   @Override

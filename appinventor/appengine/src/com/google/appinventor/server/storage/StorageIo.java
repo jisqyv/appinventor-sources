@@ -204,6 +204,15 @@ public interface StorageIo {
   List<UserProject> getUserProjects(String userId, List<Long> projectIds);
 
   /**
+   * Sets a project name.
+   *
+   * @param userId a user Id (the request is made on behalf of this user)
+   * @param projectId project id
+   * @param name new name
+   * */
+  void setProjectName(String userId, long projectId, String name);
+
+  /**
    * Returns a project name.
    *
    * @param userId a user Id (the request is made on behalf of this user)
