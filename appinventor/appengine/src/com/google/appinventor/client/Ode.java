@@ -2868,7 +2868,12 @@ public class Ode implements EntryPoint {
   }
 
   public boolean getGalleryReadOnly() {
-    return config.getGalleryReadOnly();
+    // If we have an anonymous user we are always in Gallery readonly
+    if (isAnon) {
+      return true;
+    } else {
+      return config.getGalleryReadOnly();
+    }
   }
 
   public boolean getDeleteAccountAllowed() {
