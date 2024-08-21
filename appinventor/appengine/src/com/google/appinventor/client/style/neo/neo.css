@@ -78,10 +78,9 @@ they get cut off in Windows.
     padding-left: unset;
   }
 
-  .ode-Box {
+  .ode-Box-height-100 {
     height: 100%;
   }
-
 
   .ode-Box-content {
     /*all:unset;*/
@@ -586,6 +585,13 @@ they get cut off in Windows.
 
   .ViewerBox {
     display: flex;
+  }
+
+  .ode-Designer-LeftColumn {
+    min-width: 265px;
+  }
+  .ode-Designer-RightColumns {
+    min-width: 222px;
   }
 
   .ode-NavArrow {

@@ -596,7 +596,9 @@ public class YaVersion {
   // - TRENDLINE_COMPONENT_VERSION was introduced
   // For YOUNG_ANDROID_VERSION 228:
   // - Renamed LineOfBestFit to Trendline
-  public static final int YOUNG_ANDROID_VERSION = 228;
+  // For YOUNG_ANDROID_VERSION 229:
+  // - IMAGESPRITE_COMPONENT_VERSION was incremented to 10.
+  public static final int YOUNG_ANDROID_VERSION = 229;
 
   // ............................... Blocks Language Version Number ...............................
 
@@ -693,9 +695,9 @@ public class YaVersion {
 
   // ................................. Target SDK Version Number ..................................
 
-  public static final int TARGET_SDK_VERSION = 33;
+  public static final int TARGET_SDK_VERSION = 34;
 
-  public static final String TARGET_ANDROID_VERSION = "Android 13.0";
+  public static final String TARGET_ANDROID_VERSION = "Android 14.0";
 
   // ................................. Component Version Numbers ..................................
 
@@ -1120,7 +1122,9 @@ public class YaVersion {
   // - Assets helper block was added.
   // For IMAGESPRITE_COMPONENT_VERSION 9:
   // - The MarkOrigin, OriginX, and OriginY properties were added.
-  public static final int IMAGESPRITE_COMPONENT_VERSION = 9;
+  // For IMAGESPRITE_COMPONENT_VERSION 10:
+  // - A fix for MarkOrigin, OriginX, and OriginY properties was added.
+  public static final int IMAGESPRITE_COMPONENT_VERSION = 10;
 
   // For LABEL_COMPONENT_VERSION 2:
   // - The Alignment property was renamed to TextAlignment.
@@ -1675,7 +1679,7 @@ public class YaVersion {
 
   public static final String ACCEPTABLE_COMPANION_PACKAGE = "edu.mit.appinventor.aicompanion3";
 
-  public static final String PREFERRED_COMPANION = "2.71";
+  public static final String PREFERRED_COMPANION = "2.72";
   public static final String EMULATOR_UPDATE_URL = "/companions/Emulator.apk"; // Should be an APK
   public static final String COMPANION_UPDATE_URL = "/companions/MITAI2Companion.asc";
   public static final String COMPANION_UPDATE_URL1 = "/companions/MITAI2Companion.apk";
@@ -1685,7 +1689,8 @@ public class YaVersion {
                                                           "2.68", "2.68u",
                                                           "2.69", "2.69u",
                                                           "2.70", "2.70u",
-                                                          "2.71", "2.71u" };
+                                                          "2.71", "2.71u",
+                                                          "2.72", "2.72u" };
 
   // Splash Screen Values
   public static final int SPLASH_SURVEY = 1;
