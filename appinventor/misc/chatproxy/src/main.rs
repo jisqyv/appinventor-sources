@@ -44,6 +44,7 @@ mod chat;
 mod dallelib;
 mod geminilib;
 mod image;
+mod ollamalib;
 mod palmlib;
 mod titan;
 
@@ -59,6 +60,7 @@ struct Config {
     palm_use_allowlist: bool,
     aws_access_key: String,
     aws_access_secret: String,
+    ollama_url: String,
 }
 
 impl ::std::default::Default for Config {
@@ -77,30 +79,7 @@ impl ::std::default::Default for Config {
             palm_use_allowlist: true,
             aws_access_key: String::from("aws-access-key-here"),
             aws_access_secret: String::from("aws-access-secret-here"),
-        }
-    }
-}
-
-trait Test {
-    fn test() -> Self;
-}
-
-impl Test for Config {
-    fn test() -> Self {
-        Self {
-            port: 9001,
-            nthreads: 1, // Just the current thread
-            dbfile: String::from("/ram/dbfile.sqlite"),
-            hmac_keys: BTreeMap::from([
-                ("0".into(), "changeme!".into()),
-                ("1".into(), "change or delete me!".into()),
-            ]),
-            chatgpt_apikey: String::from("sk-key-here"),
-            chatgpt_use_allowlist: true,
-            palm_apikey: String::from("key-here"),
-            palm_use_allowlist: true,
-            aws_access_key: String::from("aws-access-key-here"),
-            aws_access_secret: String::from("aws-access-secret-here"),
+            ollama_url: String::from("http://localhost:11434/api/generate"),
         }
     }
 }
@@ -109,6 +88,7 @@ trait Token<'a> {
     fn get_unsigned(&self) -> Option<Cow<'a, [u8]>>;
     fn get_signature(&self) -> Option<Cow<'a, [u8]>>;
     fn get_keyid(&self) -> u64;
+    #[allow(dead_code)]
     fn display(&self) -> String;
 }
 
@@ -162,12 +142,6 @@ enum AmazonFlavor {
     Titan,
 }
 
-#[cfg(test)]
-lazy_static! {
-    static ref CONFIG: Config = Config::test();
-}
-
-#[cfg(not(test))]
 lazy_static! {
     static ref CONFIG: Config = {
         let args = Cli::from_args();
@@ -226,6 +200,7 @@ enum ChatproxyError {
     UseOwnKey,
     Blocked,
     UnsupportedImageFormat,
+    NoMorePalm,
 }
 
 impl Error for ChatproxyError {}
@@ -255,6 +230,9 @@ impl fmt::Display for ChatproxyError {
             }
             ChatproxyError::UnsupportedImageFormat => {
                 write!(f, "Unsupported Image Format, use jpeg, gif or png").ok();
+            }
+            ChatproxyError::NoMorePalm => {
+                write!(f, "Google has shutdown PaLM").ok();
             }
         }
         Ok(())
@@ -318,10 +296,23 @@ fn main() -> Result<(), Box<dyn Error>> {
                         Ok::<Blob, Rejection>(b)
                     }
                 });
+            let module_list =
+                warp::path!("model_list" / "v1")
+                    .and(warp::get())
+                    .and_then(|| async move {
+                        let j: JsonAnswer = JsonAnswer {
+                            json: PROVIDER_MODULES,
+                        };
+                        Ok::<JsonAnswer, Rejection>(j)
+                    });
             let health = warp::path!("health")
                 .and(warp::get())
                 .map(|| warp::reply::with_status("OK", warp::http::StatusCode::OK));
-            let routes = chatget.or(health).or(imageget).recover(handle_rejection);
+            let routes = chatget
+                .or(health)
+                .or(imageget)
+                .or(module_list)
+                .recover(handle_rejection);
             let server = warp::serve(routes);
             let socketaddr: SocketAddr = ([0, 0, 0, 0], CONFIG.port).into();
             let http_server = server.run(socketaddr);
@@ -355,7 +346,7 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
         if ap.len() <= 10 {
             debug_eprintln!("Found short apikey = {}", ap);
             huuid = ap.to_lowercase();
-            let retval = getapikey(dbpool, &*message.provider.clone(), ap).await;
+            let retval = getapikey(dbpool, &message.provider.clone(), ap).await;
             if let Some(r) = retval {
                 apikey = Some(Cow::Owned(r));
             } else {
@@ -385,7 +376,7 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
                     return Err(ChatproxyError::OverQuota);
                 }
             }
-            "palm" | "gemini" => {
+            "gemini" => {
                 if CONFIG.palm_use_allowlist && !on_whitelist(&huuid, dbpool, &provider).await {
                     println!(
                         "PaLM: Rejecting Request from {}, not on whitelist provider = {}",
@@ -395,6 +386,10 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
                 }
             }
             "bedrock" => (),
+            "ollama" => (),
+            "palm" => {
+                return Err(ChatproxyError::NoMorePalm);
+            }
             _ => {
                 return Err(ChatproxyError::UnknownProvider);
             }
@@ -429,30 +424,33 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
             if apikey.is_none() {
                 match model {
                     "" => {
-                        if message.inputimage.is_some() {
-                            model = "gpt-4-vision-preview";
-                        } else {
-                            model = "gpt-3.5-turbo";
-                        };
+                        debug_eprintln!("Not switching to vision model");
+                        model = "gpt-4o-mini";
+                        // Code below is from when we needed to
+                        // use a special model for vision recognition
+                        // if message.inputimage.is_some() {
+                        //     model = "gpt-4-vision-preview";
+                        // } else {
+                        //     model = "gpt-4o-mini";
+                        // };
                     }
-                    "gpt-3.5-turbo" => (),
-                    "gpt-4.0" | "gpt-4" => {
-                        let b = make_response("MIT: gpt-4.0 not yet supported", &huuid);
-                        return Ok(b);
-                    }
+                    "gpt-3.5-turbo" | "gpt-4o-mini" => (),
                     _ => {
                         return Err(ChatproxyError::Message(format!(
-                            "Unsupported model {}",
+                            "Unsupported model {} when using MIT's API Key",
                             model
                         )));
                     }
                 };
             } else if model.is_empty() {
-                if message.inputimage.is_some() {
-                    model = "gpt-4-vision-preview";
-                } else {
-                    model = "gpt-3.5-turbo";
-                };
+                model = "gpt-4o-mini";
+                // Code below is from when we needed to
+                // use a special model for vision recognition
+                // if message.inputimage.is_some() {
+                //     model = "gpt-4-vision-preview";
+                // } else {
+                //     model = "gpt-4o-mini";
+                // };
             }
         }
         "bedrock" => match model {
@@ -504,9 +502,15 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
             })?,
         "bedrock" => converse_bedrock(&huuid, dbpool, &uuid, model, &question)
             .await
-            .map_err(|_e| {
-                eprintln!("converse_bedrock: error: {:#?}", _e);
+            .map_err(|e| {
+                eprintln!("converse_bedrock: error: {:#?}", e);
                 ChatproxyError::Message("Bedrock Did not return a response".into())
+            })?,
+        "ollama" => ollamalib::converse(&huuid, &CONFIG.ollama_url, dbpool, &uuid, &message)
+            .await
+            .map_err(|e| {
+                eprintln!("converse_ollama: error: {:#?}", e);
+                ChatproxyError::Message(format!("Error: {}", e))
             })?,
         _ => "Unknown Provider".to_string(),
     };
@@ -720,27 +724,53 @@ async fn converse_chatgpt<'a>(
         if let Some(conversation_str) = get_conversation(uuid, "chatgpt", dbpool).await {
             serde_json::from_str(&conversation_str)?
         } else {
-            Conversation {
-                uuid: uuid.to_string(),
-                content: vec![Pair {
-                    role: ChatGPTRole::System,
-                    text: if let Some(s) = system {
-                        s.to_string()
-                    } else {
-                        "".to_string()
-                    },
-                    image: None,
-                }],
-                multiplier: 1,
-                model: model.to_string(),
+            // What we are about to do here is a kludge. Originally, if the user didn't provide a
+            // "system" string, we would provide an empty string. However the o1 models do not want
+            // any system string, including an empty one. Perhaps we should never provide a system
+            // pair if the user didn't provide one, but I'm not sure what making such a change
+            // will break. So we only do not provide a system string if the model name starts
+            // with a o1 (sigh!).
+            let nosystem = if let Some(ref m) = message.model {
+                if m.starts_with("o1") {
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+            if nosystem {
+                // No system string
+                Conversation {
+                    uuid: uuid.to_string(),
+                    content: vec![],
+                    multiplier: 1,
+                    model: model.to_string(),
+                }
+            } else {
+                // Provide a system string
+                Conversation {
+                    uuid: uuid.to_string(),
+                    content: vec![Pair {
+                        role: ChatGPTRole::System,
+                        text: if let Some(s) = system {
+                            s.to_string()
+                        } else {
+                            "".to_string()
+                        },
+                        image: None,
+                    }],
+                    multiplier: 1,
+                    model: model.to_string(),
+                }
             }
         };
     if message.inputimage.is_some() {
         conversation.multiplier = 20;
-        if conversation.model == "gpt-3.5-turbo" {
-            //  This is a kludge!
-            conversation.model = "gpt-4-vision-preview".to_string();
-        }
+        // if conversation.model == "gpt-4o-mini" {
+        //     //  This is a kludge!
+        //     conversation.model = "gpt-4-vision-preview".to_string();
+        // }
     }
     conversation.content.push(Pair {
         role: ChatGPTRole::User,
@@ -805,13 +835,21 @@ async fn converse_chatgpt<'a>(
     };
     let config = OpenAIConfig::new().with_api_key(&apikey_to_use);
     let client = Client::with_config(config);
-    let request = CreateChatCompletionRequestArgs::default()
-        .max_tokens(512u16)
-        .model(&conversation.model)
-        .user(huuid)
-        .messages(messages)
-        .build()?;
-
+    let request = if conversation.model.starts_with("o1") {
+        CreateChatCompletionRequestArgs::default()
+            //        .max_tokens(512u16)
+            .model(&conversation.model)
+            .user(huuid)
+            .messages(messages)
+            .build()?
+    } else {
+        CreateChatCompletionRequestArgs::default()
+            .max_tokens(512u16)
+            .model(&conversation.model)
+            .user(huuid)
+            .messages(messages)
+            .build()?
+    };
     debug_eprintln!("Request = {:#?}", request);
     let response = client.chat().create(request).await?;
     let mut retval = "Unkonwn".to_string();
@@ -828,7 +866,7 @@ async fn converse_chatgpt<'a>(
     for choice in response.choices {
         if choice.message.role == ChatGPTRole::Assistant {
             if let Some(text) = choice.message.content {
-                retval = text.clone();
+                retval.clone_from(&text);
             } else {
                 retval = "NO RESPONSE".to_string();
             };
@@ -1071,12 +1109,37 @@ async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
                     StatusCode::BAD_REQUEST,
                 ));
             }
+            ChatproxyError::NoMorePalm => {
+                let text = "Google has shutdown PaLM".to_string();
+                return Ok(warp::reply::with_status(text, StatusCode::BAD_REQUEST));
+            }
         }
     } else {
         "Unknown Error".to_string()
     };
 
     Ok(warp::reply::with_status(text, StatusCode::NOT_FOUND))
+}
+
+struct JsonAnswer {
+    json: &'static str,
+}
+
+impl Reply for JsonAnswer {
+    fn into_response(self) -> Response {
+        use http::*;
+        use warp::hyper::Body;
+        Response::builder()
+            .status(200)
+            .header("Content-Type", "application/json")
+            .header(
+                "Access-Control-Allow-Headers",
+                "Content-Type, Accept, Origin, User-Agent",
+            )
+            .header("Access-Control-Allow-Origin", "*")
+            .body(Body::from(self.json))
+            .unwrap()
+    }
 }
 
 struct Blob {
@@ -1405,6 +1468,10 @@ mod tests {
     use crate::*;
     use std::fs;
 
+    lazy_static! {
+        static ref CONFIG: Config = Config::test();
+    }
+
     trait Test {
         fn test() -> Self;
     }
@@ -1425,6 +1492,7 @@ mod tests {
                 palm_use_allowlist: true,
                 aws_access_key: String::from("aws-access-key-here"),
                 aws_access_secret: String::from("aws-access-secret-here"),
+                ollama_url: String::from("ollama url here"),
             }
         }
     }
@@ -1469,3 +1537,15 @@ mod tests {
         );
     }
 }
+
+static PROVIDER_MODULES: &str = r#"{ "provider" : ["chatgpt", "palm", "gemini", "bedrock", "ollama"],
+  "model" : { "chatgpt:gpt-4o-mini" : "gpt-4o-mini",
+    "chatgpt:o1-preview" : "o1-preview",
+    "chatgpt:o1-mini" : "o1-mini",
+    "google:gemini" : "",
+    "bedrock:anthropic.claud-v2" : "anthropic.claud-v2",
+    "bedrock:anthropic.claud-v1" : "anthropic.claud-v1",
+    "ollama:gemma2" : "gemma2",
+    "ollama:gemma2:2b" : "gemma2:2b" }
+}
+"#;
