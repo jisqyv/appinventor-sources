@@ -23,7 +23,7 @@ public class StorageIoInstanceHolder {
 
   public static StorageIo getInstance() {
     if (INSTANCE == null) {
-      INSTANCE = new LocalStorageIo();
+      INSTANCE = new PostgreSQLStorageIo();
     }
     return INSTANCE;
   }

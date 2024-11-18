@@ -57,7 +57,6 @@
           depends="AiClientLibTests,AiSharedLibTests,AiServerLibTests">
   </target>
 
-
   <!-- =====================================================================
        Import common directory, task, and target definitions.
        ===================================================================== -->
@@ -330,6 +329,11 @@
     <!-- Add any additional server libs that need to be copied -->
     <!-- <copy todir="${build.war.dir}/WEB-INF/lib" file="${appengine.sdk}/appengine-api-1.0-sdk-2.0.19.jar" /> -->
     <copy todir="${build.war.dir}/WEB-INF/lib" file="${appengine.sdk}/geronimo-jpa_3.0_spec-1.1.1.jar" />
+    <!-- PostgreSQL Support -->
+    <copy todir="${build.war.dir}/WEB-INF/lib" file="${lib.dir}/postgresql-jdbc/postgresql-42.2.5.jre7.jar" />
+    <copy todir="${build.war.dir}/WEB-INF/lib" file="${lib.dir}/c3p0/mchange-commons-java-0.2.15.jar" />
+    <copy todir="${build.war.dir}/WEB-INF/lib" file="${lib.dir}/c3p0/c3p0-oracle-thin-extras-0.9.5.3.jar" />
+    <copy todir="${build.war.dir}/WEB-INF/lib" file="${lib.dir}/c3p0/c3p0-0.9.5.3.jar" />
   </target>
 
   <!-- =====================================================================
