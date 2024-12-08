@@ -78,8 +78,11 @@ they get cut off in Windows.
     padding-left: unset;
   }
 
-  .ode-Box-height-100 {
-    height: 100%;
+  .ode-Box-projectlist {
+    flex-grow: 1;
+    flex-shrink: 0;
+    height: 40px;
+    overflow: hidden;
   }
 
   .ode-Box-content {
@@ -284,17 +287,29 @@ they get cut off in Windows.
     height: 30px;
     align-items: center;
     display: inline-flex;
-  
   }
-  
+
+  .ode-Project-FlexColumn {
+    display: flex;
+    flex-direction: column;
+  }
+
   .ode-ProjectTable {
-    /*all: unset;*/
     border: 1px solid border-color;
     border-radius: 4px;
-    overflow: auto;
-    height: auto;
-    width:auto;
+    overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
   }
+
+
+.ode-ProjectRowList {
+  overflow: scroll;
+  flex-grow: 1;
+  width: 100%;
+  height: 40px;
+}
   
   .ode-ProjectRowHighlighted {
     background-color: highlight-color !important;
@@ -325,6 +340,8 @@ they get cut off in Windows.
     background: background-color;
     font-weight: 600;
     font-size: 1.15em;
+    flex-grow: 0;
+    flex-shrink: 0;
   }
   
   .ode-ProjectCheckBox {
@@ -589,9 +606,12 @@ they get cut off in Windows.
 
   .ode-Designer-LeftColumn {
     min-width: 265px;
+    flex-shrink: 0;
   }
+
   .ode-Designer-RightColumns {
-    min-width: 222px;
+    width: 222px;
+    flex-shrink: 0;
   }
 
   .ode-NavArrow {
@@ -771,6 +791,11 @@ they get cut off in Windows.
   .destructive-action[disabled]:hover {
     background: #faa;
     color: #888;
+  }
+
+  .ode-SourceScrollPanel {
+    width: 222px;
+    height: 480px;
   }
   
   .ode-PanelButtons .ode-TextButton {
@@ -1254,7 +1279,6 @@ they get cut off in Windows.
   }
   
   .ode-DialogBox .dialogContent {
-    padding: 5px 20px;
     color: context-menu-color;
   }
   

@@ -144,4 +144,8 @@ public final class AppInventorFeatures {
     return false;
   }
 
+  public static String chatBotHost() {
+    return "https://chatbot.appinventor.mit.edu/";
+  }
+
 }
