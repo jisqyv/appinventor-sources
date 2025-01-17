@@ -20,6 +20,7 @@ import com.google.appinventor.client.boxes.ViewerBox;
 import com.google.appinventor.client.editor.EditorManager;
 import com.google.appinventor.client.editor.FileEditor;
 import com.google.appinventor.client.editor.ProjectEditor;
+import com.google.appinventor.client.editor.simple.components.MockComponent;
 import com.google.appinventor.client.editor.simple.palette.DropTargetProvider;
 import com.google.appinventor.client.editor.youngandroid.BlocklyPanel;
 import com.google.appinventor.client.editor.youngandroid.DesignToolbar;
@@ -27,7 +28,6 @@ import com.google.appinventor.client.editor.youngandroid.HiddenComponentsCheckbo
 import com.google.appinventor.client.editor.youngandroid.TutorialPanel;
 import com.google.appinventor.client.editor.youngandroid.YaFormEditor;
 import com.google.appinventor.client.editor.youngandroid.YaProjectEditor;
-import com.google.appinventor.client.editor.youngandroid.i18n.BlocklyMsg;
 import com.google.appinventor.client.explorer.commands.ChainableCommand;
 import com.google.appinventor.client.explorer.commands.CommandRegistry;
 import com.google.appinventor.client.explorer.commands.SaveAllEditorsCommand;
@@ -53,6 +53,7 @@ import com.google.appinventor.client.widgets.ExpiredServiceOverlay;
 import com.google.appinventor.client.widgets.boxes.WorkAreaPanel;
 import com.google.appinventor.client.wizards.NewProjectWizard.NewProjectCommand;
 import com.google.appinventor.client.wizards.TemplateUploadWizard;
+import com.google.appinventor.client.wizards.UISettingsWizard;
 import com.google.appinventor.common.version.AppInventorFeatures;
 import com.google.appinventor.components.common.YaVersion;
 import com.google.appinventor.shared.rpc.GetMotdService;
@@ -83,7 +84,11 @@ import com.google.gwt.core.client.Callback;
 import com.google.gwt.core.client.EntryPoint;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.RunAsyncCallback;
+import com.google.gwt.dom.client.NativeEvent;
+import com.google.gwt.event.dom.client.BlurHandler;
 import com.google.gwt.event.dom.client.ClickHandler;
+import com.google.gwt.event.dom.client.KeyCodes;
+import com.google.gwt.event.dom.client.KeyDownEvent;
 import com.google.gwt.event.dom.client.MouseWheelEvent;
 import com.google.gwt.event.dom.client.MouseWheelHandler;
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
@@ -95,6 +100,7 @@ import com.google.gwt.resources.client.ImageResource;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.Event;
+import com.google.gwt.user.client.Event.NativePreviewEvent;
 import com.google.gwt.user.client.History;
 import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.Window;
@@ -119,6 +125,7 @@ import com.google.gwt.user.client.ui.RootPanel;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
+import com.google.gwt.widgetideas.client.event.KeyDownHandler;
 
 import com.googlecode.gwt.crypto.bouncycastle.digests.MD5Digest;
 
@@ -566,8 +573,17 @@ public class Ode implements EntryPoint {
       return;
     }
     final String value = userSettings.getSettings(SettingsConstants.USER_GENERAL_SETTINGS)
-        .getPropertyValue(SettingsConstants.GENERAL_SETTINGS_CURRENT_PROJECT_ID);
-    openProject(value);
+            .getPropertyValue(SettingsConstants.GENERAL_SETTINGS_CURRENT_PROJECT_ID);
+    if (value.isEmpty()) {
+      switchToProjectsView();
+      return;
+    }
+    long projectId = Long.parseLong(value);
+    if (projectManager.isProjectInTrash(projectId)) {
+      switchToProjectsView();
+    } else {
+      openProject(value);
+    }
   }
 
   private void openProject(String projectIdString) {
@@ -738,7 +754,6 @@ public class Ode implements EntryPoint {
         .then0(this::handleGalleryId)
         .then0(this::checkTos)
         .then0(this::loadUserSettings)
-        .then0(this::loadTranslations)  // translation based on user setting last locale
         .then0(() -> Promise.allOf(
             Promise.wrap(this::processSettings),
             Promise.wrap(this::loadUserBackpack)
@@ -790,13 +805,6 @@ public class Ode implements EntryPoint {
           }
           return null;
         });
-
-    History.addValueChangeHandler(new ValueChangeHandler<String>() {
-      @Override
-      public void onValueChange(ValueChangeEvent<String> event) {
-        openProject(event.getValue());
-      }
-    });
 
     // load project based on current url
     // TODO(sharon): Seems like a possible race condition here if the onValueChange
@@ -862,10 +870,6 @@ public class Ode implements EntryPoint {
     return null;
   }
 
-  private Promise<Boolean> loadTranslations() {
-    return BlocklyMsg.Loader.loadTranslations();
-  }
-
   private Promise<String> loadUserBackpack() {
     String backPackId = user.getBackpackId();
     if (backPackId == null || backPackId.isEmpty()) {
@@ -873,10 +877,8 @@ public class Ode implements EntryPoint {
       return this.loadBackpack();
     } else {
       LOG.info("Have a shared backpack backPackId = " + backPackId);
-      return BlocklyMsg.Loader.loadTranslations().then(result -> {
-        BlocklyPanel.setSharedBackpackId(backPackId);
-        return null;
-      });
+      BlocklyPanel.setSharedBackpackId(backPackId);
+      return resolve("");
     }
   }
 
@@ -1061,6 +1063,13 @@ public class Ode implements EntryPoint {
     if (getUserDyslexicFont()) {
       RootPanel.get().addStyleName("dyslexic");
     }
+
+    History.addValueChangeHandler(new ValueChangeHandler<String>() {
+      @Override
+      public void onValueChange(ValueChangeEvent<String> event) {
+        openProject(event.getValue());
+      }
+    });
 
     // There is no sure-fire way of preventing people from accidentally navigating away from ODE
     // (e.g. by hitting the Backspace key). What we do need though is to make sure that people will
@@ -1454,6 +1463,12 @@ public class Ode implements EntryPoint {
                     "" + newLayout);
   }
 
+  public static void setShowUIPicker(boolean value) {
+    userSettings.getSettings(SettingsConstants.USER_GENERAL_SETTINGS)
+        .changePropertyValue(SettingsConstants.SHOW_UIPICKER,
+            "" + value);
+  }
+
   public static void saveUserDesignSettings() {
     userSettings.saveSettings(new Command() {
       @Override
@@ -1534,8 +1549,7 @@ public class Ode implements EntryPoint {
         userSettings.saveSettings(null);
       }
     }
-    return BlocklyMsg.Loader.loadTranslations()
-        .then(result -> resolve(true));
+    return resolve(true);
   }
 
   private void resizeWorkArea(WorkAreaPanel workArea) {
@@ -1644,6 +1658,15 @@ public class Ode implements EntryPoint {
       dialogBox.show();
     }
 
+    Event.addNativePreviewHandler(new Event.NativePreviewHandler() {
+      @Override
+      public void onPreviewNativeEvent(Event.NativePreviewEvent event) {
+        if (event.getTypeInt() == Event.ONKEYDOWN && dialogBox.isShowing()) {
+          dialogBox.hide();
+        }
+      }
+    });
+
     return dialogBox;
   }
 
@@ -1679,7 +1702,7 @@ public class Ode implements EntryPoint {
       return;
     }
     // Create the UI elements of the DialogBox
-    final DialogBox dialogBox = new DialogBox(false, true); // DialogBox(autohide, modal)
+    final DialogBox dialogBox = new DialogBox(false, false); // DialogBox(autohide, modal)
     dialogBox.setStylePrimaryName("ode-DialogBox");
     dialogBox.setText(MESSAGES.createWelcomeDialogText());
     dialogBox.setHeight(splashConfig.height + "px");
@@ -1710,7 +1733,16 @@ public class Ode implements EntryPoint {
     DialogBoxContents.add(message);
     DialogBoxContents.add(holder);
     dialogBox.setWidget(DialogBoxContents);
+    ok.setFocus(true);
     dialogBox.show();
+
+    Event.addNativePreviewHandler(new Event.NativePreviewHandler() {
+      public void onPreviewNativeEvent(NativePreviewEvent event) {
+        if (event.getTypeInt() == Event.ONKEYDOWN && event.getNativeEvent().getKeyCode() == KeyCodes.KEY_ESCAPE && dialogBox.isShowing()) {
+          dialogBox.hide();
+        }
+      }
+    });
   }
 
   public void displayRevisitCodes(boolean leaving, final Runnable next) {
@@ -1870,7 +1902,11 @@ public class Ode implements EntryPoint {
   }
 
   private void maybeShowSplash() {
-    if (AppInventorFeatures.showSplashScreen() && !isReadOnly) {
+    String showUIPicker = userSettings.getSettings(SettingsConstants.USER_GENERAL_SETTINGS).
+                              getPropertyValue(SettingsConstants.SHOW_UIPICKER);
+    if(showUIPicker.equalsIgnoreCase("True")) {
+      new UISettingsWizard(true).show();
+    } else if (AppInventorFeatures.showSplashScreen() && !isReadOnly) {
       createWelcomeDialog(false);
     } else {
       maybeShowNoProjectsDialog();
