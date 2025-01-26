@@ -30,7 +30,10 @@ public final class EventHelper {
         event.type == 'click' || event.type == 'finished_loading') {
       // Blockly selected events are transient
       return true;
-    } else if (event.type == 'ui' || event['isUiEvent'] || event.type == 'viewport_change') {
+    } else if (event.type == 'viewport_change') {
+      // Blockly viewport change events are transient
+      return true;
+    } else if (event.type == 'ui' || event['isUiEvent']) {
       // Blockly ui events are transient if they are selection changes, clicks, opening of mutator
       // and warning bubbles.
       return event.element == 'selected' || event.element == 'click' ||
