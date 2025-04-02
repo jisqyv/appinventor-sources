@@ -1860,7 +1860,7 @@ public class Ode implements EntryPoint {
     } else {
       uversion = Integer.parseInt(value);
     }
-    if (uversion >= splashConfig.version) {
+    if ((uversion >= splashConfig.version) && splashConfig.version != -2) { // -2 means always show the splash screen!
       return false;
     } else {
       return true;
