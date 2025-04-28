@@ -6,11 +6,13 @@
 
 package com.google.appinventor.server;
 
+import com.google.appinventor.common.version.AppInventorFeatures;
 import com.google.appinventor.server.flags.Flag;
 import com.google.appinventor.server.storage.StorageIo;
 import com.google.appinventor.server.storage.StorageIoInstanceHolder;
 import com.google.appinventor.server.util.LicenseUtil;
 import com.google.appinventor.server.util.LicenseConfig;
+import com.google.appinventor.server.survey.Survey;
 import com.google.appinventor.shared.rpc.user.Config;
 import com.google.appinventor.shared.rpc.user.User;
 import com.google.appinventor.shared.rpc.user.UserInfoService;
@@ -65,6 +67,13 @@ public class UserInfoServiceImpl extends OdeRemoteServiceServlet implements User
     config.setAuthCode(LicenseUtil.getAuthCode()); // Do this second because getSysUID will fetch and
                                                // and cache the authCode value (KLUDGE)
 
+    String surveyUrl;
+    if (AppInventorFeatures.doingSurvey()) {
+      surveyUrl = Survey.check(user.getUserEmail());
+    } else {
+      surveyUrl = null;
+    }
+
     // Fetch the current splash screen version
     config.setSplashConfig(storageIo.getSplashConfig());
 
@@ -88,6 +97,7 @@ public class UserInfoServiceImpl extends OdeRemoteServiceServlet implements User
     config.setGalleryLocation(Flag.createFlag("gallery.location", "").get());
     config.setDeleteAccountAllowed(deleteAccountAllowed);
     config.setIosExtensions(storageIo.getIosExtensionsConfig());
+    config.setSurveyUrl(surveyUrl);
 
     if (!Flag.createFlag("build2.server.host", "").get().isEmpty()) {
       config.setSecondBuildserver(true);

@@ -300,7 +300,7 @@ import Foundation
       return "The date you entered is invalid."
 
     case .ERROR_EXTENSION_ERROR:
-      return "Error %d in extension %@: %@"
+      return "Error %d in extension %s: %s"
 
     // Map Errors
     case .ERROR_LINESTRING_TOO_FEW_POINTS:
@@ -320,7 +320,7 @@ import Foundation
     case .ERROR_INVALID_ANCHOR_HORIZONTAL:
       return "Invalid value %d given for AnchorHorizontal. Valid settings are 1, 2, or 3."
     case .ERROR_INVALID_MAP_TYPE:
-      return "The MapType must be 1, 2, or 3"
+      return "The MapType must be 1, 2, 3, or 4"
 
     // File Errors
     case .ERROR_CANNOT_FIND_FILE:

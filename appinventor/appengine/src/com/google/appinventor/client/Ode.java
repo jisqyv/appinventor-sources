@@ -20,11 +20,10 @@ import com.google.appinventor.client.boxes.ViewerBox;
 import com.google.appinventor.client.editor.EditorManager;
 import com.google.appinventor.client.editor.FileEditor;
 import com.google.appinventor.client.editor.ProjectEditor;
-import com.google.appinventor.client.editor.simple.components.MockComponent;
+import com.google.appinventor.client.editor.simple.SimpleVisibleComponentsPanel;
 import com.google.appinventor.client.editor.simple.palette.DropTargetProvider;
 import com.google.appinventor.client.editor.youngandroid.BlocklyPanel;
 import com.google.appinventor.client.editor.youngandroid.DesignToolbar;
-import com.google.appinventor.client.editor.youngandroid.HiddenComponentsCheckbox;
 import com.google.appinventor.client.editor.youngandroid.TutorialPanel;
 import com.google.appinventor.client.editor.youngandroid.YaFormEditor;
 import com.google.appinventor.client.editor.youngandroid.YaProjectEditor;
@@ -37,6 +36,10 @@ import com.google.appinventor.client.explorer.project.Project;
 import com.google.appinventor.client.explorer.project.ProjectChangeAdapter;
 import com.google.appinventor.client.explorer.project.ProjectManager;
 import com.google.appinventor.client.explorer.youngandroid.ProjectToolbar;
+import com.google.appinventor.client.local.LocalGetMotdService;
+import com.google.appinventor.client.local.LocalProjectService;
+import com.google.appinventor.client.local.LocalTokenAuthService;
+import com.google.appinventor.client.local.LocalUserInfoService;
 import com.google.appinventor.client.settings.Settings;
 import com.google.appinventor.client.settings.user.UserSettings;
 import com.google.appinventor.client.style.neo.ImagesNeo;
@@ -84,11 +87,8 @@ import com.google.gwt.core.client.Callback;
 import com.google.gwt.core.client.EntryPoint;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.RunAsyncCallback;
-import com.google.gwt.dom.client.NativeEvent;
-import com.google.gwt.event.dom.client.BlurHandler;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.dom.client.KeyCodes;
-import com.google.gwt.event.dom.client.KeyDownEvent;
 import com.google.gwt.event.dom.client.MouseWheelEvent;
 import com.google.gwt.event.dom.client.MouseWheelHandler;
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
@@ -125,7 +125,6 @@ import com.google.gwt.user.client.ui.RootPanel;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
-import com.google.gwt.widgetideas.client.event.KeyDownHandler;
 
 import com.googlecode.gwt.crypto.bouncycastle.digests.MD5Digest;
 
@@ -478,18 +477,34 @@ public class Ode implements EntryPoint {
     deckPanel.showWidget(userAdminTabIndex);
   }
 
-  public void hideComponentDesigner() {
-    paletteBox.setVisible(false);
-    sourceStructureBox.setVisible(false);
-    propertiesBox.setVisible(false);
-    HiddenComponentsCheckbox.setVisibility(false);
-  }
-
   public void showComponentDesigner() {
     paletteBox.setVisible(true);
     sourceStructureBox.setVisible(true);
     propertiesBox.setVisible(true);
-    HiddenComponentsCheckbox.setVisibility(true);
+    if (currentFileEditor instanceof YaFormEditor) {
+      YaFormEditor formEditor = (YaFormEditor) currentFileEditor;
+      SimpleVisibleComponentsPanel panel = formEditor.getVisibleComponentsPanel();
+      if (panel != null) {
+        panel.showHiddenComponentsCheckbox();
+      } else {
+        LOG.warning("visibleComponentsPanel is null in showComponentDesigner");
+      }
+    }
+  }
+
+  public void hideComponentDesigner() {
+    paletteBox.setVisible(false);
+    sourceStructureBox.setVisible(false);
+    propertiesBox.setVisible(false);
+    if (currentFileEditor instanceof YaFormEditor) {
+      YaFormEditor formEditor = (YaFormEditor) currentFileEditor;
+      SimpleVisibleComponentsPanel panel = formEditor.getVisibleComponentsPanel();
+      if (panel != null) {
+        panel.hideHiddenComponentsCheckbox();
+      } else {
+        LOG.warning("visibleComponentsPanel is null in hideComponentDesigner");
+      }
+    }
   }
 
   /**
@@ -537,8 +552,15 @@ public class Ode implements EntryPoint {
         .getPropertyValue(SettingsConstants.USER_TEMPLATE_URLS);
     TemplateUploadWizard.setStoredTemplateUrls(userTemplates);
 
-    if (templateLoadingFlag) {  // We are loading a template, open it instead
+    if (templateLoadingFlag && !getShowUIPicker()) {  // We are loading a template, open it instead unless UI needs to be picked
                                 // of the last project
+
+      //check to see what kind of file is in url, binary (*.aia) or base64(*.apk)
+      if (templatePath.endsWith(".aia")){
+        HTML5DragDrop.importProjectFromUrl(templatePath);
+        return true;
+      }
+
       NewProjectCommand callbackCommand = new NewProjectCommand() {
         @Override
         public void execute(Project project) {
@@ -695,15 +717,13 @@ public class Ode implements EntryPoint {
     // Let's see if we were started with a repo= parameter which points to a template
     templatePath = Window.Location.getParameter("repo");
     if (templatePath != null) {
-      LOG.warning("Got a template path of " + templatePath);
+      LOG.warning("Got a template or project path of " + templatePath);
       templateLoadingFlag = true;
     }
-
     // OK, let's see if we are loading from the new gallery Note: If
     // we are loading from a template (see above) then we ignore the
     // "ng" parameter. It doesn't make sense to have both, but if we
     // do, template loading wins.
-
     if (!templateLoadingFlag) {
       newGalleryId = Window.Location.getParameter("ng");
       if (newGalleryId != null) {
@@ -741,6 +761,12 @@ public class Ode implements EntryPoint {
         c -> userInfoService.getSystemConfig(sessionId, c))
         .then(result -> {
           config = result;
+          // Before we get too far into it, let's see if we have to do a survey!
+          String surveyUrl = config.getSurveyUrl();
+          if (surveyUrl != null && !surveyUrl.isEmpty()) {
+            Window.Location.replace(Urls.makeUri(surveyUrl, true));
+            // off we go, no returning
+          }
           user = result.getUser();
           isReadOnly = user.isReadOnly();
           registerIosExtensions(config.getIosExtensions());
@@ -976,9 +1002,9 @@ public class Ode implements EntryPoint {
     rpcStatusPopup = new RpcStatusPopup();
 
     // Register services with RPC status popup
-    rpcStatusPopup.register((ExtendedServiceProxy<?>) projectService);
-    rpcStatusPopup.register((ExtendedServiceProxy<?>) userInfoService);
-    rpcStatusPopup.register((ExtendedServiceProxy<?>) componentService);
+    rpcStatusPopup.register(projectService);
+    rpcStatusPopup.register(userInfoService);
+    rpcStatusPopup.register(componentService);
 
     overDeckPanel = new FlowPanel("main");
     Window.setTitle(MESSAGES.titleYoungAndroid());
@@ -1469,6 +1495,11 @@ public class Ode implements EntryPoint {
             "" + value);
   }
 
+  public static boolean getShowUIPicker() {
+    return userSettings.getSettings(SettingsConstants.USER_GENERAL_SETTINGS)
+            .getPropertyValue(SettingsConstants.SHOW_UIPICKER).equalsIgnoreCase("True");
+  }
+
   public static void saveUserDesignSettings() {
     userSettings.saveSettings(new Command() {
       @Override
@@ -1902,9 +1933,8 @@ public class Ode implements EntryPoint {
   }
 
   private void maybeShowSplash() {
-    String showUIPicker = userSettings.getSettings(SettingsConstants.USER_GENERAL_SETTINGS).
-                              getPropertyValue(SettingsConstants.SHOW_UIPICKER);
-    if(showUIPicker.equalsIgnoreCase("True")) {
+
+    if (getShowUIPicker()) {
       new UISettingsWizard(true).show();
     } else if (AppInventorFeatures.showSplashScreen() && !isReadOnly) {
       createWelcomeDialog(false);
@@ -2668,6 +2698,11 @@ public class Ode implements EntryPoint {
           next.run();
         }
       });
+  }
+
+  public static Promise<?> exportProject() {
+    return ((LocalProjectService) instance.projectService).exportProject(
+        instance.getCurrentYoungAndroidProjectId());
   }
 
   // Used internally here so that the tutorial panel is only shown on
