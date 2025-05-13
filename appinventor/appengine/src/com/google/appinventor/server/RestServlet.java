@@ -107,22 +107,22 @@ public class RestServlet extends HttpServlet {
     }
 
     switch (token.getCommand()) {
-    case SSOLOGIN:
-    case SSOLOGIN2:
-      fail(req, resp, 4, "Must use Login Servlet to SSO Login");
-      return;
-    case FETCHUUID:
-      User user = storageIo.getUserFromEmail(token.getName());
-      if (user == null) {
-        fail(req, resp, -1, "Invalid User");
+      case SSOLOGIN:
+      case SSOLOGIN2:
+        fail(req, resp, 4, "Must use Login Servlet to SSO Login");
         return;
-      }
-      String retval = Token.makeUUIDReturnToken(user.getUserEmail(),
-        user.getUserId());
-      ok(req, resp, retval);
-      return;
-    default:
-      fail(req, resp, -1, "Unimplemented");
+      case FETCHUUID:
+        User user = storageIo.getUserFromEmail(token.getName(), true);
+        if (user == null) {
+          fail(req, resp, -1, "Invalid User");
+          return;
+        }
+        String retval = Token.makeUUIDReturnToken(user.getUserEmail(),
+          user.getUserId());
+        ok(req, resp, retval);
+        return;
+      default:
+        fail(req, resp, -1, "Unimplemented");
     }
 
   }

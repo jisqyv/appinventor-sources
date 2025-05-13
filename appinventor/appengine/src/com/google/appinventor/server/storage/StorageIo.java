@@ -63,14 +63,16 @@ public interface StorageIo {
   User getUser(String userId, String email);
 
   /**
-   * Returns user data given user email address. If the user data for the given email
-   * doesn't already exist in the storage, it should be created. email
-   * is the email address currently associated with this user.
+   * Returns user data given user email address. If the user data for
+   * the given email doesn't already exist in the storage, it should
+   * be created if the created flag is true. Email is the email
+   * address currently associated with this user.
    *
    * @param user email address
+   * @param create create user if true
    * @return user data
    */
-  User getUserFromEmail(String email);
+  User getUserFromEmail(String email, boolean create);
 
   /**
    * Sets the stored email address for user with id userId
