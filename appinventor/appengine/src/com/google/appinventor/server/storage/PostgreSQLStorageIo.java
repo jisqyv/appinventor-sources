@@ -371,7 +371,7 @@ public class PostgreSQLStorageIo implements StorageIo {
   public User getUser(@Nonnull String strUserId, @Nonnull String email) {
     // Due to the colliding userId vulnerability, we omit the userId and query users merely by email
     // https://github.com/mit-cml/appinventor-sources/issues/1592
-    return getUserFromEmail(email);
+    return getUserFromEmail(email, true);
   }
 
   /**
@@ -383,7 +383,7 @@ public class PostgreSQLStorageIo implements StorageIo {
    * @return user data
    */
   @Override
-  public User getUserFromEmail(@Nonnull String email) {
+  public User getUserFromEmail(@Nonnull String email, boolean create) {
     User user = null;
     boolean ok = false;
     try (Connection conn = this.cpds.getConnection()) {
@@ -403,7 +403,11 @@ public class PostgreSQLStorageIo implements StorageIo {
           user.setPassword(rs.getString("password"));
         }
         if (user == null) {
-          user = createUser(email, false, null, conn);
+          if (create) {
+            user = createUser(email, false, null, conn);
+          } else {
+            return null;
+          }
         }
         ok = true;
       } finally {
@@ -2791,13 +2795,13 @@ public class PostgreSQLStorageIo implements StorageIo {
     try (Connection conn = this.cpds.getConnection()) {
       try {
         doSetAutoCommit(conn, false);
-        String strUserId;
+        String strAnonId;
         // Verify that we have a unique account
         long count = 0;
         while (true) {
-          strUserId = AccountUtil.generateAccountId();
+          strAnonId = AccountUtil.generateAccountId();
           try (PreparedStatement qstmt = conn.prepareStatement("SELECT email FROM account WHERE email = ?")) {
-            qstmt.setString(1, strUserId);
+            qstmt.setString(1, strAnonId);
             ResultSet rs = qstmt.executeQuery();
             if (rs.next()) {
               count++;
@@ -2809,9 +2813,12 @@ public class PostgreSQLStorageIo implements StorageIo {
           }
           break;                // We found an ID we can use
         }
+
+        String strUserId = UUID.randomUUID().toString();
+
         try (PreparedStatement stmt = conn.prepareStatement("INSERT into account (uuid, email) values (?, ?)")) {
           stmt.setString(1, strUserId);
-          stmt.setString(2, strUserId);
+          stmt.setString(2, strAnonId);
           int ret = stmt.executeUpdate();
           if (ret == 0) {
             throw CrashReport.createAndLogError(LOG, null, "Failed to store anonymous account", new RuntimeException("Failed to store anonymous account"));
@@ -2819,7 +2826,7 @@ public class PostgreSQLStorageIo implements StorageIo {
           ok = true;
           return new User(
             strUserId,
-            strUserId,
+            strAnonId,
             false,
             false,
             null);

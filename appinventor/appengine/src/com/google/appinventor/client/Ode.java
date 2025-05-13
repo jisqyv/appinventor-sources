@@ -792,7 +792,7 @@ public class Ode implements EntryPoint {
             isAnon = true;
           }
           registerIosExtensions(config.getIosExtensions());
-          if (user.getUserId().startsWith("anon-")) { // We are anonymous user
+          if (user.getUserEmail().startsWith("anon-")) { // We are anonymous user
              isAnon = true;
           }
           licenseCode = result.getAuthCode();
@@ -1791,7 +1791,7 @@ public class Ode implements EntryPoint {
     dialogBox.setAnimationEnabled(true);
     dialogBox.center();
     VerticalPanel DialogBoxContents = new VerticalPanel();
-    String code = AccountUtil.accountToCode(getUser().getUserId());
+    String code = AccountUtil.accountToCode(getUser().getUserEmail());
     String message;
     if (leaving) {
       message = "You are leaving MIT App Inventor. If you wish to " +

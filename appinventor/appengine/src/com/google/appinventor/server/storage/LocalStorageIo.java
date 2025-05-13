@@ -376,7 +376,7 @@ public class LocalStorageIo implements  StorageIo {
 
   // Get User from email address along.
   @Override
-  public User getUserFromEmail(String email) {
+  public User getUserFromEmail(String email, boolean create) {
     return getUser(null, email);
   }
 

@@ -179,7 +179,7 @@ public class LoginServlet extends HttpServlet {
       if (DEBUG) {
         LOG.info("setpw email = " + data.email);
       }
-      User user = storageIo.getUserFromEmail(data.email);
+      User user = storageIo.getUserFromEmail(data.email, true);
       userInfo = new OdeAuthFilter.UserInfo(); // Create new userInfo object
       userInfo.setUserId(user.getUserId()); // This effectively logs us in!
       out = setCookieOutput(userInfo, resp);
@@ -380,7 +380,7 @@ public class LoginServlet extends HttpServlet {
         Payload payload = token.getPayload();
         String email = payload.getEmail();
         LOG.info("Google Login, Email = " + email);
-        User user = storageIo.getUserFromEmail(email);
+        User user = storageIo.getUserFromEmail(email, true);
         userInfo = new OdeAuthFilter.UserInfo();
         userInfo.setUserId(user.getUserId());
         userInfo.setIsAdmin(user.getIsAdmin());
@@ -525,7 +525,7 @@ public class LoginServlet extends HttpServlet {
           fail(req, resp, "Invalid Code", locale);
           return;
         }
-        User user = storageIo.getUser(accountId);
+        User user = storageIo.getUserFromEmail(accountId, false);
         if (user == null) {
           fail(req, resp, "Invalid Code", locale);
           return;
@@ -562,7 +562,7 @@ public class LoginServlet extends HttpServlet {
 
     String email = params.get("email");
     String password = params.get("password"); // We don't check it now
-    User user = storageIo.getUserFromEmail(email);
+    User user = storageIo.getUserFromEmail(email, true);
     boolean validLogin = false;
 
     String hash = user.getPassword();
