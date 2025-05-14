@@ -124,7 +124,7 @@ public class PostgreSQLStorageIo implements StorageIo {
                        "END $$;");
           stmt.execute("CREATE TABLE IF NOT EXISTS account (" +
                        "  id BIGSERIAL PRIMARY KEY," +
-                       "  uuid TEXT UNIQUE NOT NULL," +
+                       "  uuid UUID UNIQUE NOT NULL," +
                        "  email TEXT UNIQUE," +
                        "  tosAccepted BOOLEAN DEFAULT FALSE NOT NULL," +
                        "  isAdmin BOOLEAN DEFAULT FALSE NOT NULL," +
@@ -209,7 +209,7 @@ public class PostgreSQLStorageIo implements StorageIo {
           stmt.execute("CREATE TABLE IF NOT EXISTS nonce (" +
                        "  id BIGSERIAL PRIMARY KEY," +
                        "  nonce TEXT UNIQUE NOT NULL," +
-                       "  strUserId TEXT NOT NULL REFERENCES account(uuid) ON DELETE CASCADE ON UPDATE CASCADE," +
+                       "  strUserId UUID NOT NULL REFERENCES account(uuid) ON DELETE CASCADE ON UPDATE CASCADE," +
                        "  projectId BIGINT NOT NULL REFERENCES project ON DELETE CASCADE ON UPDATE CASCADE," +
                        "  timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP" +
                        ")");
@@ -261,7 +261,7 @@ public class PostgreSQLStorageIo implements StorageIo {
           stmt.executeUpdate(
             "DO $DO$" +
             " BEGIN" +
-            "    CREATE FUNCTION update_settings(input_uuid text, new_settings text) RETURNS boolean AS $$" +
+            "    CREATE FUNCTION update_settings(input_uuid UUID, new_settings text) RETURNS boolean AS $$" +
             "       DECLARE" +
             "            old_settings text;" +
             "       BEGIN" +
@@ -328,7 +328,7 @@ public class PostgreSQLStorageIo implements StorageIo {
 
     try (Connection conn = this.cpds.getConnection()) {
       doSetAutoCommit(conn, false);
-      try (PreparedStatement qstmt = conn.prepareStatement("SELECT * FROM account WHERE uuid = ?")) {
+      try (PreparedStatement qstmt = conn.prepareStatement("SELECT * FROM account WHERE uuid = ?::UUID")) {
         qstmt.setString(1, strUserId);
         ResultSet rs = qstmt.executeQuery();
 
@@ -429,7 +429,7 @@ public class PostgreSQLStorageIo implements StorageIo {
     try (Connection conn = this.cpds.getConnection()) {
       doSetAutoCommit(conn, false);
 
-      try (PreparedStatement stmt = conn.prepareStatement("UPDATE account SET email = ? WHERE uuid = ?")) {
+      try (PreparedStatement stmt = conn.prepareStatement("UPDATE account SET email = ? WHERE uuid = ?::UUID")) {
         stmt.setString(1, email);
         stmt.setString(2, strUserId);
         int ret = stmt.executeUpdate();
@@ -455,7 +455,7 @@ public class PostgreSQLStorageIo implements StorageIo {
     boolean ok = false;
     try (Connection conn = this.cpds.getConnection()) {
       doSetAutoCommit(conn, false);
-      try (PreparedStatement stmt = conn.prepareStatement("UPDATE account SET tosAccepted = ? WHERE uuid = ?")) {
+      try (PreparedStatement stmt = conn.prepareStatement("UPDATE account SET tosAccepted = ? WHERE uuid = ?::UUID")) {
         stmt.setBoolean(1, true);
         stmt.setString(2, strUserId);
         int ret = stmt.executeUpdate();
@@ -483,7 +483,7 @@ public class PostgreSQLStorageIo implements StorageIo {
     boolean ok = false;
     try (Connection conn = this.cpds.getConnection()) {
       doSetAutoCommit(conn, false);
-      try (PreparedStatement stmt = conn.prepareStatement("UPDATE account SET sessionId = ? WHERE uuid = ?")) {
+      try (PreparedStatement stmt = conn.prepareStatement("UPDATE account SET sessionId = ? WHERE uuid = ?::UUID")) {
         stmt.setString(1, sessionId);
         stmt.setString(2, strUserId);
         int ret = stmt.executeUpdate();
@@ -514,7 +514,7 @@ public class PostgreSQLStorageIo implements StorageIo {
     }
     try (Connection conn = this.cpds.getConnection()) {
       doSetAutoCommit(conn, false);
-      try (PreparedStatement stmt = conn.prepareStatement("UPDATE account SET password = ? WHERE uuid = ?")) {
+      try (PreparedStatement stmt = conn.prepareStatement("UPDATE account SET password = ? WHERE uuid = ?::UUID")) {
         stmt.setString(1, password);
         stmt.setString(2, strUserId);
         int ret = stmt.executeUpdate();
@@ -541,7 +541,7 @@ public class PostgreSQLStorageIo implements StorageIo {
     boolean ok = false;
     try (Connection conn = this.cpds.getConnection()) {
       doSetAutoCommit(conn, false);
-      try (PreparedStatement stmt = conn.prepareStatement("SELECT settings FROM account WHERE uuid = ?")) {
+      try (PreparedStatement stmt = conn.prepareStatement("SELECT settings FROM account WHERE uuid = ?::UUID")) {
         stmt.setString(1, strUserId);
         ResultSet rs = stmt.executeQuery();
         String settings = null;
@@ -572,7 +572,7 @@ public class PostgreSQLStorageIo implements StorageIo {
     boolean ok = false;
     try (Connection conn = this.cpds.getConnection()) {
       doSetAutoCommit(conn, false);
-      try (PreparedStatement stmt = conn.prepareStatement("SELECT update_settings(?, ?)")) {
+      try (PreparedStatement stmt = conn.prepareStatement("SELECT update_settings(?::UUID, ?)")) {
           stmt.setString(1, strUserId);
           stmt.setString(2, settings);
           ResultSet rs = stmt.executeQuery();
@@ -2305,7 +2305,7 @@ public class PostgreSQLStorageIo implements StorageIo {
       doSetAutoCommit(conn, false);
       long userId = getUserId(strUserId, conn, false);
       try (PreparedStatement ustmt = conn.prepareStatement(
-          "INSERT INTO nonce (projectId, strUserId, nonce) VALUES (?, ?, ?) ON CONFLICT (nonce) DO UPDATE SET projectId = ?, strUserId = ?"
+        "INSERT INTO nonce (projectId, strUserId, nonce) VALUES (?, ?::UUID, ?) ON CONFLICT (nonce) DO UPDATE SET projectId = ?, strUserId = ?::UUID"
           )) {
         ustmt.setLong(1, projectId);
         ustmt.setString(2, strUserId);
@@ -2816,7 +2816,7 @@ public class PostgreSQLStorageIo implements StorageIo {
 
         String strUserId = UUID.randomUUID().toString();
 
-        try (PreparedStatement stmt = conn.prepareStatement("INSERT into account (uuid, email) values (?, ?)")) {
+        try (PreparedStatement stmt = conn.prepareStatement("INSERT into account (uuid, email) values (?::UUID, ?)")) {
           stmt.setString(1, strUserId);
           stmt.setString(2, strAnonId);
           int ret = stmt.executeUpdate();
@@ -2896,8 +2896,8 @@ public class PostgreSQLStorageIo implements StorageIo {
     String strUserId = UUID.randomUUID().toString();
     try {
       try (PreparedStatement ustmt = conn.prepareStatement(
-             "INSERT INTO account (uuid, tosAccepted, isAdmin, email, password) VALUES (?, ?, ?, ?, ?)",
-             Statement.RETURN_GENERATED_KEYS)) {
+        "INSERT INTO account (uuid, tosAccepted, isAdmin, email, password) VALUES (?::UUID, ?, ?, ?, ?)",
+        Statement.RETURN_GENERATED_KEYS)) {
         ustmt.setString(1, strUserId);
         ustmt.setBoolean(2, tosAccepted);
         ustmt.setBoolean(3, isAdmin);
@@ -3322,7 +3322,7 @@ public class PostgreSQLStorageIo implements StorageIo {
   }
 
   private long getUserId(String strUserId, Connection conn, boolean retzeroifnone) {
-    try (PreparedStatement qstmt = conn.prepareStatement("SELECT id FROM account WHERE uuid = ?")) {
+    try (PreparedStatement qstmt = conn.prepareStatement("SELECT id FROM account WHERE uuid = ?::UUID")) {
       qstmt.setString(1, strUserId);
       ResultSet rs = qstmt.executeQuery();
       if (rs.next()) {
