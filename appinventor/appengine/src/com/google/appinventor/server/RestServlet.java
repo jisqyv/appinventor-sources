@@ -82,15 +82,21 @@ public class RestServlet extends HttpServlet {
     String queryString = req.getQueryString();
     HashMap<String, String> params = getQueryMap(queryString);
 
-    String encodedToken = params.get("token");
-    if (encodedToken == null) {
-      LOG.error("doGet(): No Token Provided");
-      fail(req, resp, 1, "No Token Provided");
-      return;
-    }
     TokenProto.token token = null;
+
     try {
-      token = Token.verifyToken(encodedToken);
+      String encodedToken = params.get("token");
+      if (encodedToken != null) {
+        token = Token.verifyToken(encodedToken);
+      } else {
+        encodedToken = params.get("stoken");
+        if (encodedToken == null) {
+          fail(req, resp, 1, "No Token Provided");
+          return;
+        }
+        token = Token.verifySToken(encodedToken);
+      }
+
     } catch (TokenException e) {
       LOG.error("doGet(): Invalid Token -- " + e.getMessage());
       fail(req, resp, 2, e.getMessage());
@@ -107,22 +113,53 @@ public class RestServlet extends HttpServlet {
     }
 
     switch (token.getCommand()) {
-      case SSOLOGIN:
-      case SSOLOGIN2:
-        fail(req, resp, 4, "Must use Login Servlet to SSO Login");
+    case SSOLOGIN:
+    case SSOLOGIN2:
+      fail(req, resp, 4, "Must use Login Servlet to SSO Login");
+      return;
+    case CREATEACCOUNT:
+      String name = token.getName();
+      String userId = token.getUuid();
+      try {
+        storageIo.createUser(userId, name);
+      } catch (UserAlreadyExistsException e) {
+        fail(req, resp, -1, "User Already Exists");
         return;
-      case FETCHUUID:
-        User user = storageIo.getUserFromEmail(token.getName(), true);
-        if (user == null) {
-          fail(req, resp, -1, "Invalid User");
-          return;
+      }
+      LOG.info("Created user: " + userId + " name: " + name);
+      ok(req, resp, "UserId Created, uuid = " + userId);
+      return;
+    case CREATEPROJECT:
+      userId = token.getUuid();
+      name = token.getName();
+      long projectId = token.getProjectid();
+      try {
+        if (projectId == 0) {
+          projectId = createProject(userId, name);
+          LOG.info("CREATEPROJECT: created project: " + name + " for userId: " + userId);
+        } else {
+          projectId = createProject(userId, name, projectId);
+          LOG.info("CREATEPROJECT: created project: " + name + " for userId: " + userId + " from: " + projectId);
         }
-        String retval = Token.makeUUIDReturnToken(user.getUserEmail(),
-          user.getUserId());
-        ok(req, resp, retval);
+        ok(req, resp, "projectId = " + projectId);
         return;
-      default:
-        fail(req, resp, -1, "Unimplemented");
+      } catch (RestException e) {
+        LOG.error("CREATEPROJECT: Error: " + e.getMessage());
+        fail(req, resp, e.getCode(), e.getMessage());
+        return;
+      }
+    case FETCHUUID:
+        User user = storageIo.getUserFromEmail(token.getName(), false);
+      if (user == null) {
+        fail(req, resp, -1, "Invalid User");
+        return;
+      }
+      String retval = Token.makeUUIDReturnToken(user.getUserEmail(),
+        user.getUserId());
+      ok(req, resp, retval);
+      return;
+    default:
+      fail(req, resp, -1, "Unimplemented");
     }
 
   }
@@ -157,4 +194,39 @@ public class RestServlet extends HttpServlet {
     }
     return map;
   }
+
+  private long createProject(String userId, String projectName) throws RestException {
+    User user = storageIo.getUser(userId);
+    if (user == null) {
+      throw new RestException(5, "No Such User");
+    }
+    List<String> names = storageIo.getProjectNames(userId);
+    for (String name : names) {
+      if (name.equals(projectName)) {
+        throw new RestException(6, "Name Already in Use");
+      }
+    }
+    String packageName = StringUtils.getProjectPackage(user.getUserEmail(), projectName);
+    NewYoungAndroidProjectParameters params =
+      new NewYoungAndroidProjectParameters(packageName);
+    long projectId = youngAndroidProjectService.newProject(userId, projectName, params);
+    return projectId;
+  }
+
+  private long createProject(String newuserId, String projectName, long oldProjectId)
+    throws RestException {
+    String userId;
+    userId = storageIo.getProjectUserId(oldProjectId);
+    if (userId == null) {
+      throw new RestException(7, "Old Project Doesn't Exist");
+    }
+    List<String> names = storageIo.getProjectNames(newuserId);
+    for (String name : names) {
+      if (name.equals(projectName)) {
+        throw new RestException(6, "Name Already in Use");
+      }
+    }
+    return youngAndroidProjectService.copyProject(userId, oldProjectId, projectName, newuserId);
+  }
+
 }

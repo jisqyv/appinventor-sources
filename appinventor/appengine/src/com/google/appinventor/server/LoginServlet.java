@@ -213,7 +213,7 @@ public class LoginServlet extends HttpServlet {
       out.println("<input type=submit value=\"" + bundle.getString("sendlink") + "\" style=\"font-size: 300%;\">\n");
       out.println("</form>\n");
       return;
-    } else if (page.equals("token")) {
+    } else if (page.equals("token") || page.equals("stoken")) {
       String encodedToken = params.get("token");
       if (encodedToken == null) {
         fail(req, resp, "No Authentication Token Provided", locale);
@@ -221,14 +221,20 @@ public class LoginServlet extends HttpServlet {
       }
       TokenProto.token token = null;
       try {
-        token = Token.verifyToken(encodedToken);
+        if (page.equals("token")) {
+          token = Token.verifyToken(encodedToken);
+        } else {
+          token = Token.verifySToken(encodedToken);
+        }
       } catch (TokenException e) {
         fail(req, resp, e.getMessage(), locale);
         return;
       }
       // At this point we have a valid token, so use it to login!
       // need to make sure it is a SSOLOGIN token
-      if (token.getCommand() != TokenProto.token.CommandType.SSOLOGIN) {
+      if (token.getCommand() != TokenProto.token.CommandType.SSOLOGIN &&
+          token.getCommand() != TokenProto.token.CommandType.SSOLOGIN2 &&
+          token.getCommand() != TokenProto.token.CommandType.SSOLOGIN3) {
         fail(req, resp, "Token Valid, but not a SSOLOGIN token.", locale);
         return;
       }
@@ -242,26 +248,50 @@ public class LoginServlet extends HttpServlet {
       // At this point we have a valid SSOLOGIN token
 
       userInfo = new OdeAuthFilter.UserInfo();
+      if (token.getCommand() == TokenProto.token.CommandType.SSOLOGIN) {
+        userInfo.setUserId(token.getUuid());
+      } else if (token.getCommand() == TokenProto.token.CommandType.SSOLOGIN2) { // SSOLOGIN2
+        String email = token.getName();
+        if (email == null || email.isEmpty()) {
+          fail(req, resp, "Failed to provide an Email Address for login.", locale);
+          return;
+        }
+        User user = storageIo.getUserFromEmail(email, true);
+        userInfo.setUserId(user.getUserId());
+      } else {                  // SSOLOGIN3
+        String uuid = token.getUuid();
+        String email = token.getName();
+        if (email == null || email.isEmpty() || uuid == null || uuid.isEmpty()) {
+          fail(req, resp, "Failed to provide email and uuid, shouldn't happen!", locale);
+          return;
+        }
+        User user = storageIo.getUser(uuid, email);
+        userInfo.setUserId(user.getUserId());
+        for (LoginListener listener : loginListeners) {
+          listener.onLogin(user, token);
+        }
+      }
 
       // visit in read-only mode
       userInfo.setReadOnly(token.getReadOnly());
 
-      // String backPackId = token.getBackpackid();
-      // if (backPackId != null && !backPackId.isEmpty()) {
-      //   userInfo.setBackpackId(backPackId);
-      // }
-
-      String uuid = token.getUuid();
-      User user = storageIo.getUser(uuid); // Attempt a lookup on UUID
-      if (user == null) {                   // UUID doesn't exist in the system
-        if (uuid.indexOf("@") < 0) {
-          fail(req, resp, "Cannot create account which is not an Email address", locale);
-        } else {
-          user = storageIo.getUserFromEmail(uuid, true);
+      // Check to see if this is a one project token
+      long oneProjectId = token.getOneProjectId();
+      LOG.log(Level.INFO, "oneProjectId = " + oneProjectId);
+      if (oneProjectId != 0) {  // It is...
+        String userId = storageIo.getProjectUserId(oneProjectId);
+        if (userId == null) {
+          fail(req, resp, "Owner of Project Not Found", locale);
         }
+        userInfo.setUserId(userId);
+        userInfo.setOneProjectId(oneProjectId);
       }
 
-      userInfo.setUserId(user.getUserId()); // This logs us in
+      userInfo.setFauxProjectName(token.getDisplayprojectname());
+
+      String fauxUserName = token.getDisplayaccountname();
+
+      userInfo.setFauxAccountName(fauxUserName);
 
       String newCookie = userInfo.buildCookie(false);
       if (newCookie != null) {

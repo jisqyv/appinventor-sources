@@ -123,22 +123,26 @@ public class OdeAuthFilter implements Filter {
     String userId = userInfo.userId;
     boolean isAdmin = userInfo.isAdmin;
     boolean isReadOnly = userInfo.isReadOnly;
+    long oneProjectId = userInfo.oneProjectId;
+    String fauxProjectName = userInfo.fauxProjectName;
+    String fauxAccountName = userInfo.fauxAccountName;
 
 //    Object oIsAdmin = httpRequest.getSession().getAttribute("isadmin");
 //    if (oIsAdmin != null) {
 //      isAdmin = (boolean) oIsAdmin;
 //    }
 
-    doMyFilter(userInfo, isAdmin, isReadOnly, httpRequest, httpResponse, chain);
+    doMyFilter(userInfo, isAdmin, isReadOnly, oneProjectId, fauxProjectName, fauxAccountName, httpRequest, httpResponse, chain);
   }
 
   @VisibleForTesting
   void doMyFilter(UserInfo userInfo, boolean isAdmin, boolean isReadOnly,
+    long oneProjectId, String fauxProjectName, String fauxAccountName,
     HttpServletRequest request, HttpServletResponse response, FilterChain chain)
     throws IOException, ServletException {
 
     // Setup the user object for OdeRemoteServiceServlet
-    setUserFromUserId(userInfo.userId, isAdmin, isReadOnly);
+    setUserFromUserId(userInfo.userId, isAdmin, isReadOnly, oneProjectId, fauxProjectName, fauxAccountName);
 
     // If using local login, we *must* have an email address because that is how we
     // find the UserData object.
@@ -212,13 +216,20 @@ public class OdeAuthFilter implements Filter {
    * <p>This method is called from {@link WebStartFileServlet} with the userId
    * that was encrypted in the URL.
    */
-  void setUserFromUserId(String userId, boolean isAdmin, boolean isReadOnly) {
+  void setUserFromUserId(String userId, boolean isAdmin, boolean isReadOnly, long oneProjectId,
+    String projectName, String displayAccountName) {
     User user = storageIo.getUser(userId);
     if (!user.getIsAdmin() && isAdmin) {
       user.setIsAdmin(true);    // If session says they are an admin (which is the case
                                 // if they are a Google Account with Developer access
     }
     user.setReadOnly(isReadOnly);
+    user.setOneProjectId(oneProjectId);
+    user.setFauxProjectName(projectName);
+    LOG.severe("OdeAuthFilter: displayAccountName = " + displayAccountName);
+    if (!displayAccountName.isEmpty()) {
+      user.setUserEmail(displayAccountName);
+    }
     localUser.set(user);
   }
 
@@ -256,6 +267,9 @@ public class OdeAuthFilter implements Filter {
     boolean isAdmin = false;
     boolean isReadOnly = false;
     long ts;
+    long oneProjectId = 0;
+    String fauxProjectName = "";
+    String fauxAccountName = "";
 
     transient boolean modified = false;
 
@@ -296,6 +310,30 @@ public class OdeAuthFilter implements Filter {
       modified = true;
     }
 
+    public void setOneProjectId(long projectId) {
+      this.oneProjectId = projectId;
+    }
+
+    public long getOneProjectId() {
+      return oneProjectId;
+    }
+
+    public void setFauxProjectName(String fauxProjectName) {
+      this.fauxProjectName = fauxProjectName;
+    }
+
+    public String getFauxProjectName() {
+      return fauxProjectName;
+    }
+
+    public void setFauxAccountName(String fauxAccountName) {
+      this.fauxAccountName = fauxAccountName;
+    }
+
+    public String getFauxAccountName() {
+      return fauxAccountName;
+    }
+
     public String buildCookie(boolean ifNeeded) {
       try {
         long offset = System.currentTimeMillis() - this.ts;
@@ -310,6 +348,9 @@ public class OdeAuthFilter implements Filter {
             .setUuid(this.userId)
             .setTs(this.ts)
             .setIsAdmin(this.isAdmin)
+            .setOneProjectId(this.oneProjectId)
+            .setDisplayprojectname(this.fauxProjectName)
+            .setDisplayaccountname(this.fauxAccountName)
             .setIsReadOnly(this.isReadOnly).build();
           return Base64Coder.encode(crypter.encrypt(cookie.toByteArray()));
         } else {
@@ -356,6 +397,9 @@ public class OdeAuthFilter implements Filter {
             uInfo.ts = cookieToken.getTs();
             uInfo.isAdmin = cookieToken.getIsAdmin();
             uInfo.isReadOnly = cookieToken.getIsReadOnly();
+            uInfo.oneProjectId = cookieToken.getOneProjectId();
+            uInfo.fauxProjectName = cookieToken.getDisplayprojectname();
+            uInfo.fauxAccountName = cookieToken.getDisplayaccountname();
             if (uInfo.isValid()) {
               return uInfo;
             } else {

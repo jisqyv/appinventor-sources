@@ -346,6 +346,9 @@ public class PostgreSQLStorageIo implements StorageIo {
             // We do not create user.
             throw CrashReport.createAndLogError(LOG, null, makeErrorMsg(strUserId, null, null, null), new RuntimeException("Unknown database error"));
           }
+          if (!requireTos.get()) { // If we do not require TOS, fake it
+            user.setUserTosAccepted(true);
+          }
         }
         ok = true;
       } finally {
@@ -404,7 +407,7 @@ public class PostgreSQLStorageIo implements StorageIo {
         }
         if (user == null) {
           if (create) {
-            user = createUser(email, false, null, conn);
+            user = privateCreateUser(email, false, null, conn);
           } else {
             return null;
           }
@@ -736,6 +739,36 @@ public class PostgreSQLStorageIo implements StorageIo {
   }
 
   /**
+   * Returns an array with the user's project's names.
+   *
+   * @param userId  user ID
+   * @return  list of project names
+   */
+  @Override
+  public List<String> getProjectNames(@Nonnull String strUserId) {
+    List<String> ret = new ArrayList<>();
+    boolean ok = false;
+    try (Connection conn = this.cpds.getConnection()) {
+      doSetAutoCommit(conn, false);
+      long userId = getUserId(strUserId, conn, false);
+      try (PreparedStatement qstmt = conn.prepareStatement("SELECT name FROM project WHERE userId = ?")) {
+        qstmt.setLong(1, userId);
+        ResultSet rs = qstmt.executeQuery();
+
+        while (rs.next()) {
+          ret.add(rs.getString("name"));
+        }
+        ok = true;
+      } finally {
+        doFinish(conn, ok, "getProjectNames");
+      }
+    } catch (SQLException e) {
+      throw CrashReport.createAndLogError(LOG, null, DATABASE_ERROR, e);
+    }
+    return ret;
+  }
+
+  /**
    * sets a projects name
    * @param userId a user Id (the request is made on behalf of this user)*
    * @param projectId project ID
@@ -1049,6 +1082,40 @@ public class PostgreSQLStorageIo implements StorageIo {
     return history;
   }
 
+  @Override
+  public String getProjectUserId(long projectId) {
+    boolean ok = false;
+    String strUserId = null;
+    long accountId = 0;
+    try (Connection conn = this.cpds.getConnection()) {
+      doSetAutoCommit(conn, false);
+      try (PreparedStatement qstmt = conn.prepareStatement("SELECT userId FROM project WHERE id = ?")) {
+        qstmt.setLong(1, projectId);
+        ResultSet rs = qstmt.executeQuery();
+        if (rs.next()) {
+          accountId = rs.getInt("userId");
+        }
+        if (accountId == 0) {
+          return null;          // Didn't find them
+        }
+        PreparedStatement qstmt1 = conn.prepareStatement("SELECT uuid FROM account where id = ?");
+        qstmt1.setLong(1, accountId);
+        ResultSet rs1 = qstmt1.executeQuery();
+        if (rs1.next()) {
+          strUserId = rs1.getString("uuid");
+        }
+        if (strUserId == null) {
+          return null;          // Didn't find them
+        }
+        ok = true;
+      } finally {
+        doFinish(conn, ok, "getProjectUserId");
+      }
+    } catch (SQLException e) {
+      throw CrashReport.createAndLogError(LOG, null, DATABASE_ERROR, e);
+    }
+    return strUserId;
+  }
 
   // Non-project-specific file management
 
@@ -2558,7 +2625,7 @@ public class PostgreSQLStorageIo implements StorageIo {
             throw new AdminInterfaceException("Cannot find user with userId = " + strUserId);
           }
         } else {
-          createUser(newEmail, newIsAdmin, newPassword, conn);
+          privateCreateUser(newEmail, newIsAdmin, newPassword, conn);
         }
         ok = true;
       } finally {
@@ -2879,6 +2946,31 @@ public class PostgreSQLStorageIo implements StorageIo {
     }
   }
 
+  @Override
+  public void createUser(String userId, String email) throws UserAlreadyExistsException {
+    boolean ok = false;
+    try (Connection conn = this.cpds.getConnection()) {
+      doSetAutoCommit(conn, false);
+      try {
+  PreparedStatement ustmt = conn.prepareStatement(
+    "INSERT INTO account (uuid, email) values (?::UUID, ?)");
+        ustmt.setString(1, userId);
+        ustmt.setString(2, email);
+
+        ustmt.executeUpdate();
+        ok = true;
+      } finally {
+        doFinish(conn, ok, "createUser");
+      }
+    } catch (SQLException e) {
+      if (e.getSQLState().equals("23505")) { // 23505 = unique_violation (from PostgreSQL Docs version 17)
+        throw new UserAlreadyExistsException("User Already Exists");
+      } else {
+        throw CrashReport.createAndLogError(LOG, null, DATABASE_ERROR, e);
+      }
+    }
+  }
+
   // Note: methods that accept a Connection argument are all called by
   // callers who have a pending transaction and are inside a try
   // .. finally block. the caller will then handle whether or not to
@@ -2886,7 +2978,7 @@ public class PostgreSQLStorageIo implements StorageIo {
   // crash report it will cause our caller to rollback the
   // transaction.
 
-  private User createUser(@Nonnull String email, boolean isAdmin, @Nonnull String password, Connection conn) {
+  private User privateCreateUser(@Nonnull String email, boolean isAdmin, @Nonnull String password, Connection conn) {
     // Insert new user
     Long userId = null;
     boolean tosAccepted = false;
@@ -2921,7 +3013,7 @@ public class PostgreSQLStorageIo implements StorageIo {
     } catch (SQLException e) {
       // One possible case is that two servers insert users of the same email.
       // We fail one of them.
-      throw CrashReport.createAndLogError(LOG, null, "Database error in createUser()", e);
+      throw CrashReport.createAndLogError(LOG, null, "Database error in privateCreateUser()", e);
     }
 
     User user = new User(
