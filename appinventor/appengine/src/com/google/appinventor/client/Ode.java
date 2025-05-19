@@ -218,7 +218,6 @@ public class Ode implements EntryPoint {
 
   private DropTargetProvider dragDropTargets;
 
-
   // Remembers the current View
   public static final int DESIGNER = 0;
   public static final int PROJECTS = 1;

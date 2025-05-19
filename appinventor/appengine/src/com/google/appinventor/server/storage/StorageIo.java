@@ -208,7 +208,7 @@ public interface StorageIo {
    * @return userId
    */
 
-  String getProjectUserId(long projectId) throws StoredData.ProjectNotFoundException;
+  String getProjectUserId(long projectId);
   /**
    * Bulk version of getUserProject.
    * @param userId a userId
@@ -692,6 +692,20 @@ public interface StorageIo {
   boolean deleteAccount(String userId);
 
   String getIosExtensionsConfig();
+
+  /**
+   * Create a new User.
+   *
+   * This method is for use of external portals to create account via a call
+   * to the RestServlet.
+   *
+   * @param userId the userId for the new user. Must be a UUID
+   * @param email The name or email address for the new user. Must be unique.
+   *
+   * @return true on success. Throws UserAlreadyExists exception on duplicates
+   */
+
+  void createUser(String userId, String email) throws UserAlreadyExistsException;
 
 }
 

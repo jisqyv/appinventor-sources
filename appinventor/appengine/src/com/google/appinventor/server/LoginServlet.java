@@ -233,7 +233,9 @@ public class LoginServlet extends HttpServlet {
       }
       // At this point we have a valid token, so use it to login!
       // need to make sure it is a SSOLOGIN token
-      if (token.getCommand() != TokenProto.token.CommandType.SSOLOGIN) {
+      if (token.getCommand() != TokenProto.token.CommandType.SSOLOGIN &&
+          token.getCommand() != TokenProto.token.CommandType.SSOLOGIN2 &&
+          token.getCommand() != TokenProto.token.CommandType.SSOLOGIN3) {
         fail(req, resp, "Token Valid, but not a SSOLOGIN token.", locale);
         return;
       }
@@ -255,7 +257,7 @@ public class LoginServlet extends HttpServlet {
           fail(req, resp, "Failed to provide an Email Address for login.", locale);
           return;
         }
-        User user = storageIo.getUserFromEmail(email);
+        User user = storageIo.getUserFromEmail(email, true);
         userInfo.setUserId(user.getUserId());
       } else {                  // SSOLOGIN3
         String uuid = token.getUuid();
@@ -277,12 +279,12 @@ public class LoginServlet extends HttpServlet {
       long oneProjectId = token.getOneProjectId();
       LOG.log(Level.INFO, "oneProjectId = " + oneProjectId);
       if (oneProjectId != 0) {  // It is...
-        try {
-          userInfo.setUserId(storageIo.getProjectUserId(oneProjectId));
-          userInfo.setOneProjectId(oneProjectId);
-        } catch (ProjectNotFoundException e) {
-          fail(req, resp, e.getMessage(), locale);
+        String userId = storageIo.getProjectUserId(oneProjectId);
+        if (userId == null) {
+          fail(req, resp, "Owner of Project Not Found", locale);
         }
+        userInfo.setUserId(userId);
+        userInfo.setOneProjectId(oneProjectId);
       }
 
       userInfo.setFauxProjectName(token.getDisplayprojectname());

@@ -121,7 +121,12 @@ public class RestServlet extends HttpServlet {
     case CREATEACCOUNT:
       String name = token.getName();
       String userId = token.getUuid();
-      storageIo.getUser(userId, name);
+      try {
+        storageIo.createUser(userId, name);
+      } catch (UserAlreadyExistsException e) {
+        fail(req, resp, -1, "User Already Exists");
+        return;
+      }
       LOG.info("Created user: " + userId + " name: " + name);
       ok(req, resp, "UserId Created, uuid = " + userId);
       return;
@@ -145,22 +150,17 @@ public class RestServlet extends HttpServlet {
         return;
       }
     case FETCHUUID:
-      User user = storageIo.getUserFromEmail(token.getName());
+        User user = storageIo.getUserFromEmail(token.getName(), false);
       if (user == null) {
         fail(req, resp, -1, "Invalid User");
         return;
-      case FETCHUUID:
-        User user = storageIo.getUserFromEmail(token.getName(), true);
-        if (user == null) {
-          fail(req, resp, -1, "Invalid User");
-          return;
-        }
-        String retval = Token.makeUUIDReturnToken(user.getUserEmail(),
-          user.getUserId());
-        ok(req, resp, retval);
-        return;
-      default:
-        fail(req, resp, -1, "Unimplemented");
+      }
+      String retval = Token.makeUUIDReturnToken(user.getUserEmail(),
+        user.getUserId());
+      ok(req, resp, retval);
+      return;
+    default:
+      fail(req, resp, -1, "Unimplemented");
     }
 
   }
@@ -217,9 +217,8 @@ public class RestServlet extends HttpServlet {
   private long createProject(String newuserId, String projectName, long oldProjectId)
     throws RestException {
     String userId;
-    try {
-      userId = storageIo.getProjectUserId(oldProjectId);
-    } catch (ProjectNotFoundException e) {
+    userId = storageIo.getProjectUserId(oldProjectId);
+    if (userId == null) {
       throw new RestException(7, "Old Project Doesn't Exist");
     }
     List<String> names = storageIo.getProjectNames(newuserId);
