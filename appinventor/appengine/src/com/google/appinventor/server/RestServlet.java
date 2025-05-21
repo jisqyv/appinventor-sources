@@ -22,6 +22,8 @@ import com.google.appinventor.shared.rpc.project.youngandroid.NewYoungAndroidPro
 
 import com.google.appinventor.shared.rpc.user.User;
 
+import com.google.appinventor.shared.rpc.project.UserProject;
+
 import java.io.IOException;
 import java.io.PrintWriter;
 
@@ -39,6 +41,9 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.log4j.Logger;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 /**
  * REST API for managing MIT App Inventor.
@@ -157,6 +162,20 @@ public class RestServlet extends HttpServlet {
       String retval = Token.makeUUIDReturnToken(user.getUserEmail(),
         user.getUserId());
       ok(req, resp, retval);
+      return;
+    case GETPROJECTS:
+      List<Long> ids = storageIo.getProjects(token.getUuid());
+      List<UserProject> projects = storageIo.getUserProjects(token.getUuid(), ids);
+      JSONArray returnArray = new JSONArray();
+      for (UserProject userProject: projects) {
+        JSONObject projJson = new JSONObject();
+        projJson.put("name", userProject.getProjectName());
+        projJson.put("projectid", userProject.getProjectId());
+        projJson.put("modified", userProject.getDateModified());
+        projJson.put("created", userProject.getDateCreated());
+        returnArray.put(projJson);
+      }
+      ok(req, resp, returnArray.toString(4));
       return;
     default:
       fail(req, resp, -1, "Unimplemented");
