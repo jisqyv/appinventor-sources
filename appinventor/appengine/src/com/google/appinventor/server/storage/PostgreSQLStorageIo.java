@@ -1199,7 +1199,7 @@ public class PostgreSQLStorageIo implements StorageIo {
   public void uploadUserFile(@Nonnull String strUserId, @Nonnull String fileName, @Nonnull String content, @Nonnull String encoding) {
     byte[] contentBytes;
     try {
-      contentBytes = content.getBytes(content);
+      contentBytes = content.getBytes(encoding);
     } catch (UnsupportedEncodingException e) {
       throw CrashReport.createAndLogError(LOG, null, "Cannot decode file content", e);
     }
