@@ -175,7 +175,7 @@ public class RestServlet extends HttpServlet {
         projJson.put("created", userProject.getDateCreated());
         returnArray.put(projJson);
       }
-      ok(req, resp, returnArray.toString(4));
+      ok(req, resp, returnArray);
       return;
     default:
       fail(req, resp, -1, "Unimplemented");
@@ -183,10 +183,33 @@ public class RestServlet extends HttpServlet {
 
   }
 
+  /*
+   * Report success. The message is a simple string
+   *
+   * @parm req the original request
+   * @param resp the servlet response
+   * @param message The text message to report
+   */
   private void ok(HttpServletRequest req, HttpServletResponse resp, String message) throws IOException {
     resp.setContentType("application/json; charset=utf-8");
     PrintWriter out = resp.getWriter();
     out.write("{ \"ok\": \"" + message + "\"}\n");
+    return;
+  }
+
+  /*
+   * Report success. The message is a simple string
+   *
+   * @parm req the original request
+   * @param resp the servlet response
+   * @param message the return JSON Array
+   */
+  private void ok(HttpServletRequest req, HttpServletResponse resp, JSONArray message) throws IOException {
+    resp.setContentType("application/json; charset=utf-8");
+    PrintWriter out = resp.getWriter();
+    JSONObject retval = new JSONObject();
+    retval.put("ok", message);
+    out.write(retval.toString(4)); // PrettyPrint it, at least now for development
     return;
   }
 
