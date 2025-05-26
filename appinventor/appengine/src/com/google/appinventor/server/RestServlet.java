@@ -177,6 +177,15 @@ public class RestServlet extends HttpServlet {
       }
       ok(req, resp, returnArray);
       return;
+    case CHECKACCOUNT:
+      userId = token.getUuid();
+      user = storageIo.getUser(userId);
+      if (user == null) {
+        ok(req, resp, "noaccount");
+      } else {
+        ok(req, resp, "ok");
+      }
+      return;
     default:
       fail(req, resp, -1, "Unimplemented");
     }

@@ -316,7 +316,8 @@ public class PostgreSQLStorageIo implements StorageIo {
 
   /**
    * Returns user data given user id. If the user data for the given id
-   * doesn't already exist in the storage, it should be created.
+   * doesn't already exist in the storage, WE RETURN NULL. This is different
+   * than our ObjectifyStorageIo equivalent.
    *
    * @param userId unique user id
    * @return user data
@@ -344,7 +345,9 @@ public class PostgreSQLStorageIo implements StorageIo {
           if (user == null) {
             // Here we have distinct behavior from ObjectifyStorageIo.getUser()
             // We do not create user.
-            throw CrashReport.createAndLogError(LOG, null, makeErrorMsg(strUserId, null, null, null), new RuntimeException("Unknown database error"));
+            // throw CrashReport.createAndLogError(LOG, null, makeErrorMsg(strUserId, null, null, null), new RuntimeException("Unknown database error"));
+            // Return null instead of throwing an error
+            return null;
           }
           if (!requireTos.get()) { // If we do not require TOS, fake it
             user.setUserTosAccepted(true);
