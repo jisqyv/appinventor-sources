@@ -2763,9 +2763,10 @@ public class PostgreSQLStorageIo implements StorageIo {
       doSetAutoCommit(conn, false);
       long userId = getUserId(strUserId, conn, false);
 
-      try (PreparedStatement qstmt = conn.prepareStatement("SELECT progress FROM buildStatus WHERE projectId = ? AND userId = ?")) {
-        qstmt.setLong(1, projectId);
-        qstmt.setLong(2, userId);
+      try (PreparedStatement qstmt = conn.prepareStatement("SELECT progress FROM buildStatus WHERE host = ? AND projectId = ? AND userId = ?")) {
+        qstmt.setString(1, HOST_ID);
+        qstmt.setLong(2, projectId);
+        qstmt.setLong(3, userId);
         ResultSet rs = qstmt.executeQuery();
 
         if (rs.next()) {
