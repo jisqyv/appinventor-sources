@@ -4,7 +4,7 @@ import hashlib
 
 from google.protobuf.message import DecodeError
 
-def test(question, system=None, uuid=None, provider=None, model=None, apikey=None, image=None):
+def test(question, system=None, uuid=None, provider=None, model=None, apikey=None, image=None, doimage=False):
     import chat_pb2
     us = chat_pb2.unsigned()
     us.huuid = 'TEST'
@@ -24,6 +24,7 @@ def test(question, system=None, uuid=None, provider=None, model=None, apikey=Non
     if provider:
         request.provider = provider
     request.question = question
+    request.doimage = doimage
     if system:
         request.system = system
     if uuid:
@@ -31,6 +32,7 @@ def test(question, system=None, uuid=None, provider=None, model=None, apikey=Non
     if image:
         request.inputimage = image
     z = request.SerializeToString()
+    # r = requests.post('https://jis.qyv.net/chat/v1',
     r = requests.post('http://127.0.0.1:9001/chat/v1',
                   z)
     z = chat_pb2.response()

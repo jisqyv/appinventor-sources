@@ -70,4 +70,9 @@ impl Converse for TitanConversation {
         let r: TitanResponse = serde_json::from_str(response)?;
         Ok(r.results[0].outputText.clone())
     }
+
+    // Stub Implementation
+    fn token_count(&self, _response: &str) -> Result<i32, Box<dyn Error>> {
+        Ok(0)
+    }
 }

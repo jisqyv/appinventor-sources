@@ -1,23 +1,26 @@
 #[macro_use]
 extern crate lazy_static;
+use aws_config::BehaviorVersion;
 use base64::prelude::*;
+use chrono::Utc;
 use quick_protobuf::{BytesReader, MessageRead, MessageWrite, Writer};
-use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode};
+use sqlx::postgres::{PgConnectOptions, PgPool};
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::convert::{From, Infallible};
 use std::fmt;
 use std::fmt::Debug;
 use std::net::SocketAddr;
-use std::str::FromStr;
-use std::{borrow::Cow, u64};
 use structopt::StructOpt;
 use tokio::runtime;
 use uuid::Uuid;
 use warp::reject::{Reject, Rejection};
 use warp::reply::Response;
 use warp::{Filter, Reply};
+
 extern crate structopt;
 use async_openai::{
+    Client,
     config::OpenAIConfig,
     types::{
         ChatCompletionRequestAssistantMessage, ChatCompletionRequestMessage,
@@ -26,38 +29,35 @@ use async_openai::{
         ChatCompletionRequestUserMessageContent, CreateChatCompletionRequestArgs,
         CreateModerationRequest, Role as ChatGPTRole,
     },
-    Client,
 };
 use debug_print::debug_eprintln;
 use serde::{Deserialize, Serialize};
-use sqlx::sqlite::{SqlitePool, SqlitePoolOptions};
-use sqlx::Row;
 use std::error::Error;
 
 use crate::anthropic::AnthropicConversation;
+use crate::llama::LlamaConversation;
 use crate::titan::TitanConversation;
 
-const SECS_PER_DAY: i32 = 86400;
+const SECS_PER_DAY: i64 = 86400;
 
 mod anthropic;
 mod chat;
 mod dallelib;
 mod geminilib;
 mod image;
+mod llama;
 mod ollamalib;
-mod palmlib;
 mod titan;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Config {
     port: u16,
     nthreads: usize,
-    dbfile: String,
+    dburl: String,
     hmac_keys: BTreeMap<String, String>,
     chatgpt_apikey: String,
     chatgpt_use_allowlist: bool,
-    palm_apikey: String,
-    palm_use_allowlist: bool,
+    google_apikey: String,
     aws_access_key: String,
     aws_access_secret: String,
     ollama_url: String,
@@ -67,16 +67,15 @@ impl ::std::default::Default for Config {
     fn default() -> Self {
         Self {
             port: 9001,
-            nthreads: 0, // Means as many as cores
-            dbfile: String::from("/data/dbfile.sqlite"),
+            nthreads: 0,           // Means as many as cores
+            dburl: "".to_string(), // Must provide
             hmac_keys: BTreeMap::from([
                 ("0".into(), "changeme!".into()),
                 ("1".into(), "change or delete me!".into()),
             ]),
             chatgpt_apikey: String::from("sk-key-here"),
             chatgpt_use_allowlist: true,
-            palm_apikey: String::from("key-here"),
-            palm_use_allowlist: true,
+            google_apikey: String::from("key-here"),
             aws_access_key: String::from("aws-access-key-here"),
             aws_access_secret: String::from("aws-access-secret-here"),
             ollama_url: String::from("http://localhost:11434/api/generate"),
@@ -128,6 +127,7 @@ pub trait Converse {
     fn push(&mut self, role: Role, text: String);
     fn serialize(&self) -> Result<String, Box<dyn Error>>;
     fn parse_response(&self, response: &str) -> Result<String, Box<dyn Error>>;
+    fn token_count(&self, response: &str) -> Result<i32, Box<dyn Error>>;
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -140,6 +140,13 @@ pub enum Role {
 enum AmazonFlavor {
     Anthropic,
     Titan,
+    Llama,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct Answer {
+    answer: Option<String>, // Image only answer possible?
+    image: Option<Vec<u8>>,
 }
 
 lazy_static! {
@@ -165,7 +172,7 @@ lazy_static! {
             .build()
             .unwrap(),
     };
-    static ref DBPOOL: SqlitePool = {
+    static ref DBPOOL: PgPool = {
         RT.handle()
             .block_on(async { setup(&CONFIG).await.unwrap() })
     };
@@ -286,6 +293,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         Ok::<Blob, Rejection>(b)
                     }
                 });
+
             let imageget = warp::path!("image" / "v1")
                 .and(warp::post())
                 .and(warp::body::bytes())
@@ -296,6 +304,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         Ok::<Blob, Rejection>(b)
                     }
                 });
+
             let module_list =
                 warp::path!("model_list" / "v1")
                     .and(warp::get())
@@ -305,13 +314,26 @@ fn main() -> Result<(), Box<dyn Error>> {
                         };
                         Ok::<JsonAnswer, Rejection>(j)
                     });
+
             let health = warp::path!("health")
                 .and(warp::get())
-                .map(|| warp::reply::with_status("OK", warp::http::StatusCode::OK));
+                .and_then(|| async move {
+                    let h = HealthAnswer {};
+                    Ok::<HealthAnswer, Rejection>(h)
+                });
+
+            let head_only = warp::head().and_then(|| async move {
+                let b = Blob {
+                    bytes: bytes::Bytes::from(""),
+                };
+                Ok::<Blob, Rejection>(b)
+            });
+
             let routes = chatget
                 .or(health)
                 .or(imageget)
                 .or(module_list)
+                .or(head_only)
                 .recover(handle_rejection);
             let server = warp::serve(routes);
             let socketaddr: SocketAddr = ([0, 0, 0, 0], CONFIG.port).into();
@@ -323,7 +345,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     })
 }
 
-async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, ChatproxyError> {
+async fn do_chat(data: bytes::Bytes, dbpool: &PgPool) -> Result<Blob, ChatproxyError> {
     let mut reader = BytesReader::from_bytes(&data);
     let message = chat::request::from_reader(&mut reader, &data)
         .map_err(|e| ChatproxyError::Message(e.to_string()))?;
@@ -334,6 +356,23 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
         return Err(ChatproxyError::Message("Invalid Auth Token".to_string()));
     };
     let mut default_quota = *CHATGPT_DEFAULT_QUOTA;
+    let mut provider = message.provider.as_ref();
+
+    // 6/20/2025(jis): We are changing the default provider and model from chatgpt
+    // to bedrock (llama model as of this writing). However the ChatBot component
+    // always sends us a provider, the default being chatgpt.
+    //
+    // So. If the model is blank, *and* the user did not provide their own API KEY
+    // we assume that they are just intended to use the default, and we replace
+    // "chatgpt" with "bedrock" (Amazon).
+    if let Some(ref ap) = apikey {
+        if ap.len() <= 10 && message.model.is_none() && provider == "chatgpt" {
+            provider = "bedrock";
+        }
+    } else if message.model.is_none() && provider == "chatgpt" {
+        provider = "bedrock";
+    }
+
     // The code below is a bit of a kludge. If an apikey is 10 characters or shorter,
     // we assume that it is an MIT issued key. If so, we set apikey to None, because
     // we want to use the configured MIT api key. We then set huuid to the MIT issued
@@ -357,16 +396,15 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
     }
 
     debug_eprintln!("huuid = {}", huuid);
-    let provider = message.provider.clone();
     if apikey.is_none() {
-        match &*provider {
+        match provider {
             "chatgpt" => {
-                if CONFIG.chatgpt_use_allowlist && !on_whitelist(&huuid, dbpool, &provider).await {
+                if CONFIG.chatgpt_use_allowlist && !on_whitelist(&huuid, dbpool, provider).await {
                     println!("Rejecting Request from {}, not on whitelist.", huuid);
                     return Err(ChatproxyError::Unauthorized);
                 }
                 if *CHATGPT_USE_LIMITS
-                    && !check_limit(&huuid, dbpool, &provider, default_quota)
+                    && !check_limit(&huuid, dbpool, provider, default_quota)
                         .await
                         .map_err(|e| match *e.downcast().unwrap() {
                             ChatproxyError::UseOwnKey => ChatproxyError::UseOwnKey,
@@ -376,16 +414,17 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
                     return Err(ChatproxyError::OverQuota);
                 }
             }
-            "gemini" => {
-                if CONFIG.palm_use_allowlist && !on_whitelist(&huuid, dbpool, &provider).await {
-                    println!(
-                        "PaLM: Rejecting Request from {}, not on whitelist provider = {}",
-                        huuid, provider
-                    );
-                    return Err(ChatproxyError::Unauthorized);
+            "gemini" | "bedrock" => {
+                if !check_limit(&huuid, dbpool, provider, default_quota)
+                    .await
+                    .map_err(|e| match *e.downcast().unwrap() {
+                        ChatproxyError::UseOwnKey => ChatproxyError::UseOwnKey,
+                        _ => ChatproxyError::OverQuota,
+                    })?
+                {
+                    return Err(ChatproxyError::OverQuota);
                 }
             }
-            "bedrock" => (),
             "ollama" => (),
             "palm" => {
                 return Err(ChatproxyError::NoMorePalm);
@@ -414,12 +453,8 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
             Uuid::new_v4().to_string()
         }
     };
-    let mut model = if let Some(ref m) = message.model {
-        m
-    } else {
-        ""
-    };
-    match &*provider {
+    let mut model: &str = &message.model.clone().unwrap_or_default();
+    match provider {
         "chatgpt" => {
             if apikey.is_none() {
                 match model {
@@ -455,7 +490,7 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
         }
         "bedrock" => match model {
             "" => {
-                model = "anthropic.claude-v2";
+                model = "us.meta.llama4-maverick-17b-instruct-v1:0";
             }
             "anthropic.claude-v2" => (),
             "anthropic.claude-v1" => (),
@@ -466,6 +501,29 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
             //         model
             //     )));
             // }
+        },
+        "gemini" => match model {
+            "" => {
+                if let Some(doimage) = message.doimage {
+                    if doimage {
+                        model = "gemini-2.0-flash-exp";
+                    } else {
+                        model = "gemini-2.0-flash"
+                    }
+                } else {
+                    model = "gemini-2.0-flash";
+                }
+            }
+            "gemini-1.5-pro" => (),
+            "gemini-1.0-pro" => (),
+            "gemini-2.0-flash-exp" => (),
+            "gemini-2.0-flash" => (),
+            _ => {
+                return Err(ChatproxyError::Message(format!(
+                    "Unsupported model {}",
+                    model
+                )));
+            }
         },
         _ => (),
     }
@@ -481,26 +539,20 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
         return Err(ChatproxyError::Blocked);
     }
     debug_eprintln!("Using APIKEY {:#?} for {}", apikey, provider);
-    let answer = match &*provider {
-        "chatgpt" => converse_chatgpt(&huuid, dbpool, &uuid, &message, apikey, model)
+    let answer = match provider {
+        "chatgpt" => converse_chatgpt(&huuid, dbpool, &uuid, &message.clone(), apikey, model)
             .await
             .map_err(|e| {
                 debug_eprintln!("converse_chatgpt error: {:#?}", e);
                 ChatproxyError::Message(e.to_string())
             })?,
-        "palm" => converse_palm(&huuid, dbpool, &uuid, message.system, &question, apikey)
-            .await
-            .map_err(|e| {
-                debug_eprintln!("converse_palm error: {:#?}", e);
-                ChatproxyError::Message(format!("PaLM Did not return a response: {}", e))
-            })?,
-        "gemini" => converse_gemini(&huuid, dbpool, &uuid, &message, apikey)
+        "gemini" => converse_gemini(&huuid, dbpool, &uuid, &message, apikey, model)
             .await
             .map_err(|e| {
                 debug_eprintln!("converse_gemini error: {:#?}", e);
                 ChatproxyError::Message(format!("Gemini Did not return a response: {}", e))
             })?,
-        "bedrock" => converse_bedrock(&huuid, dbpool, &uuid, model, &question)
+        "bedrock" => converse_bedrock(&huuid, dbpool, &uuid, &message, &question, apikey, model)
             .await
             .map_err(|e| {
                 eprintln!("converse_bedrock: error: {:#?}", e);
@@ -512,13 +564,16 @@ async fn do_chat(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, Chatpr
                 eprintln!("converse_ollama: error: {:#?}", e);
                 ChatproxyError::Message(format!("Error: {}", e))
             })?,
-        _ => "Unknown Provider".to_string(),
+        _ => Answer {
+            answer: Some("Unknown Provider".to_string()),
+            image: None,
+        },
     };
     let b = make_response(&answer, &uuid);
     Ok(b)
 }
 
-async fn do_image(data: bytes::Bytes, dbpool: &SqlitePool) -> Result<Blob, ChatproxyError> {
+async fn do_image(data: bytes::Bytes, dbpool: &PgPool) -> Result<Blob, ChatproxyError> {
     let mut reader = BytesReader::from_bytes(&data);
     let request = image::request::from_reader(&mut reader, &data)
         .map_err(|e| ChatproxyError::Message(e.to_string()))?;
@@ -674,42 +729,14 @@ async fn do_edit_image<'a>(
     Ok(b)
 }
 
-async fn converse_palm(
+async fn converse_chatgpt(
     huuid: &str,
-    dbpool: &SqlitePool,
-    uuid: &str,
-    system: Option<Cow<'_, str>>,
-    question: &str,
-    apikey: Option<Cow<'_, str>>,
-) -> Result<String, Box<dyn Error>> {
-    debug_eprintln!("converse_palm: system = {:#?}, uuid = {}", system, uuid);
-    let state: Option<palmlib::State> = {
-        if let Some(conversation_str) = get_conversation(uuid, "palm", dbpool).await {
-            Some(serde_json::from_str(&conversation_str)?)
-        } else {
-            None
-        }
-    };
-    let apikey_to_use = if let Some(ref ap) = apikey {
-        ap.clone().into_owned()
-    } else {
-        CONFIG.palm_apikey.clone()
-    };
-    let system = system.map(|s| s.to_string());
-    let answer = palmlib::converse(question, system, &apikey_to_use, state).await?;
-    store_conversation(uuid, "palm", dbpool, &serde_json::to_string(&answer.state)?).await?;
-    record_usage(huuid, 1, dbpool, "palm", apikey.is_some()).await?;
-    Ok(answer.answer)
-}
-
-async fn converse_chatgpt<'a>(
-    huuid: &str,
-    dbpool: &SqlitePool,
+    dbpool: &PgPool,
     uuid: &str,
     message: &chat::request<'_>,
     apikey: Option<Cow<'_, str>>,
     model: &str,
-) -> Result<String, Box<dyn Error>> {
+) -> Result<Answer, Box<dyn Error>> {
     let inputimage = &message.inputimage;
     let system = &message.system;
     let question = match message.question.clone() {
@@ -720,6 +747,7 @@ async fn converse_chatgpt<'a>(
         }
         Some(q) => q,
     };
+    debug_eprintln!("About to get conversation");
     let mut conversation: Conversation =
         if let Some(conversation_str) = get_conversation(uuid, "chatgpt", dbpool).await {
             serde_json::from_str(&conversation_str)?
@@ -731,11 +759,7 @@ async fn converse_chatgpt<'a>(
             // will break. So we only do not provide a system string if the model name starts
             // with a o1 (sigh!).
             let nosystem = if let Some(ref m) = message.model {
-                if m.starts_with("o1") {
-                    true
-                } else {
-                    false
-                }
+                m.starts_with("o1")
             } else {
                 false
             };
@@ -765,6 +789,7 @@ async fn converse_chatgpt<'a>(
                 }
             }
         };
+    debug_eprintln!("Done");
     if message.inputimage.is_some() {
         conversation.multiplier = 20;
         // if conversation.model == "gpt-4o-mini" {
@@ -853,15 +878,17 @@ async fn converse_chatgpt<'a>(
     debug_eprintln!("Request = {:#?}", request);
     let response = client.chat().create(request).await?;
     let mut retval = "Unkonwn".to_string();
-    let usage = if let Some(ref u) = response.usage {
-        u.total_tokens * conversation.multiplier
+    let usage: i32 = if let Some(ref u) = response.usage {
+        (u.total_tokens * conversation.multiplier)
+            .try_into()
+            .unwrap()
     } else {
         0
     };
     debug_eprintln!("Usage = {} Multiplier = {}", usage, conversation.multiplier);
     record_usage(huuid, usage, dbpool, "chatgpt", apikey.is_some()).await?;
     if apikey.is_none() && *CHATGPT_USE_LIMITS {
-        update_limit(huuid, usage.try_into().unwrap(), dbpool, "chatgpt").await
+        update_limit(huuid, usage, dbpool, "chatgpt").await
     }
     for choice in response.choices {
         if choice.message.role == ChatGPTRole::Assistant {
@@ -877,6 +904,7 @@ async fn converse_chatgpt<'a>(
             image: None,
         });
     }
+    debug_eprintln!("About to Store Conversation");
     store_conversation(
         uuid,
         "chatgpt",
@@ -884,7 +912,11 @@ async fn converse_chatgpt<'a>(
         &serde_json::to_string(&conversation)?,
     )
     .await?;
-    Ok(retval)
+    debug_eprintln!("Done");
+    Ok(Answer {
+        answer: Some(retval),
+        image: None,
+    })
 }
 
 fn get_amazon_flavor(model: &str) -> Result<AmazonFlavor, Box<dyn Error>> {
@@ -892,6 +924,12 @@ fn get_amazon_flavor(model: &str) -> Result<AmazonFlavor, Box<dyn Error>> {
     match z.next() {
         Some("anthropic") => Ok(AmazonFlavor::Anthropic),
         Some("amazon") => Ok(AmazonFlavor::Titan),
+        Some("meta") => Ok(AmazonFlavor::Llama),
+        Some("us") => match z.next() {
+            Some("meta") => Ok(AmazonFlavor::Llama),
+            Some("anthropic") => Ok(AmazonFlavor::Anthropic),
+            _ => Err(Box::<dyn Error>::from("Unknown Amazon Model")),
+        },
         _ => Err(Box::<dyn Error>::from("Unknown Amazon Model")),
     }
 }
@@ -899,17 +937,21 @@ fn get_amazon_flavor(model: &str) -> Result<AmazonFlavor, Box<dyn Error>> {
 // AWS models
 async fn converse_bedrock(
     huuid: &str,
-    dbpool: &SqlitePool,
+    dbpool: &PgPool,
     uuid: &str,
-    model: &str,
+    message: &chat::request<'_>,
     question: &str,
-) -> Result<String, Box<dyn Error>> {
+    apikey: Option<Cow<'_, str>>,
+    model: &str,
+) -> Result<Answer, Box<dyn Error>> {
     use aws_sdk_bedrockruntime::primitives::Blob;
 
     let flavor = get_amazon_flavor(model)?;
+    let system = message.system.clone();
     let ctag = format!("bedrock-{}", model);
     let mut conversation: Box<dyn Converse + Send> = match flavor {
         AmazonFlavor::Anthropic => {
+            debug_eprintln!("Got a Anthropic Flavor");
             if let Some(conversation_str) = get_conversation(uuid, &ctag, dbpool).await {
                 AnthropicConversation::load(&conversation_str)?
             } else {
@@ -917,22 +959,34 @@ async fn converse_bedrock(
             }
         }
         AmazonFlavor::Titan => {
+            debug_eprintln!("Got a Titan Flavor");
             if let Some(conversation_str) = get_conversation(uuid, &ctag, dbpool).await {
                 TitanConversation::load(&conversation_str)?
             } else {
                 TitanConversation::initial()
             }
         }
+        AmazonFlavor::Llama => {
+            debug_eprintln!("Got a Llama Flavor");
+            if let Some(conversation_str) = get_conversation(uuid, &ctag, dbpool).await {
+                LlamaConversation::load(&conversation_str)?
+            } else {
+                LlamaConversation::initial(system)
+            }
+        }
     };
     conversation.push(Role::Human, question.to_string());
-    let config = aws_config::from_env()
+    let config = aws_config::defaults(BehaviorVersion::latest())
         .credentials_provider(aws_credentials_provider())
         .region(aws_types::region::Region::new("us-east-1"))
         .load()
         .await;
     let client = aws_sdk_bedrockruntime::Client::new(&config);
-    let prompt = conversation.prepare();
-    debug_eprintln!("converse_bedrock: prompt = {},", prompt);
+    #[cfg(debug_assertions)]
+    {
+        let prompt = conversation.prepare();
+        debug_eprintln!("converse_bedrock: prompt = {},", prompt);
+    }
     let body = conversation.create_body();
     debug_eprintln!("converse_bedrock: body = {:#?}", body);
     let body = Blob::new(body);
@@ -941,33 +995,37 @@ async fn converse_bedrock(
         .body(body)
         .model_id(model)
         .content_type("application/json");
-    let result = fluent_builder.send().await?;
-    if let Some(body) = result.body() {
-        let inner = body.clone().into_inner();
-        let response = String::from_utf8(inner)?;
-        debug_eprintln!("raw response = {}", response);
-        let answer = conversation.parse_response(&response)?;
-        debug_eprintln!("answer = {}", answer);
-        let word_count = answer.split(' ').collect::<Vec<_>>().len();
-        record_usage(huuid, word_count as u32, dbpool, &ctag, false)
-            .await
-            .ok();
-        conversation.push(Role::Assistant, answer.clone());
-        let conversation_str = conversation.serialize()?;
-        store_conversation(uuid, &ctag, dbpool, &conversation_str).await?;
-        Ok(answer)
-    } else {
-        Ok("DID NOT GET ANSWER".to_string())
+    debug_eprintln!("fluent_builder = {:#?}", fluent_builder);
+    let body = fluent_builder.send().await?;
+    let inner = body.clone().body.into_inner();
+    let response = String::from_utf8(inner)?;
+    debug_eprintln!("raw response = {}", response);
+    let answer = conversation.parse_response(&response)?;
+    debug_eprintln!("answer = {}", answer);
+    let token_count = conversation.token_count(&response)?;
+    record_usage(huuid, token_count, dbpool, &ctag, false)
+        .await
+        .ok();
+    if apikey.is_none() {
+        update_limit(huuid, token_count, dbpool, "bedrock").await
     }
+    conversation.push(Role::Assistant, answer.clone());
+    let conversation_str = conversation.serialize()?;
+    store_conversation(uuid, &ctag, dbpool, &conversation_str).await?;
+    Ok(Answer {
+        answer: Some(answer),
+        image: None,
+    })
 }
 
 async fn converse_gemini(
     huuid: &str,
-    dbpool: &SqlitePool,
+    dbpool: &PgPool,
     uuid: &str,
     message: &chat::request<'_>,
     apikey: Option<Cow<'_, str>>,
-) -> Result<String, Box<dyn Error>> {
+    model: &str,
+) -> Result<Answer, Box<dyn Error>> {
     let state: Option<geminilib::State> = {
         if let Some(conversation_str) = get_conversation(uuid, "gemini", dbpool).await {
             Some(serde_json::from_str(&conversation_str)?)
@@ -978,9 +1036,10 @@ async fn converse_gemini(
     let apikey_to_use = if let Some(ref ap) = apikey {
         ap.clone().into_owned()
     } else {
-        CONFIG.palm_apikey.clone()
+        CONFIG.google_apikey.clone()
     };
-    let answer = geminilib::converse(message, &apikey_to_use, state).await?;
+    debug_eprintln!("Gemini: Using model {}", model);
+    let answer = geminilib::converse(message, &apikey_to_use, state, model).await?;
     store_conversation(
         uuid,
         "gemini",
@@ -988,8 +1047,23 @@ async fn converse_gemini(
         &serde_json::to_string(&answer.state)?,
     )
     .await?;
-    record_usage(huuid, 1, dbpool, "gemini", message.apikey.is_some()).await?;
-    Ok(answer.answer)
+    let usage: i32 = answer.tokens;
+    record_usage(huuid, usage, dbpool, "gemini", message.apikey.is_some()).await?;
+    if apikey.is_none() {
+        update_limit(huuid, usage, dbpool, "gemini").await
+    }
+    Ok(Answer {
+        answer: Some(answer.answer),
+        image: {
+            if let Some(image) = answer.image {
+                let mut out_image: Vec<u8> = Vec::new();
+                BASE64_STANDARD.decode_vec(&image, &mut out_image)?;
+                Some(out_image)
+            } else {
+                None
+            }
+        },
+    })
 }
 
 fn parse_token(token: &dyn Token) -> Result<(String, u64), Box<dyn Error>> {
@@ -1052,11 +1126,23 @@ async fn moderate_chatgpt(question: &str) -> Result<bool, Box<dyn Error>> {
     Ok(false)
 }
 
-fn make_response(answer: &str, uuid: &str) -> Blob {
-    let answer = answer.to_string();
+fn make_response(answer: &Answer, uuid: &str) -> Blob {
     let r = chat::response {
         uuid: Some(Cow::Borrowed(uuid)),
-        answer: Some(Cow::Owned(answer)),
+        answer: {
+            if let Some(answer) = &answer.answer {
+                Some(Cow::Borrowed(answer))
+            } else {
+                None
+            }
+        },
+        outputimage: {
+            if let Some(image) = &answer.image {
+                Some(Cow::Borrowed(image))
+            } else {
+                None
+            }
+        },
         version: 1,
         status: 1,
     };
@@ -1121,6 +1207,25 @@ async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
     Ok(warp::reply::with_status(text, StatusCode::NOT_FOUND))
 }
 
+struct HealthAnswer {}
+
+impl Reply for HealthAnswer {
+    fn into_response(self) -> Response {
+        use http::*;
+        use warp::hyper::Body;
+        Response::builder()
+            .status(200)
+            .header("Content-Type", "text/plain")
+            .header(
+                "Access-Control-Allow-Headers",
+                "Content-Type, Accept, Origin, User-Agent",
+            )
+            .header("Access-Control-Allow-Origin", "*")
+            .body(Body::from("OK"))
+            .unwrap()
+    }
+}
+
 struct JsonAnswer {
     json: &'static str,
 }
@@ -1153,22 +1258,22 @@ impl Reply for Blob {
         Response::builder()
             .status(200)
             .header("Content-Type", "application/octet-stream")
+            .header(
+                "Access-Control-Allow-Headers",
+                "Content-Type, Accept, Origin, User-Agent",
+            )
+            .header("Access-Control-Allow-Origin", "*")
             .body(Body::from(self.bytes))
             .unwrap()
     }
 }
 
-async fn setup(conf: &Config) -> Result<SqlitePool, Box<dyn Error>> {
-    let options = SqliteConnectOptions::from_str(&conf.dbfile)?
-        .journal_mode(SqliteJournalMode::Wal)
-        .create_if_missing(true);
+async fn setup(conf: &Config) -> Result<PgPool, Box<dyn Error>> {
+    let options: PgConnectOptions = conf.dburl.parse()?;
+    let dbpool = PgPool::connect_with(options).await?;
 
-    let dbpool = SqlitePoolOptions::new()
-        .max_connections(10)
-        .connect_with(options)
-        .await?;
     sqlx::query(
-        "create table if not exists conversation (uuid text primary key, provider text, conversation blob, timestamp timestamp)",
+        "create table if not exists conversation (uuid text primary key, provider text, conversation text, timestamp timestamp)",
     )
     .execute(&dbpool)
     .await?;
@@ -1185,14 +1290,14 @@ async fn setup(conf: &Config) -> Result<SqlitePool, Box<dyn Error>> {
         .execute(&dbpool)
         .await?;
     sqlx::query(
-        "create table if not exists limits (huuid text, usage integer, quota integer, timestamp timestamp, provider)",
+        "create table if not exists limits (huuid text, usage integer, quota integer, timestamp timestamptz, provider text)",
     )
     .execute(&dbpool)
     .await?;
     sqlx::query("create unique index if not exists limits_u_p on limits (huuid, provider)")
         .execute(&dbpool)
         .await?;
-    sqlx::query("create table if not exists config (name text, value)")
+    sqlx::query("create table if not exists config (name text, value text)")
         .execute(&dbpool)
         .await?;
     sqlx::query(
@@ -1211,12 +1316,14 @@ fn trim(inv: Vec<u8>) -> Vec<u8> {
     invec.split_off(1)
 }
 
-async fn on_whitelist(uuid: &str, dbpool: &SqlitePool, provider: &str) -> bool {
-    match sqlx::query("select * from whitelist where uuid = ? and provider = ?")
-        .bind(uuid)
-        .bind(provider)
-        .fetch_one(dbpool)
-        .await
+async fn on_whitelist(uuid: &str, dbpool: &PgPool, provider: &str) -> bool {
+    match sqlx::query!(
+        "select * from whitelist where uuid = $1 and provider = $2",
+        uuid,
+        provider
+    )
+    .fetch_one(dbpool)
+    .await
     {
         Ok(_) => true,
         Err(_e) => {
@@ -1228,143 +1335,117 @@ async fn on_whitelist(uuid: &str, dbpool: &SqlitePool, provider: &str) -> bool {
 
 async fn record_usage(
     huuid: &str,
-    usage: u32,
-    dbpool: &SqlitePool,
+    usage: i32,
+    dbpool: &PgPool,
     provider: &str,
     ownkey: bool,
 ) -> Result<(), Box<dyn Error>> {
-    let prior_usage = match sqlx::query(
-        "select usage from usage where huuid = ? and provider = ? and  ownkey = ?",
+    let prior_usage: i32 = match sqlx::query!(
+        "select usage from usage where huuid = $1 and provider = $2 and  ownkey = $3",
+        huuid,
+        provider,
+        ownkey,
     )
-    .bind(huuid)
-    .bind(provider)
-    .bind(ownkey)
     .fetch_one(dbpool)
     .await
     {
-        Ok(row) => row.get::<u32, usize>(0),
+        Ok(row) => {
+            row.usage.unwrap_or(0) // Row found, but usage null
+        }
         Err(_) => 0,
     };
+
     let usage = usage + prior_usage;
-    sqlx::query("insert or replace into usage values (?, ?, ?, ?)")
-        .bind(huuid)
-        .bind(usage)
-        .bind(provider)
-        .bind(ownkey)
+
+    debug_eprintln!("About to do insert");
+    sqlx::query!("insert into usage (huuid, usage, provider, ownkey) values ($1, $2, $3, $4) on conflict (huuid, provider, ownkey) do update set usage = $2",
+                 huuid, usage, provider, ownkey)
         .execute(dbpool)
         .await?;
+    debug_eprintln!("Done");
     Ok(())
 }
 
-async fn update_limit(huuid: &str, usage: i32, dbpool: &SqlitePool, provider: &str) {
-    debug_eprintln!("update_limit: entered");
+async fn update_limit(huuid: &str, usage: i32, dbpool: &PgPool, provider: &str) {
+    debug_eprintln!("update_limit: entered, usage = {}", usage);
     let mut transaction = dbpool.begin().await.unwrap();
-    let (old_usage, quota, ts) = match sqlx::query(
-        "select usage, quota, timestamp from limits where huuid = ? and provider = ?",
+    let (old_usage, quota, ts) = match sqlx::query!(
+        "select usage, quota, timestamp from limits where huuid = $1 and provider = $2",
+        huuid,
+        provider
     )
-    .bind(huuid)
-    .bind(provider)
-    .fetch_one(&mut transaction)
+    .fetch_one(&mut *transaction)
     .await
     {
         Ok(row) => (
-            row.get::<i32, usize>(0),
-            row.get::<i32, usize>(1),
-            row.get::<i64, usize>(2),
+            row.usage.unwrap_or(0),
+            row.quota.unwrap_or(*CHATGPT_DEFAULT_QUOTA),
+            row.timestamp.unwrap_or(Utc::now()),
         ),
-        Err(_) => {
-            // First time?
-            use std::time::SystemTime;
-            let now = SystemTime::now();
-            let utime: i64 = now
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
-                .as_secs()
-                .try_into()
-                .unwrap();
-            (0, *CHATGPT_DEFAULT_QUOTA, utime)
-        }
+        Err(_) => (0, *CHATGPT_DEFAULT_QUOTA, Utc::now()),
     };
     let usage = old_usage + usage;
-    sqlx::query("insert or replace into limits (huuid, usage, quota, timestamp, provider) values (?, ?, ?, ?, ?)")
-        .bind(huuid)
-        .bind(usage)
-        .bind(quota)
-        .bind(ts)
-        .bind(provider)
-        .execute(&mut transaction)
+    sqlx::query!("insert into limits (huuid, usage, quota, timestamp, provider) values ($1, $2, $3, $4, $5) on conflict (huuid, provider) do update set usage = $2",
+                 huuid, usage, quota, ts, provider)
+        .execute(&mut *transaction)
         .await
         .unwrap();
     transaction.commit().await.unwrap();
     debug_eprintln!("update_limit: leaving");
 }
 
-async fn get_conversation(uuid: &str, provider: &str, dbpool: &SqlitePool) -> Option<String> {
-    match sqlx::query("select conversation, provider  from conversation where uuid = ?")
-        .bind(uuid)
-        .fetch_one(dbpool)
-        .await
-    {
-        Ok(n) => {
-            let conversation_provider = n.get::<String, usize>(1);
-            if conversation_provider == provider {
-                Some(n.get::<String, usize>(0))
+async fn get_conversation(uuid: &str, provider: &str, dbpool: &PgPool) -> Option<String> {
+    let row = sqlx::query!(
+        "select conversation, provider  from conversation where uuid = $1",
+        uuid
+    )
+    .fetch_one(dbpool)
+    .await;
+    match row {
+        Err(_) => None,
+        Ok(row) => {
+            if row.provider == Some(provider.to_string()) {
+                row.conversation
             } else {
                 None // We switched provider!
             }
         }
-        Err(_) => None,
     }
 }
 
 async fn store_conversation(
     uuid: &str,
     provider: &str,
-    dbpool: &SqlitePool,
+    dbpool: &PgPool,
     value: &str,
 ) -> Result<(), Box<dyn Error>> {
-    sqlx::query("insert or replace into conversation (uuid, conversation, provider, timestamp) values (?, ?, ?, datetime())")
-        .bind(uuid)
-        .bind(value)
-        .bind(provider)
+    sqlx::query!("insert into conversation (uuid, conversation, provider, timestamp) values ($1, $2, $3, CURRENT_TIMESTAMP) on conflict (uuid) do update set conversation = $2",
+                 uuid, value, provider)
         .execute(dbpool)
         .await?;
     Ok(())
 }
 
-fn get_unix_now() -> Result<i64, Box<dyn Error>> {
-    use std::time::SystemTime;
-    let now = SystemTime::now();
-    let utime = now
-        .duration_since(SystemTime::UNIX_EPOCH)?
-        .as_secs()
-        .try_into()?;
-    debug_eprintln!("check_unix_now: returning {}", utime);
-    Ok(utime)
-}
-
 async fn check_limit(
     huuid: &str,
-    dbpool: &SqlitePool,
+    dbpool: &PgPool,
     provider: &str,
     default_quota: i32,
 ) -> Result<bool, Box<dyn Error>> {
-    let utime = get_unix_now()?;
-    let (usage, quota, their_time) = match sqlx::query(
-        "select usage, quota, timestamp from limits where huuid = ? and provider = ?",
+    let (usage, quota, their_time) = match sqlx::query!(
+        "select usage, quota, timestamp from limits where huuid = $1 and provider = $2",
+        huuid,
+        provider
     )
-    .bind(huuid)
-    .bind(provider)
     .fetch_one(dbpool)
     .await
     {
-        Ok(row) => {
-            let usage = row.get::<i32, usize>(0);
-            let quota = row.get::<i32, usize>(1);
-            let timestamp = row.get::<i64, usize>(2);
-            (usage, quota, timestamp)
-        }
-        Err(_) => (0, default_quota, utime),
+        Ok(row) => (
+            row.usage.unwrap_or(0),
+            row.quota.unwrap_or(default_quota),
+            row.timestamp.unwrap_or(Utc::now()),
+        ),
+        Err(_) => (0, default_quota, Utc::now()),
     };
     // A quota of 0 means infinite!
     if quota == 0 {
@@ -1375,40 +1456,33 @@ async fn check_limit(
         return Err(ChatproxyError::UseOwnKey.into());
     }
 
-    let r = {
-        if their_time == 0 {
-            usage // So we can initialize limits entries with a zero timestamp
-        } else {
-            let passed: i64 = utime - their_time;
-            let v: i32 = (quota * passed as i32) / SECS_PER_DAY;
-            let r = usage - v;
-            if r < 0 {
-                0
-            } else {
-                r
-            }
-        }
+    let passed = Utc::now().timestamp() - their_time.timestamp();
+    debug_eprintln!(
+        "Their Timestamp = {}, passed = {}, quota = {}",
+        their_time,
+        passed,
+        quota
+    );
+    // The screwiness below is because quota * passed might yield a
+    // large negative number if a lot of time has passed. But ultimately
+    // we can use an i32 because we ignore all negative numbers
+    let v: i64 = (quota as i64 * passed) / SECS_PER_DAY;
+    let mut r: i64 = (usage as i64) - v;
+    if r < 0 {
+        r = 0
     };
-
+    let r: i32 = r.try_into().unwrap_or(0);
     debug_eprintln!("check_limit: r = {}", r);
 
-    match sqlx::query("insert or replace into limits (huuid, usage, quota, timestamp, provider) values (?, ?, ?, ?, ?)")
-        .bind(huuid)
-        .bind(r)
-        .bind(quota)
-        .bind(utime)
-        .bind(provider)
+    match sqlx::query!("insert into limits (huuid, usage, quota, timestamp, provider) values ($1, $2, $3, CURRENT_TIMESTAMP, $4) on conflict (huuid, provider) do update set usage = $2, timestamp = CURRENT_TIMESTAMP",
+                       huuid, r, quota,  provider)
         .execute(dbpool)
         .await
     {
         Ok(_) => (),
         Err(e) => return Err(e.into()),
     };
-    if r < quota {
-        Ok(true)
-    } else {
-        Ok(false)
-    }
+    if r < quota { Ok(true) } else { Ok(false) }
 }
 
 fn get_image_url(image: &[u8]) -> Result<String, Box<dyn Error>> {
@@ -1428,21 +1502,26 @@ fn get_image_url(image: &[u8]) -> Result<String, Box<dyn Error>> {
     ))
 }
 
-async fn get_defaults(dbpool: &SqlitePool) -> (bool, i32) {
-    let quota = match sqlx::query("select value from config where name = ?")
-        .bind("default_quota")
+async fn get_defaults(dbpool: &PgPool) -> (bool, i32) {
+    let quota = match sqlx::query!("select value from config where name = 'default_quota'")
         .fetch_one(dbpool)
         .await
     {
-        Ok(row) => row.get::<i32, usize>(0),
+        Ok(row) => {
+            let value: i32 = row
+                .value
+                .unwrap_or("10000".to_string())
+                .parse()
+                .unwrap_or(10000);
+            value
+        }
         Err(_) => 10000,
     };
-    let use_limits = match sqlx::query("select value from config where name = ?")
-        .bind("use_limits")
+    let use_limits = match sqlx::query!("select value from config where name = 'use_limits'")
         .fetch_one(dbpool)
         .await
     {
-        Ok(row) => row.get::<bool, usize>(0),
+        Ok(row) => row.value == Some("true".to_string()),
         Err(_) => true,
     };
     (use_limits, quota)
@@ -1451,22 +1530,43 @@ async fn get_defaults(dbpool: &SqlitePool) -> (bool, i32) {
 /// Given a "short" API Key (the kind we issue) Check to see if there is a specific
 /// provider API key to use for this "short" key. If so, return it. Otherwise return
 /// None
-async fn getapikey(dbpool: &SqlitePool, provider: &str, inapi: &str) -> Option<String> {
-    match sqlx::query("select apikey from apikeylist where shortapi = ? and provider = ?")
-        .bind(inapi)
-        .bind(provider)
-        .fetch_one(dbpool)
-        .await
+async fn getapikey(dbpool: &PgPool, provider: &str, inapi: &str) -> Option<String> {
+    match sqlx::query!(
+        "select apikey from apikeylist where shortapi = $1 and provider = $2",
+        inapi,
+        provider
+    )
+    .fetch_one(dbpool)
+    .await
     {
-        Ok(row) => Some(row.get::<String, usize>(0)),
+        Ok(row) => row.apikey,
         Err(_) => None,
     }
 }
 
+static PROVIDER_MODULES: &str = r#"{ "provider" : ["chatgpt", "gemini", "bedrock", "ollama"],
+  "model" : { "chatgpt:gpt-4o-mini" : "gpt-4o-mini",
+    "chatgpt:o1-preview" : "o1-preview",
+    "chatgpt:o1-mini" : "o1-mini",
+    "google:gemini" : "",
+    "google:gemini-1.0-pro" : "gemini-1.0-pro",
+    "google:gemini-1.5-pro" : "gemini-1.5-pro",
+    "google:gemini-2.0-flash" : "gemini-2.0-flash",
+    "google:gemini-2.0-flash-exp" : "gemini-2.0-flash-exp",
+    "bedrock:anthropic.claude-v2" : "anthropic.claude-v2",
+    "bedrock:anthropic.claude-v1" : "anthropic.claude-v1",
+    "bedrock:meta.llama3-70b-instruct-v1:0" : "meta.llama3-70b-instruct-v1:0",
+    "bedrock:us.meta.llama3-3-70b-instruct-v1:0" : "us.meta.llama3-3-70b-instruct-v1:0",
+    "bedrock:us.meta.llama4-maverick-17b-instruct-v1:0" : "us.meta.llama4-maverick-17b-instruct-v1:0",
+    "ollama:gemma2" : "gemma2",
+    "ollama:gemma2:2b" : "gemma2:2b" }
+}
+"#;
+
 #[cfg(test)]
 mod tests {
     use crate::*;
-    use std::fs;
+    use chrono::TimeZone;
 
     lazy_static! {
         static ref CONFIG: Config = Config::test();
@@ -1481,15 +1581,14 @@ mod tests {
             Self {
                 port: 9001,
                 nthreads: 0, // Means as many as cores
-                dbfile: String::from("/ram/dbfile.sqlite"),
+                dburl: String::from(""),
                 hmac_keys: BTreeMap::from([
                     ("0".into(), "changeme!".into()),
                     ("1".into(), "change or delete me!".into()),
                 ]),
                 chatgpt_apikey: String::from("sk-key-here"),
                 chatgpt_use_allowlist: true,
-                palm_apikey: "none".to_string(),
-                palm_use_allowlist: true,
+                google_apikey: "none".to_string(),
                 aws_access_key: String::from("aws-access-key-here"),
                 aws_access_secret: String::from("aws-access-secret-here"),
                 ollama_url: String::from("ollama url here"),
@@ -1499,26 +1598,25 @@ mod tests {
 
     #[test]
     fn verify_limits() {
-        fs::remove_file(&CONFIG.dbfile).ok();
-        fs::remove_file(format!("{}-wal", &CONFIG.dbfile)).ok();
-        fs::remove_file(format!("{}-shm", &CONFIG.dbfile)).ok();
         let _ = DBPOOL.clone(); // Make sure it is setup before we call block_on
-                                // otherwise we wind up calling block_on recursively, which is not permitted
+        // otherwise we wind up calling block_on recursively, which is not permitted
         let _ = *CHATGPT_DEFAULT_QUOTA;
         RT.block_on(async {
             debug_eprintln!("verify_limits");
-            debug_eprintln!("dbfile = {}", &CONFIG.dbfile);
             let dbpool = DBPOOL.clone();
             update_limit("12345", 10000, &dbpool, "chatgpt").await;
-            let now = get_unix_now().unwrap();
+            let now = Utc::now().timestamp();
             let then = now - (3600 * 12); // an hour ago
-                                          // Set timestamp back an hour
-            sqlx::query("update limits set timestamp = ? where huuid = ?")
-                .bind(then)
-                .bind("12345")
-                .execute(&dbpool)
-                .await
-                .unwrap();
+            // Set timestamp back an hour
+            let then = Utc.timestamp_opt(then, 0).unwrap();
+            sqlx::query!(
+                "update limits set timestamp = $1 where huuid = $2",
+                then,
+                "12345"
+            )
+            .execute(&dbpool)
+            .await
+            .unwrap();
             let v = check_limit("12345", &dbpool, "chatgpt", *CHATGPT_DEFAULT_QUOTA)
                 .await
                 .unwrap();
@@ -1532,20 +1630,8 @@ mod tests {
         let mut state = geminilib::State::new();
         debug_eprintln!(
             "Output = {:#?}",
-            geminilib::build_gemini_prompt("Who won the World Series in 2004?", &mut state)
+            geminilib::build_gemini_prompt("Who won the World Series in 2004?", &mut state, false)
                 .unwrap()
         );
     }
 }
-
-static PROVIDER_MODULES: &str = r#"{ "provider" : ["chatgpt", "palm", "gemini", "bedrock", "ollama"],
-  "model" : { "chatgpt:gpt-4o-mini" : "gpt-4o-mini",
-    "chatgpt:o1-preview" : "o1-preview",
-    "chatgpt:o1-mini" : "o1-mini",
-    "google:gemini" : "",
-    "bedrock:anthropic.claud-v2" : "anthropic.claud-v2",
-    "bedrock:anthropic.claud-v1" : "anthropic.claud-v1",
-    "ollama:gemma2" : "gemma2",
-    "ollama:gemma2:2b" : "gemma2:2b" }
-}
-"#;

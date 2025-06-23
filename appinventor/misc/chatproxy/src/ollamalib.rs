@@ -1,10 +1,12 @@
 use debug_print::debug_eprintln;
 use serde::{Deserialize, Serialize};
-use sqlx::sqlite::SqlitePool;
+use sqlx::postgres::PgPool;
+use std::borrow::Cow;
 use std::error::Error;
 
 // static CHAT_URL: &str = "http://localhost:11434/api/generate";
 
+use crate::Answer;
 use crate::chat;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -37,22 +39,23 @@ struct Response {
 pub async fn converse(
     huuid: &str,
     ollama_url: &str,
-    dbpool: &SqlitePool,
+    dbpool: &PgPool,
     uuid: &str,
     message: &chat::request<'_>,
-) -> Result<String, Box<dyn Error>> {
-    let mut model = if let Some(ref m) = message.model {
-        m
-    } else {
-        ""
-    };
+) -> Result<Answer, Box<dyn Error>> {
+    let mut model = message.model.clone().unwrap_or_default();
+    // let mut model = if let Some(ref m) = message.model {
+    //     m
+    // } else {
+    //     ""
+    // };
     let system = if message.system.is_some() {
         Some(message.system.clone().unwrap().to_string())
     } else {
         None
     };
     if model.is_empty() {
-        model = "gemma2";
+        model = Cow::Borrowed("gemma2");
     };
     let mut context: Context = {
         if let Some(conversation_str) = crate::get_conversation(uuid, "ollama", dbpool).await {
@@ -86,24 +89,19 @@ pub async fn converse(
     let resjson = res.text().await?;
     debug_eprintln!("Answer = {}", resjson);
     let res: Response = serde_json::from_str(&resjson)?;
-    let pev = if let Some(pev) = res.prompt_eval_count {
-        pev
-    } else {
-        0
-    };
-    let evc = if let Some(evc) = res.eval_count {
-        evc
-    } else {
-        0
-    };
-    let usage = pev + evc;
+    let pev = res.prompt_eval_count.unwrap_or(0);
+    let evc = res.eval_count.unwrap_or(0);
+    let usage: i32 = (pev + evc).try_into().unwrap();
     debug_eprintln!("Cost = {}", usage);
     crate::record_usage(huuid, usage, dbpool, "ollama", false).await?;
     if res.response.is_some() {
         context.context = res.context;
         crate::store_conversation(uuid, "ollama", dbpool, &serde_json::to_string(&context)?)
             .await?;
-        Ok(res.response.unwrap())
+        Ok(Answer {
+            answer: Some(res.response.unwrap()),
+            image: None,
+        })
     } else if let Some(ref error) = res.error {
         Err(Box::new(crate::ChatproxyError::Message(format!(
             "Error from Ollama: {}",

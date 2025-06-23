@@ -69,7 +69,7 @@ pub async fn createimage(
     let response: Response = serde_json::from_str(&retval)?;
     let image = &response.data[0];
     {
-        use base64::{engine::general_purpose, Engine as _};
+        use base64::{Engine as _, engine::general_purpose};
         let bytes = general_purpose::STANDARD.decode(image.b64_json.clone())?;
         Ok(bytes)
     }
@@ -127,7 +127,7 @@ pub async fn editimage(
     };
     let image = &response.data[0];
     {
-        use base64::{engine::general_purpose, Engine as _};
+        use base64::{Engine as _, engine::general_purpose};
         let bytes = general_purpose::STANDARD.decode(image.b64_json.clone())?;
         Ok(bytes)
     }

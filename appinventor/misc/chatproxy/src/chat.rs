@@ -115,6 +115,7 @@ pub struct request<'a> {
     pub provider: Cow<'a, str>,
     pub model: Option<Cow<'a, str>>,
     pub inputimage: Option<Cow<'a, [u8]>>,
+    pub doimage: Option<bool>,
 }
 
 impl<'a> MessageRead<'a> for request<'a> {
@@ -135,6 +136,7 @@ impl<'a> MessageRead<'a> for request<'a> {
                 Ok(58) => msg.provider = r.read_string(bytes).map(Cow::Borrowed)?,
                 Ok(66) => msg.model = Some(r.read_string(bytes).map(Cow::Borrowed)?),
                 Ok(74) => msg.inputimage = Some(r.read_bytes(bytes).map(Cow::Borrowed)?),
+                Ok(160) => msg.doimage = Some(r.read_bool(bytes)?),
                 Ok(t) => { r.read_unknown(bytes, t)?; }
                 Err(e) => return Err(e),
             }
@@ -155,6 +157,7 @@ impl<'a> MessageWrite for request<'a> {
         + if self.provider == Cow::Borrowed("chatgpt") { 0 } else { 1 + sizeof_len((&self.provider).len()) }
         + self.model.as_ref().map_or(0, |m| 1 + sizeof_len((m).len()))
         + self.inputimage.as_ref().map_or(0, |m| 1 + sizeof_len((m).len()))
+        + self.doimage.as_ref().map_or(0, |m| 2 + sizeof_varint(*(m) as u64))
     }
 
     fn write_message<W: WriterBackend>(&self, w: &mut Writer<W>) -> Result<()> {
@@ -167,6 +170,7 @@ impl<'a> MessageWrite for request<'a> {
         if self.provider != Cow::Borrowed("chatgpt") { w.write_with_tag(58, |w| w.write_string(&**&self.provider))?; }
         if let Some(ref s) = self.model { w.write_with_tag(66, |w| w.write_string(&**s))?; }
         if let Some(ref s) = self.inputimage { w.write_with_tag(74, |w| w.write_bytes(&**s))?; }
+        if let Some(ref s) = self.doimage { w.write_with_tag(160, |w| w.write_bool(*s))?; }
         Ok(())
     }
 }
@@ -177,6 +181,7 @@ pub struct response<'a> {
     pub status: u64,
     pub uuid: Option<Cow<'a, str>>,
     pub answer: Option<Cow<'a, str>>,
+    pub outputimage: Option<Cow<'a, [u8]>>,
 }
 
 impl<'a> MessageRead<'a> for response<'a> {
@@ -191,6 +196,7 @@ impl<'a> MessageRead<'a> for response<'a> {
                 Ok(16) => msg.status = r.read_uint64(bytes)?,
                 Ok(26) => msg.uuid = Some(r.read_string(bytes).map(Cow::Borrowed)?),
                 Ok(34) => msg.answer = Some(r.read_string(bytes).map(Cow::Borrowed)?),
+                Ok(42) => msg.outputimage = Some(r.read_bytes(bytes).map(Cow::Borrowed)?),
                 Ok(t) => { r.read_unknown(bytes, t)?; }
                 Err(e) => return Err(e),
             }
@@ -206,6 +212,7 @@ impl<'a> MessageWrite for response<'a> {
         + if self.status == 0u64 { 0 } else { 1 + sizeof_varint(*(&self.status) as u64) }
         + self.uuid.as_ref().map_or(0, |m| 1 + sizeof_len((m).len()))
         + self.answer.as_ref().map_or(0, |m| 1 + sizeof_len((m).len()))
+        + self.outputimage.as_ref().map_or(0, |m| 1 + sizeof_len((m).len()))
     }
 
     fn write_message<W: WriterBackend>(&self, w: &mut Writer<W>) -> Result<()> {
@@ -213,6 +220,7 @@ impl<'a> MessageWrite for response<'a> {
         if self.status != 0u64 { w.write_with_tag(16, |w| w.write_uint64(*&self.status))?; }
         if let Some(ref s) = self.uuid { w.write_with_tag(26, |w| w.write_string(&**s))?; }
         if let Some(ref s) = self.answer { w.write_with_tag(34, |w| w.write_string(&**s))?; }
+        if let Some(ref s) = self.outputimage { w.write_with_tag(42, |w| w.write_bytes(&**s))?; }
         Ok(())
     }
 }

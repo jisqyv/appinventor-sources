@@ -76,4 +76,9 @@ impl Converse for AnthropicConversation {
             Err(Box::<dyn Error>::from("Invalid Anthropic Resonse"))
         }
     }
+
+    // Stub Implementation
+    fn token_count(&self, _response: &str) -> Result<i32, Box<dyn Error>> {
+        Ok(0)
+    }
 }

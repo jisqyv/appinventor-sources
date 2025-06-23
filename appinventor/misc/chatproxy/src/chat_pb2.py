@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='chat.proto',
   package='',
   syntax='proto2',
-  serialized_pb=_b('\n\nchat.proto\"D\n\x08unsigned\x12\r\n\x05huuid\x18\x01 \x01(\t\x12\x12\n\x07version\x18\x02 \x01(\x04:\x01\x30\x12\x15\n\ngeneration\x18\x03 \x01(\x04:\x01\x30\"i\n\x05token\x12\x12\n\x07version\x18\x01 \x01(\x04:\x01\x31\x12\x10\n\x05keyid\x18\x02 \x01(\x04:\x01\x31\x12\x15\n\ngeneration\x18\x03 \x01(\x04:\x01\x30\x12\x10\n\x08unsigned\x18\x04 \x01(\x0c\x12\x11\n\tsignature\x18\x05 \x01(\x0c\"\xb2\x01\n\x07request\x12\x12\n\x07version\x18\x01 \x01(\x04:\x01\x31\x12\x15\n\x05token\x18\x02 \x01(\x0b\x32\x06.token\x12\x0c\n\x04uuid\x18\x03 \x01(\t\x12\x10\n\x08question\x18\x04 \x01(\t\x12\x0e\n\x06system\x18\x05 \x01(\t\x12\x0e\n\x06\x61pikey\x18\x06 \x01(\t\x12\x19\n\x08provider\x18\x07 \x01(\t:\x07\x63hatgpt\x12\r\n\x05model\x18\x08 \x01(\t\x12\x12\n\ninputimage\x18\t \x01(\x0c\"O\n\x08response\x12\x12\n\x07version\x18\x01 \x01(\x04:\x01\x31\x12\x11\n\x06status\x18\x02 \x01(\x04:\x01\x30\x12\x0c\n\x04uuid\x18\x03 \x01(\t\x12\x0e\n\x06\x61nswer\x18\x04 \x01(\t')
+  serialized_pb=_b('\n\nchat.proto\"D\n\x08unsigned\x12\r\n\x05huuid\x18\x01 \x01(\t\x12\x12\n\x07version\x18\x02 \x01(\x04:\x01\x30\x12\x15\n\ngeneration\x18\x03 \x01(\x04:\x01\x30\"i\n\x05token\x12\x12\n\x07version\x18\x01 \x01(\x04:\x01\x31\x12\x10\n\x05keyid\x18\x02 \x01(\x04:\x01\x31\x12\x15\n\ngeneration\x18\x03 \x01(\x04:\x01\x30\x12\x10\n\x08unsigned\x18\x04 \x01(\x0c\x12\x11\n\tsignature\x18\x05 \x01(\x0c\"\xc3\x01\n\x07request\x12\x12\n\x07version\x18\x01 \x01(\x04:\x01\x31\x12\x15\n\x05token\x18\x02 \x01(\x0b\x32\x06.token\x12\x0c\n\x04uuid\x18\x03 \x01(\t\x12\x10\n\x08question\x18\x04 \x01(\t\x12\x0e\n\x06system\x18\x05 \x01(\t\x12\x0e\n\x06\x61pikey\x18\x06 \x01(\t\x12\x19\n\x08provider\x18\x07 \x01(\t:\x07\x63hatgpt\x12\r\n\x05model\x18\x08 \x01(\t\x12\x12\n\ninputimage\x18\t \x01(\x0c\x12\x0f\n\x07\x64oimage\x18\x14 \x01(\x08\"d\n\x08response\x12\x12\n\x07version\x18\x01 \x01(\x04:\x01\x31\x12\x11\n\x06status\x18\x02 \x01(\x04:\x01\x30\x12\x0c\n\x04uuid\x18\x03 \x01(\t\x12\x0e\n\x06\x61nswer\x18\x04 \x01(\t\x12\x13\n\x0boutputimage\x18\x05 \x01(\x0c')
 )
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
@@ -200,6 +200,13 @@ _REQUEST = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
+    _descriptor.FieldDescriptor(
+      name='doimage', full_name='request.doimage', index=9,
+      number=20, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
   ],
   extensions=[
   ],
@@ -213,7 +220,7 @@ _REQUEST = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=192,
-  serialized_end=370,
+  serialized_end=387,
 )
 
 
@@ -252,6 +259,13 @@ _RESPONSE = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
+    _descriptor.FieldDescriptor(
+      name='outputimage', full_name='response.outputimage', index=4,
+      number=5, type=12, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b(""),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
   ],
   extensions=[
   ],
@@ -264,8 +278,8 @@ _RESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=372,
-  serialized_end=451,
+  serialized_start=389,
+  serialized_end=489,
 )
 
 _REQUEST.fields_by_name['token'].message_type = _TOKEN
