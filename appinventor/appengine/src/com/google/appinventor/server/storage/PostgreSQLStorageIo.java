@@ -2396,7 +2396,13 @@ public class PostgreSQLStorageIo implements StorageIo {
     }
   }
 
-  // Cleanup expired nonces
+  /**
+   * Cleanup old Nonces *and* cleanup old apk files that can no longer be downloaded
+   *
+   * This code used to only be used to cleanup the nonces (used as part of the download
+   * link for packaged apk files). However, we also cleanup 3 expired APK files, oldest
+   * ones first.
+   */
   @Override
   public void cleanupNonces() {
     boolean ok = false;
@@ -2405,6 +2411,17 @@ public class PostgreSQLStorageIo implements StorageIo {
 
       try (PreparedStatement ustmt = conn.prepareStatement(
           "DELETE FROM nonce WHERE timestamp < (CURRENT_TIMESTAMP - INTERVAL '3 hour')"
+          )) {
+        ustmt.executeUpdate();
+        ok = true;
+      } finally {
+        doFinish(conn, ok, "cleanupNonces");
+      }
+      ok = false;
+      try (PreparedStatement ustmt = conn.prepareStatement(
+        "WITH rows as (SELECT id FROM projectfile WHERE role = 'TARGET' " +
+        "AND ts < (CURRENT_TIMESTAMP - INTERVAL '3 hour') ORDER BY ts LIMIT 3) " +
+        "DELETE FROM projectfile WHERE id IN (SELECT id FROM rows);"
           )) {
         ustmt.executeUpdate();
         ok = true;
