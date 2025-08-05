@@ -92,6 +92,8 @@ public class PostgreSQLStorageIo implements StorageIo {
 
   private final ComboPooledDataSource cpds;
 
+  private final String DEFAULT_ALLOWED_IOS_EXTENSIONS = "[\"edu.mit.appinventor.ble\",\"com.bbc.microbit.profile\",\"edu.mit.appinventor.ai.personalimageclassifier\",\"edu.mit.appinventor.ai.personalaudioclassifier\",\"edu.mit.appinventor.ai.posenet\",\"edu.mit.appinventor.ai.facemesh\",\"edu.mit.appinventor.ai.teachablemachine\",\"fun.microblocks.microblocks\"]";
+
   public PostgreSQLStorageIo() {
     // Setup connection
     try {
@@ -2820,15 +2822,11 @@ public class PostgreSQLStorageIo implements StorageIo {
     return getProjectDates(userId, projectId, "modified");
   }
 
-  // A placeholder for now
   @Override
   public String getIosExtensionsConfig() {
-    // Rather then store these in the database or filesystem (or CEPH) we just
-    // hard code them here for now
-    return "[]";                // No allowed extensions
+    return getMisc("ios_extensions_allowed", DEFAULT_ALLOWED_IOS_EXTENSIONS);
   }
 
-  // TBD
   @Override
   public boolean deleteAccount(String strUserId) {
     boolean ok = false;
@@ -3469,6 +3467,43 @@ public class PostgreSQLStorageIo implements StorageIo {
     } catch (SQLException e) {
       doFinish(conn, false, "doSetAutoCommit");
       throw CrashReport.createAndLogError(LOG, null, "Could not set auto commit to " + value, e);
+    }
+  }
+
+  private String getMisc(String key, String initialValue) {
+    boolean ok = false;
+    String result = null;
+    try (Connection conn = this.cpds.getConnection()) {
+      doSetAutoCommit(conn, false);
+      try (PreparedStatement qstmt = conn.prepareStatement("SELECT value FROM misc WHERE key = ?")) {
+        qstmt.setString(1, key);
+        ResultSet rs = qstmt.executeQuery();
+        if (rs.next()) {
+          result = rs.getString("value");
+          ok = true;
+          return result;
+        }
+      } finally {
+        doFinish(conn, ok, "getMisc");
+      }
+      // If we get here, there was no entry for the key,
+      // we’ll return the initial value, but first we’ll insert
+      // that initialValue as the value of key in the database
+      ok = false;
+      try (PreparedStatement stmt = conn.prepareStatement("INSERT INTO misc (key, value) VALUES (?, ?) ON CONFLICT DO NOTHING")) {
+        stmt.setString(1, key);
+        stmt.setString(2, initialValue);
+        int ret = stmt.executeUpdate();
+        if (ret == 0) {
+          throw CrashReport.createAndLogError(LOG, null, "Database Error in getMisc()", new RuntimeException("Unknown database error"));
+        }
+          ok = true;
+        return initialValue;
+      } finally {
+        doFinish(conn, ok, "getMisc");
+      }
+    } catch (SQLException e) {
+      throw CrashReport.createAndLogError(LOG, null, DATABASE_ERROR, e);
     }
   }
 
