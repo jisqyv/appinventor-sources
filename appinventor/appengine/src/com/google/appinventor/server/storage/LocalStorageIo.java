@@ -8,12 +8,14 @@ import com.google.appinventor.server.CrashReport;
 import com.google.appinventor.server.FileExporter;
 import com.google.appinventor.server.flags.Flag;
 
+import com.google.appinventor.server.project.youngandroid.YoungAndroidSettingsBuilder;
+
 import com.google.appinventor.server.storage.StoredData.PWData;
+
 import com.google.appinventor.server.util.LicenseConfig;
 
 import com.google.appinventor.shared.rpc.AdminInterfaceException;
 import com.google.appinventor.shared.rpc.BlocksTruncatedException;
-import com.google.appinventor.shared.rpc.Motd;
 import com.google.appinventor.shared.rpc.Nonce;
 import com.google.appinventor.shared.rpc.admin.AdminUser;
 
@@ -31,18 +33,24 @@ import com.google.appinventor.shared.storage.StorageUtil;
 
 import com.google.appinventor.shared.util.AccountUtil;
 
-import java.io.ByteArrayOutputStream;
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
+
+import static com.google.appinventor.components.common.YaVersion.YOUNG_ANDROID_VERSION;
+import static com.google.appinventor.shared.storage.StorageUtil.APPSTORE_CREDENTIALS_FILENAME;
+
+import java.io.StringReader;
+
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
+
+import java.nio.charset.StandardCharsets;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -51,17 +59,18 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.Properties;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
-
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import javax.annotation.Nullable;
+
 
 // Log4j
 import org.apache.log4j.Logger;
@@ -997,9 +1006,10 @@ public class LocalStorageIo implements  StorageIo {
       final byte[] content) {
     FileOutputStream out = null;
     byte [] empty = new byte[] { (byte)0x5b, (byte)0x5d }; // "[]" in bytes
-    if (!fileName.equals(StorageUtil.ANDROID_KEYSTORE_FILENAME) && !fileName.equals(StorageUtil.USER_BACKPACK_FILENAME)) {
+    if (!fileName.equals(StorageUtil.ANDROID_KEYSTORE_FILENAME) && !fileName.equals(StorageUtil.USER_BACKPACK_FILENAME)
+        && !fileName.equals(APPSTORE_CREDENTIALS_FILENAME)) {
       throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId, fileName),
-          new RuntimeException("Only android keystores are supported"));
+          new RuntimeException("Only android keystores are supported filename = " + fileName));
     }
     try {
       File fileObject = new File(storageRoot.get() + "/" + userId + "/" + fileName);
@@ -1046,9 +1056,9 @@ public class LocalStorageIo implements  StorageIo {
     // Only support android.keystore and backpack.xml
     LOG.debug("downloadRawUserFile: fileName = " + fileName);
     if (!fileName.equals(StorageUtil.ANDROID_KEYSTORE_FILENAME) &&
-      !fileName.equals(StorageUtil.USER_BACKPACK_FILENAME)) {
+        !fileName.equals(StorageUtil.USER_BACKPACK_FILENAME) && !fileName.equals(APPSTORE_CREDENTIALS_FILENAME)) {
       throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId, fileName),
-          new RuntimeException("Only android keystores and backpack are supported"));
+          new RuntimeException("Only android keystores and backpack are supported filename = " + fileName));
     }
     File fileObject = new File(storageRoot.get() + "/" + userId + "/" + fileName);
     FileInputStream in = null;
@@ -1089,7 +1099,7 @@ public class LocalStorageIo implements  StorageIo {
     // Only support android.keystore
     if (!fileName.equals("android.keystore"))
       throw CrashReport.createAndLogError(LOG, null, collectUserErrorInfo(userId, fileName),
-          new RuntimeException("Only android keystores are supported"));
+          new RuntimeException("Only android keystores are supported fileName = " + fileName));
     File keystore = new File(storageRoot.get() + "/" + userId + "/android.keystore");
     try {
       keystore.delete();
@@ -1384,19 +1394,24 @@ public class LocalStorageIo implements  StorageIo {
    */
   @Override
   public ProjectSourceZip exportProjectSourceZip(final String userId, final long projectId,
-                                                 final boolean includeProjectHistory,
-                                                 final boolean includeAndroidKeystore,
-                                                 @Nullable String zipName, boolean includeYail,
-                                                 boolean includeScreenShots,
-                                                 boolean forGallery,
-                                                 boolean fatalError) throws IOException {
+      final boolean includeProjectHistory,
+      final boolean includeAndroidKeystore,
+      @Nullable String zipName, boolean includeYail,
+      boolean includeScreenShots,
+      boolean forGallery,
+      boolean fatalError,
+      final boolean forAppStore,
+      final boolean locallyCachedApp) throws IOException {
     int fileCount = 0;
     ByteArrayOutputStream zipFile = new ByteArrayOutputStream();
     ZipOutputStream out = new ZipOutputStream(zipFile);
     List<String> sources = getProjectSourceFiles(userId, projectId);
     for (String fileName : sources) {
-      byte [] data = downloadRawFile(userId, projectId, fileName);
-      if (fileName.endsWith(".yail") && !includeYail) {
+      if (fileName.equals(FileExporter.REMIX_INFORMATION_FILE_PATH) ||
+          (fileName.startsWith("screenshots") && !includeScreenShots) ||
+          (fileName.startsWith("src/") && fileName.endsWith(".yail") && !includeYail) ||
+          (fileName.startsWith("src/") && fileName.endsWith(".bky") && locallyCachedApp) ||
+          (fileName.startsWith("src/") && fileName.endsWith(".scm") && locallyCachedApp)) {
         // Don't include YAIL files when exporting projects
         // includeYail will be set to true when we are exporting the source
         // to send to the buildserver or when the person exporting
@@ -1408,9 +1423,18 @@ public class LocalStorageIo implements  StorageIo {
         // include one in the future.
         continue;
       }
-      if (fileName.startsWith("screenshots") && !includeScreenShots) {
-        // Only include screenshots if asked...
-        continue;
+      byte [] data = downloadRawFile(userId, projectId, fileName);
+      if (fileName.endsWith(".properties") && locallyCachedApp == true) {
+        String projectProperties = new String(data, StandardCharsets.UTF_8);
+        Properties oldProperties = new Properties();
+        try {
+          oldProperties.load(new StringReader(projectProperties));
+        } catch (IOException e) {
+          e.printStackTrace();
+        }
+        YoungAndroidSettingsBuilder oldPropertiesBuilder = new YoungAndroidSettingsBuilder(oldProperties);
+        String updatedProperties = oldPropertiesBuilder.setAIVersioning(Integer.toString(YOUNG_ANDROID_VERSION)).toProperties();
+        data = updatedProperties.getBytes(StandardCharsets.UTF_8);
       }
       out.putNextEntry(new ZipEntry(fileName));
       out.write(data, 0, data.length);
@@ -1427,12 +1451,21 @@ public class LocalStorageIo implements  StorageIo {
       }
     }
     if (includeAndroidKeystore) {
-      byte [] data = downloadRawUserFile(userId, "android.keystore");
+      byte [] data = downloadRawUserFile(userId, StorageUtil.ANDROID_KEYSTORE_FILENAME);
       if (data != null) {
-        out.putNextEntry(new ZipEntry("android.keystore"));
+        out.putNextEntry(new ZipEntry(StorageUtil.ANDROID_KEYSTORE_FILENAME));
         out.write(data, 0, data.length);
         out.closeEntry();
         fileCount++;
+      }
+      if (forAppStore) {
+        data = downloadRawUserFile(userId, StorageUtil.APPSTORE_CREDENTIALS_FILENAME);
+        if (data != null) {
+          out.putNextEntry(new ZipEntry(StorageUtil.APPSTORE_CREDENTIALS_FILENAME));
+          out.write(data, 0, data.length);
+          out.closeEntry();
+          fileCount++;
+        }
       }
     }
     if (fileCount == 0) {
@@ -1450,12 +1483,6 @@ public class LocalStorageIo implements  StorageIo {
         new ProjectSourceZip(zipName, zipFile.toByteArray(), fileCount);
     projectSourceZip.setMetadata(projectName);
     return projectSourceZip;
-  }
-
-  @Override
-  public Motd getCurrentMotd() {
-    // TBD
-    return new Motd(1, "None", "No MOTD");
   }
 
   @Override

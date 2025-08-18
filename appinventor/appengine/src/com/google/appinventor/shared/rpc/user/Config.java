@@ -48,6 +48,7 @@ public class Config implements IsSerializable, Serializable {
   private boolean deleteAccountAllowed;
   private String iosExtensions;
   private String surveyUrl;
+  private boolean iosBuildServer;
 
   public Config() {
   }
@@ -284,4 +285,11 @@ public class Config implements IsSerializable, Serializable {
     surveyUrl = value;
   }
 
+  public boolean getiOSBuildServer() {
+    return iosBuildServer;
+  }
+
+  public void setiOSBuildServer(boolean value) {
+    iosBuildServer = value;
+  }
 }
