@@ -9,7 +9,6 @@ import org.json.JSONObject;
 import org.json.JSONException;
 import com.google.appinventor.common.version.GitBuildId;
 import com.google.appinventor.shared.rpc.BlocksTruncatedException;
-import com.google.appinventor.shared.rpc.Motd;
 import com.google.appinventor.shared.rpc.Nonce;
 import com.google.appinventor.shared.rpc.admin.AdminUser;
 import com.google.appinventor.shared.rpc.AdminInterfaceException;
@@ -1887,88 +1886,6 @@ public class PostgreSQLStorageIo implements StorageIo {
     }
   }
 
-  // MOTD management
-
-  /**
-   * Returns the most recent motd.
-   *
-   * @return  motd
-   */
-  @Override
-  public Motd getCurrentMotd() {
-    boolean ok = false;
-    final String MOTD_CONFIG_KEY = "motd_captain";
-    final String DEFAULT_CAPTAIN = "Hello!";
-    final String DEFAULT_CONTENT = "Welcome to the experimental App Inventor system from MIT. " +
-      "This is still a prototype.  It would be a good idea to frequently back up " +
-      "your projects to local storage.";
-    Motd motd = null;
-
-    try (Connection conn = this.cpds.getConnection()) {
-
-      try {
-        doSetAutoCommit(conn, false);
-
-        String configText = null;
-        boolean requireReset = false;
-
-        // Query motd data
-        try (PreparedStatement qstmt = conn.prepareStatement("SELECT value FROM misc WHERE key = ?")) {
-          qstmt.setString(1, MOTD_CONFIG_KEY);
-          ResultSet rs = qstmt.executeQuery();
-          if (rs.next()) {
-            configText = rs.getString("value");
-          }
-        }
-
-        // Decode JSON
-        try {
-          if (configText != null) {
-            JSONObject config = new JSONObject(configText);
-            String captain = config.getString("captain");
-            String content = config.getString("content");
-            motd = new Motd(0, captain, content); // 0 is dummy ID
-          } else {
-            requireReset = true;
-          }
-        } catch (JSONException e) {
-          LOG.log(Level.WARNING, "Motd data in database is corrupted");
-          requireReset = true;
-        }
-
-        // Run insertion if it's missing
-        if (requireReset) {
-          motd = new Motd(0, DEFAULT_CAPTAIN, DEFAULT_CONTENT); // 0 is dummy ID
-
-          JSONObject config = new JSONObject();
-          config.put("captain", DEFAULT_CAPTAIN);
-          config.put("content", DEFAULT_CONTENT);
-
-          int ret = 0;
-          try (PreparedStatement ustmt = conn.prepareStatement("INSERT INTO misc (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = ?")) {
-            String configString = config.toString();
-            ustmt.setString(1, MOTD_CONFIG_KEY);
-            ustmt.setString(2, configString);
-            ustmt.setString(3, configString);
-            ret = ustmt.executeUpdate();
-          }
-
-          if (ret == 0) {
-            throw CrashReport.createAndLogError(LOG, null, "Database error in getCurrentMotd()", new RuntimeException("Unknown database error"));
-          }
-        }
-        ok = true;
-      } finally {
-        doFinish(conn, ok, "getCurrentMotd");
-      }
-
-    } catch (SQLException e) {
-      throw CrashReport.createAndLogError(LOG, null, DATABASE_ERROR, e);
-    }
-
-    return motd;
-  }
-
   /**
    *  Exports project files as a zip archive
    * @param userId a user Id (the request is made on behalf of this user)
@@ -1977,7 +1894,12 @@ public class PostgreSQLStorageIo implements StorageIo {
    * @param includeAndroidKeystore  whether or not to include the Android keystore
    * @param zipName  the name of the zip file, if a specific one is desired
    * @param fatalError set true to cause missing GCS file to throw exception
-   *
+   * @param includeYail            include any yail files in the project
+   * @param includeScreenShots     include any screen shots stored with the project
+   * @param forGallery             flag to indicate we are exporting for the gallery
+   * @param fatalError             Signal a fatal error if a file is not found
+   * @param forAppStore            true if the export is for an App Store build
+   * @param locallyCachedApp       true if we are providing cached app to Companion
    * @return  project with the content as requested by params.
    */
   @Override
@@ -1990,8 +1912,10 @@ public class PostgreSQLStorageIo implements StorageIo {
     final boolean includeYail,
     final boolean includeScreenShots,
     final boolean forGallery,
-    final boolean fatalError) throws IOException {
-
+    final boolean fatalError,
+    final boolean forAppStore,
+    final boolean locallyCachedApp
+  ) throws IOException {
     class FileRow {
       String fileName;
       FileData.RoleEnum role;
@@ -2014,6 +1938,7 @@ public class PostgreSQLStorageIo implements StorageIo {
     String projectName = null;
     String projectHistory = null;
     byte[] keystoreContent = null;
+    byte[] appStoreCredentials = null;
     boolean ok = false;
 
     try (Connection conn = this.cpds.getConnection()) {
@@ -2074,17 +1999,14 @@ public class PostgreSQLStorageIo implements StorageIo {
             if (!fr.role.equals(FileData.RoleEnum.SOURCE)) {
               continue;
             }
-            if (fr.fileName.equals(FileExporter.REMIX_INFORMATION_FILE_PATH)) {
-              // Skip legacy remix history files that were previous stored with the project
-              continue;
-            }
-            if (!includeScreenShots && fr.fileName.startsWith("screenshots")) {
-              continue;
-            }
 
-            // We intentionally remove *.yail files for AI1 compatibility
-            // TODO remove it in the future
-            if (!includeYail && fr.fileName.endsWith(".yail")) {
+
+            String fileName = fr.fileName;
+            if (fileName.equals(FileExporter.REMIX_INFORMATION_FILE_PATH) ||
+                (fileName.startsWith("screenshots") && !includeScreenShots) ||
+                (fileName.startsWith("src/") && fileName.endsWith(".yail") && !includeYail) ||
+                (fileName.startsWith("src/") && fileName.endsWith(".bky") && locallyCachedApp) ||
+                (fileName.startsWith("src/") && fileName.endsWith(".scm") && locallyCachedApp)) {
               continue;
             }
 
@@ -2101,6 +2023,19 @@ public class PostgreSQLStorageIo implements StorageIo {
 
             if (rs.next()) {
               keystoreContent = rs.getBytes("content");
+            }
+          }
+        }
+
+        // Find Apple App Store Credentials
+        if (forAppStore) {
+          try (PreparedStatement qstmt = conn.prepareStatement("SELECT * FROM userFile WHERE userId = ? AND fileName = ? AND content IS NOT NULL AND length(content) > 0")) {
+            qstmt.setLong(1, userId);
+            qstmt.setString(2, StorageUtil.APPSTORE_CREDENTIALS_FILENAME);
+            ResultSet rs = qstmt.executeQuery();
+
+            if (rs.next()) {
+              appStoreCredentials = rs.getBytes("content");
             }
           }
         }
@@ -2147,6 +2082,13 @@ public class PostgreSQLStorageIo implements StorageIo {
     if (keystoreContent != null) { // Android keystore
       zipStream.putNextEntry(new ZipEntry(StorageUtil.ANDROID_KEYSTORE_FILENAME));
       zipStream.write(keystoreContent, 0, keystoreContent.length);
+      zipStream.closeEntry();
+      fileCount += 1;
+    }
+
+    if (appStoreCredentials != null) { // App Store Credenials
+      zipStream.putNextEntry(new ZipEntry(StorageUtil.APPSTORE_CREDENTIALS_FILENAME));
+      zipStream.write(appStoreCredentials, 0, appStoreCredentials.length);
       zipStream.closeEntry();
       fileCount += 1;
     }
