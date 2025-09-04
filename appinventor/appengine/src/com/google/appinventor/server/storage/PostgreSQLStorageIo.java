@@ -33,6 +33,7 @@ import com.google.appinventor.server.storage.StoredData.PWData;
 import com.google.appinventor.server.util.LicenseConfig;
 
 import com.mchange.v2.c3p0.ComboPooledDataSource;
+import com.mchange.v2.c3p0.DataSources;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -65,6 +66,7 @@ import java.beans.PropertyVetoException;
 
 import javax.annotation.Nullable;
 import javax.annotation.Nonnull;
+import javax.sql.DataSource;
 
 /**
  * Interface of methods to simplify access to the storage systems.
@@ -79,6 +81,7 @@ public class PostgreSQLStorageIo implements StorageIo {
   private static final Flag<String> jdbcUrl = Flag.createFlag("jdbc.url", null);
   private static final Flag<String> jdbcUser = Flag.createFlag("jdbc.user", null);
   private static final Flag<String> jdbcPassword = Flag.createFlag("jdbc.password", null);
+  private static final Flag<String> jdbcReadOnlyUrl = Flag.createFlag("jdbc.readOnlyUrl", jdbcUrl.get());
   private static final Logger LOG = Logger.getLogger(PostgreSQLStorageIo.class.getName());
   private static final String HOST_ID = String.format(
     "%s-%s-%s-%s",
@@ -2529,30 +2532,37 @@ public class PostgreSQLStorageIo implements StorageIo {
     boolean ok = false;
     List<AdminUser> result = new ArrayList<AdminUser>();
 
-    try (Connection conn = this.cpds.getConnection()) {
-      doSetAutoCommit(conn, false);
-      try (PreparedStatement qstmt = conn.prepareStatement("SELECT * FROM account WHERE email >= ? LIMIT 20")) {
-        qstmt.setString(1, partialEmail);
-        ResultSet rs = qstmt.executeQuery();
-        while (rs.next()) {
-          String strUserId = rs.getString("uuid");
-          Timestamp visitedTs = rs.getTimestamp("visited");
-          Date visitedDt = visitedTs != null ? new Date(visitedTs.getTime()) : null;
-          AdminUser user = new AdminUser(
-            strUserId,
-            "",
-            rs.getString("email"),
-            rs.getBoolean("tosAccepted"),
-            rs.getBoolean("isAdmin"),
-            visitedDt);
-          result.add(user);
+    try {
+      DataSource readOnlySource = DataSources.unpooledDataSource(jdbcReadOnlyUrl.get(), jdbcUser.get(), jdbcPassword.get());
+
+      try (Connection conn = readOnlySource.getConnection()) {
+        doSetAutoCommit(conn, false);
+        try (PreparedStatement qstmt = conn.prepareStatement("SELECT * FROM account WHERE email ~* ? ORDER BY email LIMIT 20")) {
+          qstmt.setString(1, partialEmail);
+          ResultSet rs = qstmt.executeQuery();
+          while (rs.next()) {
+            String strUserId = rs.getString("uuid");
+            Timestamp visitedTs = rs.getTimestamp("visited");
+            Date visitedDt = visitedTs != null ? new Date(visitedTs.getTime()) : null;
+            AdminUser user = new AdminUser(
+              strUserId,
+              "",
+              rs.getString("email"),
+              rs.getBoolean("tosAccepted"),
+              rs.getBoolean("isAdmin"),
+              visitedDt);
+            result.add(user);
+          }
+          ok = true;
+        } finally {
+          doFinish(conn, ok, "searchUsers");
         }
-        ok = true;
-      } finally {
-        doFinish(conn, ok, "searchUsers");
+      } catch (SQLException e) {
+        throw CrashReport.createAndLogError(LOG, null, DATABASE_ERROR, e);
       }
+
     } catch (SQLException e) {
-      throw CrashReport.createAndLogError(LOG, null, DATABASE_ERROR, e);
+      throw CrashReport.createAndLogError(LOG, null, "Cannot setup readonly connection", e);
     }
     return result;
   }
