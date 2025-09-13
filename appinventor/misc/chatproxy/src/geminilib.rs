@@ -120,11 +120,11 @@ pub async fn converse(
 
     let request = build_gemini_prompt(question, &mut state, message.doimage.unwrap_or_default())?;
 
-    #[cfg(debug_assertions)]
-    {
-        let data = serde_json::to_string(&request)?;
-        debug_eprintln!("Gemini Data = {}", data);
-    }
+    // #[cfg(debug_assertions)]
+    // {
+    //     let data = serde_json::to_string(&request)?;
+    //     debug_eprintln!("Gemini Data = {}", data);
+    // }
     let client = reqwest::Client::new();
     let res = client
         .post(format!(
@@ -137,10 +137,15 @@ pub async fn converse(
     let status = res.status();
     let retval = res.text().await?;
     if !status.is_success() {
-        debug_eprintln!("Status Failure: {:#}: Retval: {}", status, retval);
-        return Err("Error from Gemini".into());
+        // debug_eprintln!("Status Failure: {:#}: Retval: {}", status, retval);
+        debug_eprintln!("Gemini Error: Status = {} Retval = {}", status, retval);
+        if status == 429 {
+            return Err(Box::new(ChatproxyError::OverQuota));
+        } else {
+            return Err("Error from Gemini".into());
+        }
     }
-    debug_eprintln!("StatusCode = {}", status.as_u16());
+    //     debug_eprintln!("StatusCode = {}", status.as_u16());
     {
         use serde_json::value::Value;
         let _v: Value = serde_json::from_str(&retval)?;
@@ -153,16 +158,16 @@ pub async fn converse(
     if pts.is_empty() {
         return Err("Gemini didn't return answer".into());
     }
-    debug_eprintln!("pts.len() == {}", pts.len());
+    // debug_eprintln!("pts.len() == {}", pts.len());
     match pts.len() {
         0 => Err("Gemini didn't return an answer".into()),
         1 => {
-            debug_eprintln!("in pts.len() == 1)");
+            // debug_eprintln!("in pts.len() == 1)");
             let content = &pts[0].content;
             if content.parts.is_empty() {
                 return Err("Gemini didn't return answer".into());
             }
-            debug_eprintln!("content.parts.len() == {}", content.parts.len());
+            // debug_eprintln!("content.parts.len() == {}", content.parts.len());
             if content.parts.len() == 1 {
                 let partvec: Vec<Part> = content
                     .parts
@@ -177,7 +182,7 @@ pub async fn converse(
                     parts: partvec,
                     role: content.role.clone(),
                 };
-                debug_eprintln!("Pushing state: {:#?}", parts);
+                // debug_eprintln!("Pushing state: {:#?}", parts);
                 state.parts.push(parts);
                 match &content.parts[0] {
                     Part::text(t) => {
@@ -214,7 +219,7 @@ pub async fn converse(
                     parts: partvec,
                     role: content.role.clone(),
                 };
-                debug_eprintln!("Pushing state: {:#?}", parts);
+                // debug_eprintln!("Pushing state: {:#?}", parts);
                 state.parts.push(parts);
                 answer.state = state;
                 answer.tokens = candidates.usageMetadata.totalTokenCount;

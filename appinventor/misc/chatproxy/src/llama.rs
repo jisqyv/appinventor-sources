@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 use crate::{Converse, Role};
-use debug_print::debug_eprintln;
+// use debug_print::debug_eprintln;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::error::Error;
@@ -55,7 +55,7 @@ impl Converse for LlamaConversation {
     }
 
     fn prepare(&self) -> String {
-        debug_eprintln!("Preparing: {:#?}", self);
+        //         debug_eprintln!("Preparing: {:#?}", self);
         let mut prompt: String = r#"<|begin_of_text|>"#.to_string();
         if let Some(ref system) = self.system {
             prompt += &format!(
@@ -100,9 +100,9 @@ impl Converse for LlamaConversation {
         Ok(serde_json::to_string(&self)?)
     }
 
-    fn token_count(&self, response: &str) -> Result<i32, Box<dyn Error>> {
+    fn token_count(&self, response: &str) -> Result<i64, Box<dyn Error>> {
         let r: LlamaResponse = serde_json::from_str(response)?;
-        Ok(r.generation_token_count + r.prompt_token_count)
+        Ok((r.generation_token_count + r.prompt_token_count) as i64)
     }
 
     fn parse_response(&self, response: &str) -> Result<String, Box<dyn Error>> {

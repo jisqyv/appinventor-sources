@@ -18,8 +18,8 @@ debug_print = "1.0.0"
 structopt = "0.3.22"
 serde = { version = "1.0.123", features = ["serde_derive"]}
 serde_json =  { version = "1.0.62" }
-async-openai = "0.18.3"
-reqwest = { version = "0.11.18", features = ["json"] }
+async-openai = "0.29.0"
+reqwest = { version = "0.11.18", features = ["json", "multipart"] }
 # async-openai = {path = "../../async-openai"}
 tokio = { version = "1.25.0", features = ["full"] }
 uuid = { version = "1.3.1", features = ["v4"] }

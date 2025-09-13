@@ -1,4 +1,4 @@
-use debug_print::debug_eprintln;
+// use debug_print::debug_eprintln;
 use serde::{Deserialize, Serialize};
 use sqlx::postgres::PgPool;
 use std::borrow::Cow;
@@ -42,6 +42,7 @@ pub async fn converse(
     dbpool: &PgPool,
     uuid: &str,
     message: &chat::request<'_>,
+    _shortkey: Option<String>,
 ) -> Result<Answer, Box<dyn Error>> {
     let mut model = message.model.clone().unwrap_or_default();
     // let mut model = if let Some(ref m) = message.model {
@@ -76,23 +77,23 @@ pub async fn converse(
         system: context.system.clone(),
         stream: false,
     };
-    debug_eprintln!("request = {:#?}", request);
+    // debug_eprintln!("request = {:#?}", request);
     let data = serde_json::to_string(&request)?;
-    debug_eprintln!("data = {}", data);
+    //     debug_eprintln!("data = {}", data);
     let res = client
         .post(ollama_url)
         .header("Content-Type", "application/json")
         .body(data)
         .send()
         .await?;
-    debug_eprintln!("Res = {:#?}", res);
+    // debug_eprintln!("Res = {:#?}", res);
     let resjson = res.text().await?;
-    debug_eprintln!("Answer = {}", resjson);
+    // debug_eprintln!("Answer = {}", resjson);
     let res: Response = serde_json::from_str(&resjson)?;
     let pev = res.prompt_eval_count.unwrap_or(0);
     let evc = res.eval_count.unwrap_or(0);
-    let usage: i32 = (pev + evc).try_into().unwrap();
-    debug_eprintln!("Cost = {}", usage);
+    let usage: i64 = (pev + evc).into();
+    // debug_eprintln!("Cost = {}", usage);
     crate::record_usage(huuid, usage, dbpool, "ollama", false).await?;
     if res.response.is_some() {
         context.context = res.context;

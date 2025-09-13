@@ -1,4 +1,4 @@
-use debug_print::debug_eprintln;
+// use debug_print::debug_eprintln;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::error::Error;
@@ -37,7 +37,7 @@ pub async fn createimage(
         n: 1,
     };
     let data = serde_json::to_string(&p)?;
-    debug_eprintln!("{}", data);
+    //     debug_eprintln!("{}", data);
     let client = reqwest::Client::new();
     let res = client
         .post(CREATE_URL)
@@ -49,10 +49,10 @@ pub async fn createimage(
     let status = res.status();
     let retval = res.text().await?;
     if !status.is_success() {
-        debug_eprintln!("Status Failure: {:#}: Retval: {}", status, retval);
+        //        debug_eprintln!("Status Failure: {:#}: Retval: {}", status, retval);
         return Err("Error from DALL-E".into());
     }
-    debug_eprintln!("StatusCode = {}", status.as_u16());
+    // debug_eprintln!("StatusCode = {}", status.as_u16());
     // {
     //     use serde_json::value::Value;
     //     let _v: Value = serde_json::from_str(&retval)?;
@@ -110,7 +110,7 @@ pub async fn editimage(
         .multipart(f)
         .send()
         .await?;
-    debug_eprintln!("{:#?}", res);
+    // debug_eprintln!("{:#?}", res);
     let content = res.text().await?;
     let response: Response = match serde_json::from_str(&content) {
         Ok(n) => n,

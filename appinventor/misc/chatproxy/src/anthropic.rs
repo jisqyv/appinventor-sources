@@ -78,7 +78,7 @@ impl Converse for AnthropicConversation {
     }
 
     // Stub Implementation
-    fn token_count(&self, _response: &str) -> Result<i32, Box<dyn Error>> {
+    fn token_count(&self, _response: &str) -> Result<i64, Box<dyn Error>> {
         Ok(0)
     }
 }
