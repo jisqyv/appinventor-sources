@@ -1370,8 +1370,9 @@ public class YaVersion {
   // For PLAYER_COMPONENT_VERSION 6:
   // - The PlayInForeground property was added.
   // - The OtherPlayerStarted event was added.
-
-  public static final int PLAYER_COMPONENT_VERSION = 6;
+  // For PLAYER_COMPONENT_VERSION 7:
+  // - The PlayOnlyInForeground property default value was changed to True (was False).
+  public static final int PLAYER_COMPONENT_VERSION = 7;
 
   // For POLYGON_COMPONENT_VERSION 1:
   // - Initial Polygon implementation for Maps
@@ -1720,14 +1721,12 @@ public class YaVersion {
 
   public static final String ACCEPTABLE_COMPANION_PACKAGE = "edu.mit.appinventor.aicompanion3";
 
-  public static final String PREFERRED_COMPANION = "2.76";
+  public static final String PREFERRED_COMPANION = "2.77";
   public static final String EMULATOR_UPDATE_URL = "/companions/Emulator.apk"; // Should be an APK
   public static final String COMPANION_UPDATE_URL = "/companions/MITAI2Companion.asc";
   public static final String COMPANION_UPDATE_URL1 = "/companions/MITAI2Companion.apk";
   public static final String COMPANION_UPDATE_EMULATOR_URL = "/companions/CompanionUpgradeHelper.asc";
-  public static final String [] ACCEPTABLE_COMPANIONS = { "2.66", "2.66u",
-                                                          "2.67", "2.67u",
-                                                          "2.68", "2.68u",
+  public static final String [] ACCEPTABLE_COMPANIONS = { "2.68", "2.68u",
                                                           "2.69", "2.69u",
                                                           "2.70", "2.70u",
                                                           "2.71", "2.71u",
@@ -1736,7 +1735,8 @@ public class YaVersion {
                                                           "2.73a", "2.73au",
                                                           "2.74", "2.74u",
                                                           "2.75", "2.75u",
-                                                          "2.76", "2.76u"};
+                                                          "2.76", "2.76u",
+                                                          "2.77", "2.77u"};
 
   // Splash Screen Values
   public static final int SPLASH_SURVEY = 1;

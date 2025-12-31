@@ -29,9 +29,10 @@
       }
       return;
   }
+  final String gatag = Flag.createFlag("google.analytics", "").get();
   String cachePostfix = "@blocklyeditor_isRelease@".equals("true") ? "cache" : "nocache";
   String locale = request.getParameter("locale");
-  if (locale == null || locale.isEmpty()) {
+  if (locale == null || locale.isEmpty() || !i18n.mapping.containsKey(locale)) {
     locale = "en";
   }
   String hash = i18n.mapping.getOrDefault(locale, "");
@@ -42,7 +43,7 @@
   String translation = odeBase + "ode/messages" + hash + "." + cachePostfix + ".js";
 %>
 <!-- Copyright 2007-2009 Google Inc. All Rights Reserved. -->
-<!-- Copyright 2011-2024 Massachusetts Institute of Technology. All Rights Reserved. -->
+<!-- Copyright 2011-2025 Massachusetts Institute of Technology. All Rights Reserved. -->
 <!DOCTYPE html>
 <html>
   <head>
@@ -52,19 +53,18 @@
     <!--meta name="gwt:property" content="locale=en_US"-->
     <!-- Title is set at runtime. -->
     <title> </title>
-	<!-- Google Analytics. -->
-	<script type="text/javascript">
-	  var _gaq = _gaq || [];
-	  _gaq.push(['_setAccount', 'UA-28621056-1']);
-	  _gaq.push(['_setDomainName', 'ai2.appinventor.mit.edu']);
-	  _gaq.push(['_setAllowLinker', true]);
-	  _gaq.push(['_trackPageview']);
-	  (function() {
-	    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-	    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-	    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
-	  })();
-	</script>
+    <% if (!gatag.isEmpty()) { %>
+    <!-- Google Analytics. -->
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=<%= gatag %>"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', '<%= gatag %>');
+    </script>
+<% } %>
     <link type="text/css" rel="stylesheet" href="static/css/gwt.css">
     <link type="text/css" rel="stylesheet" href="static/css/blockly.css">
     <link type="text/css" rel="stylesheet" href="static/css/ai2blockly.css">

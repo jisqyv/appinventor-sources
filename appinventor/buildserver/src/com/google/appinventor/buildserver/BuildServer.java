@@ -336,6 +336,7 @@ public class BuildServer {
     maximumActiveBuildTasks = Math.max(maximumActiveBuildTasks, buildExecutor.getActiveTaskCount());
     variables.put("maximum-simultaneous-build-tasks-occurred", maximumActiveBuildTasks + "");
     variables.put("active-build-tasks", buildExecutor.getActiveTaskCount() + "");
+    variables.put("peak-active-build-tasks", buildExecutor.getPeakActiveTaskCount() + "");
 
     return mapToHtml(variables);
   }
@@ -727,6 +728,7 @@ public class BuildServer {
         for (File file : files) {
           zipOutputStream.putNextEntry(new ZipEntry(file.getName()));
           Files.copy(file, zipOutputStream);
+          file.delete();        // Cleanup
         }
       }
       successfulBuildRequests.getAndIncrement();

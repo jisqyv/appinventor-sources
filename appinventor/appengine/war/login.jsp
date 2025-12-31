@@ -16,6 +16,7 @@
    boolean anonOK = Flag.createFlag("auth.useanon", false).get();
    boolean showLogin = Flag.createFlag("auth.showlogin", true).get();
    String newGalleryId = StringEscapeUtils.escapeHtml4(request.getParameter("ng"));
+   String uiPreference = StringEscapeUtils.escapeHtml4(request.getParameter("ui"));
    if (locale == null) {
        locale = "en";
    }
@@ -95,7 +96,6 @@
      };
     </script>
 <% } %>
-  </head>
   <style type="text/css">
     #customBtn {
       display: inline-block;
@@ -130,6 +130,7 @@
       font-family: 'Roboto', sans-serif;
     }
   </style>
+  </head>
 <body>
   <center>
     <h1>${pleaselogin}</h1>
@@ -163,6 +164,10 @@ out.println("<center><font color=red><b>" + error + "</b></font></center><br/>")
    if (newGalleryId != null && !newGalleryId.equals("")) {
    %>
 <input type=hidden name=ng value="<%= newGalleryId %>">
+<% }
+   if (uiPreference != null && !uiPreference.equals("")) {
+   %>
+<input type=hidden name=ui value="<%= uiPreference %>">
 <% } %>
 <% if (redirect != null && !redirect.equals("")) {
    %>
@@ -210,6 +215,7 @@ Your Revisit Code:&nbsp;<input type=text name=A value="" size=4 maxlength=4>-<in
                            .add("autoload", autoload)
                            .add("galleryId", galleryId)
                            .add("ng", newGalleryId)
+                           .add("ui", uiPreference)
                            .add("redirect", redirect).build() %>"  style="text-decoration:none;" >中文</a>&nbsp;
 <a href="<%= new UriBuilder("/login")
                            .add("locale", "pt")
@@ -217,6 +223,7 @@ Your Revisit Code:&nbsp;<input type=text name=A value="" size=4 maxlength=4>-<in
                            .add("autoload", autoload)
                            .add("galleryId", galleryId)
                            .add("ng", newGalleryId)
+                           .add("ui", uiPreference)
                            .add("redirect", redirect).build() %>"  style="text-decoration:none;" >Português</a>&nbsp;
 <a href="<%= new UriBuilder("/login")
                    .add("locale", "en")
@@ -224,19 +231,12 @@ Your Revisit Code:&nbsp;<input type=text name=A value="" size=4 maxlength=4>-<in
                    .add("autoload", autoload)
                    .add("galleryId", galleryId)
                    .add("ng", newGalleryId)
+                   .add("ui", uiPreference)
                    .add("redirect", redirect).build() %>"  style="text-decoration:none;" >English</a></center>
-<p></p>
-<center>
-<%    if (locale != null && locale.equals("zh_CN")) { %>
-<a href="http://www.weibo.com/mitappinventor" target="_blank"><img class="img-scale"
-                  src="/static/images/mzl.png" width="30" height="30" title="Sina WeiBo"></a>&nbsp;
-<%    } %>
-<a href="http://www.appinventor.mit.edu" target="_blank"><img class="img-scale"
-                src="/static/images/login-app-inventor.jpg" width="50" height="30" title="MIT App Inventor"></a></center>
 <p></p>
 
 <p style="text-align: center; clear:both;"><a rel="license" href="http://creativecommons.org/licenses/by-sa/3.0/"
-                                              target="_blank"><img alt="Creative Commons License" src="/static/images/cc3.png"></a> <br>
+                                                 target="_blank"><img alt="Creative Commons License" src="/static/images/cc3.png"></a> <br>
   <a rel="license" href="http://creativecommons.org/licenses/by-sa/3.0/" target="_blank"></a></p>
 </footer>
 </body></html>
