@@ -103,11 +103,13 @@ public class LoginServlet extends HttpServlet {
   private static final Flag<String> password = Flag.createFlag("localauth.mailserver.password", "");
   private static final Flag<String> publicPort = Flag.createFlag("port.public", "8888");
   private static final boolean useGoogle = Flag.createFlag("auth.usegoogle", false).get();
+  private static final String loginUrl = Flag.createFlag("login.url", "").get();
   private static final boolean anonOK = Flag.createFlag("auth.useanon", false).get();
   private static final String googleClientId = Flag.createFlag("auth.googleclientid", "").get();
   private static final ExecutorService executorService = Executors.newCachedThreadPool();
   private final PolicyFactory sanitizer = new HtmlPolicyBuilder().allowElements("p").toFactory();
   private static final boolean DEBUG = Flag.createFlag("appinventor.debugging", false).get();
+
 
   private static final Set<LoginListener> loginListeners = new HashSet<>();
 
@@ -161,8 +163,24 @@ public class LoginServlet extends HttpServlet {
       bundle = ResourceBundle.getBundle("com/google/appinventor/server/loginmessages", new Locale(locale));
     }
 
-    // If we get here, local accounts are supported
-    // or we are the "token" page
+    if (page.equals("health")) { // Used by kubernetes readiness probe
+      resp.setStatus(resp.SC_OK);
+      return;
+    }
+
+    if (!loginUrl.isEmpty() && !(page.equals("token") || page.equals("stoken"))) {
+      /* If we have an external login URL specified, then redirect to it. */
+      String uri = new UriBuilder(loginUrl)
+        .add("locale", locale)
+        .add("repo", repo)
+        .add("ng", newGalleryId)
+        .add("galleryId", galleryId)
+        .add("autoload", autoload)
+        .add("ui", uiPreference)
+        .add("redirect", redirect).build();
+      resp.sendRedirect(uri);
+      return;
+    }
 
     if (page.equals("setpw")) {
       String uid = getParam(req);
