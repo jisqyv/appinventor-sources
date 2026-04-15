@@ -82,6 +82,8 @@ public class PostgreSQLStorageIo implements StorageIo {
   private static final Flag<String> jdbcUser = Flag.createFlag("jdbc.user", null);
   private static final Flag<String> jdbcPassword = Flag.createFlag("jdbc.password", null);
   private static final Flag<String> jdbcReadOnlyUrl = Flag.createFlag("jdbc.readOnlyUrl", jdbcUrl.get());
+  private static final Flag<Integer> c3p0MaxPoolSize = Flag.createFlag("c3p0.maxpoolsize", 15);
+  private static final Flag<Integer> c3p0MaxConnectionAge = Flag.createFlag("c3p0.maxconnectionage", 0);
   private static final Logger LOG = Logger.getLogger(PostgreSQLStorageIo.class.getName());
   private static final String HOST_ID = String.format(
     "%s-%s-%s-%s",
@@ -98,15 +100,18 @@ public class PostgreSQLStorageIo implements StorageIo {
 
   public PostgreSQLStorageIo() {
     // Setup connection
+    LOG.log(Level.INFO, "PostgreSQLStorageIo startup: maxConnections = " + c3p0MaxPoolSize.get() + " maxConnectionAge = " + c3p0MaxConnectionAge.get());
     try {
       this.cpds = new ComboPooledDataSource();
       this.cpds.setDriverClass("org.postgresql.Driver");
       this.cpds.setJdbcUrl(jdbcUrl.get());
       this.cpds.setUser(jdbcUser.get());
       this.cpds.setPassword(jdbcPassword.get());
-      this.cpds.setMaxStatements(180);
+      this.cpds.setMaxStatementsPerConnection(100); // We currently have 89 known prepared statements
       this.cpds.setIdleConnectionTestPeriod(60);
       this.cpds.setAutoCommitOnClose(false);
+      this.cpds.setMaxConnectionAge(c3p0MaxConnectionAge.get());
+      this.cpds.setMaxPoolSize(c3p0MaxPoolSize.get());
     } catch (PropertyVetoException e) {
       throw CrashReport.createAndLogError(LOG, null, "Cannot setup database connection pool", e);
     }
@@ -203,7 +208,7 @@ public class PostgreSQLStorageIo implements StorageIo {
           stmt.execute("CREATE TABLE IF NOT EXISTS feedback (" +
                        "  id BIGSERIAL PRIMARY KEY," +
                        "  notes TEXT," +
-                       "  foundIn TEXT," +
+                       "  foundId TEXT," +
                        "  faultData TEXT," +
                        "  comments TEXT," +
                        "  datestamp TEXT," +
