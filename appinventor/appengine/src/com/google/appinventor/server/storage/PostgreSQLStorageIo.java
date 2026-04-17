@@ -91,6 +91,14 @@ public class PostgreSQLStorageIo implements StorageIo {
   private static final Flag<Integer> c3p0MaxPoolSize = Flag.createFlag("c3p0.maxpoolsize", 15);
   private static final Flag<Integer> c3p0MaxConnectionAge = Flag.createFlag("c3p0.maxconnectionage", 0);
   private static final Flag<Boolean> initializeData = Flag.createFlag("db.initialize", true); // if false, we skip the table creation
+  private static final Flag<String> awsAccessKey = Flag.createFlag("aws.access_key", ""); // If empty we don't use S3
+  private static final Flag<String> awsSecretKey = Flag.createFlag("aws.secret_key", "");
+  private static final Flag<String> awsBucket = Flag.createFlag("aws.bucket", "");
+  private static final Flag<String> awsPrefix = Flag.createFlag("aws.prefix", ""); // Prefix for content in bucket
+  private static final Flag<String> awsRegion = Flag.createFlag("aws.region", "us-east-1");
+  private static final Flag<Integer> awsCacheSize = Flag.createFlag("aws.cachesize", 1000000); // Cache size in bytes
+  private static final Flag<Integer> awsReplacementPercent = Flag.createFlag("aws.replacementpercent", 5);
+  private static final Flag<Boolean> stillTesting = Flag.createFlag("aws.testing", false); // Still put contents into the db
   private static final Logger LOG = Logger.getLogger(PostgreSQLStorageIo.class.getName());
   private static final String HOST_ID = String.format(
     "%s-%s-%s-%s",
@@ -105,6 +113,9 @@ public class PostgreSQLStorageIo implements StorageIo {
   private final DataSource readOnlySource;
 
   private static final String DEFAULT_ALLOWED_IOS_EXTENSIONS = "[\"edu.mit.appinventor.ble\",\"com.bbc.microbit.profile\",\"edu.mit.appinventor.ai.personalimageclassifier\",\"edu.mit.appinventor.ai.personalaudioclassifier\",\"edu.mit.appinventor.ai.posenet\",\"edu.mit.appinventor.ai.facemesh\",\"edu.mit.appinventor.ai.teachablemachine\",\"fun.microblocks.microblocks\"]";
+
+  private S3Access s3access = null;
+  private BinaryLRUCache assetCache = null;
 
   public PostgreSQLStorageIo() {
     // Setup connection
@@ -127,6 +138,15 @@ public class PostgreSQLStorageIo implements StorageIo {
       throw CrashReport.createAndLogError(LOG, null, "Cannot setup database connection pool", e);
     } catch (SQLException e) {
       throw CrashReport.createAndLogError(LOG, null, "Cannot setup database connection pool", e);
+    }
+
+    // Initialize S3 Access if configured
+    if (!(awsAccessKey.get().isEmpty())) {
+      s3access = new S3Access(awsAccessKey.get(), awsSecretKey.get(), awsRegion.get(), awsBucket.get());
+      assetCache = new BinaryLRUCache(awsCacheSize.get());
+      LOG.log(Level.INFO, "We have awsAccessKey, S3 on");
+    } else {
+      LOG.log(Level.INFO, "*NO* AWS AccessKey, no S3");
     }
 
     // Initialize database
@@ -185,6 +205,8 @@ public class PostgreSQLStorageIo implements StorageIo {
             stmt.execute("CREATE TABLE IF NOT EXISTS assetFile (" +
                          " id BIGSERIAL PRIMARY KEY," +
                          " hash TEXT UNIQUE NOT NULL," +
+                         " iss3 BOOLEAN DEFAULT FALSE NOT NULL," +
+                         " len BIGINT," +
                          " modifiedDate TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP," +
                          " content BYTEA" +
                          ")");
@@ -2015,13 +2037,7 @@ public class PostgreSQLStorageIo implements StorageIo {
             FileRow fr = new FileRow(rs.getString("fileName"), role, rs.getBytes("content"));
             String hash = rs.getString("hash");
             if (hash != null) { // Asset File
-              try (PreparedStatement qstmt1 = conn.prepareStatement("SELECT content FROM assetFile where hash = ?")) {
-                qstmt1.setString(1, hash);
-                ResultSet rs1 = qstmt1.executeQuery();
-                if (rs1.next()) {
-                  fr.setContent(rs1.getBytes("content"));
-                }
-              }
+              fr.content = getAssetFile(hash, conn);
             }
 
             // Kick out some files
@@ -3050,27 +3066,13 @@ public class PostgreSQLStorageIo implements StorageIo {
         sb.append(String.format("%02X", b));
       }
       hash = sb.toString();
-      try (PreparedStatement qstmt = conn.prepareStatement(
-          "SELECT id from assetFile where hash = ?")) {
-        qstmt.setString(1, hash);
-        ResultSet rs = qstmt.executeQuery();
-        if (rs.next()) {
-          long id = rs.getLong(1);
-          try (PreparedStatement stmt = conn.prepareStatement("UPDATE assetFile set modifiedDate = CURRENT_TIMESTAMP WHERE id = ?")) {
-            stmt.setLong(1, id);
-            stmt.executeUpdate();
-          }
-        } else {
-          try (PreparedStatement stmt = conn.prepareStatement("INSERT INTO assetFile (hash, content) values (?, ?) ON CONFLICT(hash) DO NOTHING")) {
-            stmt.setString(1, hash);
-            stmt.setBytes(2, content);
-            stmt.executeUpdate();
-          }
-        }
+      try {
+        storeAssetFile(hash, content, conn);
       } catch (SQLException e) {
-        throw CrashReport.createAndLogError(LOG, null, "Error creating assetfile", e);
+        String strUserId = "<unknown>"; // Don't bother to make a call to find it out.
+        throw CrashReport.createAndLogError(LOG, null, makeErrorMsg(strUserId, userId, projectId, null), e);
       }
-      content = null;           // Because it is now in the assetFile table
+      content = null;           // Because it is now in the assetFile table or S3
     }
 
     try (PreparedStatement ustmt = conn.prepareStatement(
@@ -3171,24 +3173,7 @@ public class PostgreSQLStorageIo implements StorageIo {
         sb.append(String.format("%02X", b));
       }
       String hash = sb.toString();
-      try (PreparedStatement qstmt = conn.prepareStatement("SELECT id FROM assetFile where hash = ?")) {
-        qstmt.setString(1, hash);
-        ResultSet rs = qstmt.executeQuery();
-        if (rs.next()) {        // file already exists, update it modification time
-          long id = rs.getLong(1);
-          try (PreparedStatement stmt = conn.prepareStatement("UPDATE assetFile set modifiedDate = CURRENT_TIMESTAMP WHERE id = ?")) {
-            stmt.setLong(1, id);
-            stmt.executeUpdate();
-          }
-        } else {
-          // the ON CONFLICT clause is in case we have a race with two processes/threads adding the same asset.
-          try (PreparedStatement stmt = conn.prepareStatement("INSERT INTO assetFile (hash, content) values (?, ?) ON CONFLICT (hash) DO NOTHING")) {
-            stmt.setString(1, hash);
-            stmt.setBytes(2, content);
-            stmt.executeUpdate();
-          }
-        }
-      }
+      storeAssetFile(hash, content, conn);
       try (PreparedStatement ustmt = conn.prepareStatement("UPDATE projectFile SET hash = ? WHERE projectId = ? AND userId = ? AND fileName = ?")) {
         ustmt.setString(1, hash);
         ustmt.setLong(2, projectId);
@@ -3246,13 +3231,7 @@ public class PostgreSQLStorageIo implements StorageIo {
             if (hash == null) {
               throw CrashReport.createAndLogError(LOG, null, makeErrorMsg(strUserId, null, projectId, fileName), new FileNotFoundException(fileName));
             }
-            try (PreparedStatement qstmt1 = conn.prepareStatement("SELECT content from assetFile WHERE hash = ?")) {
-              qstmt1.setString(1, hash);
-              rs = qstmt1.executeQuery();
-              if (rs.next()) {
-                contentBytes = rs.getBytes("content");
-              }
-            }
+            contentBytes = getAssetFile(hash, conn);
           }
         }
         ok = true;
@@ -3498,5 +3477,85 @@ public class PostgreSQLStorageIo implements StorageIo {
     } else {
       return false;
     }
+  }
+
+  private void storeAssetFile(String hash, byte[] content, Connection conn) throws SQLException {
+    boolean iss3 = true;
+    long contentLength = content.length;
+
+    if (!(awsAccessKey.get().isEmpty())) { // Store in S3
+      String s3key = awsPrefix.get() + "/" + hash;
+      if (!s3access.exists(s3key)) {
+        try {
+          s3access.store(s3key, content);
+        } catch (Exception e) {
+          LOG.log(Level.SEVERE, "S3 Store Failed", e);
+          iss3 = false;         // Store it in the database
+        }
+      }
+      // if stillTesting is true, then we still store data in the db just in case
+      if (iss3 && !stillTesting.get()) content = null;           // Because we just put it in S3
+    } else {
+      iss3 = false;
+    }
+    try (PreparedStatement qstmt = conn.prepareStatement("SELECT id FROM assetFile where hash = ?")) {
+      qstmt.setString(1, hash);
+      ResultSet rs = qstmt.executeQuery();
+      if (rs.next()) {        // file already exists, update it modification time
+        long id = rs.getLong(1);
+        try (PreparedStatement stmt = conn.prepareStatement("UPDATE assetFile set modifiedDate = CURRENT_TIMESTAMP, content = ?, iss3 = ?, len = ? WHERE id = ?")) {
+          stmt.setLong(4, id);
+          stmt.setBytes(1, content); // If we stored in S3, this will be null, removing the content from the database
+          stmt.setBoolean(2, iss3);
+          stmt.setLong(3, contentLength);
+          stmt.executeUpdate();
+        }
+      } else {
+        // the ON CONFLICT clause is in case we have a race with two processes/threads adding the same asset.
+        try (PreparedStatement stmt = conn.prepareStatement("INSERT INTO assetFile (hash, content, iss3, len) values (?, ?, ?, ?) ON CONFLICT (hash) DO NOTHING")) {
+          stmt.setString(1, hash);
+          stmt.setBytes(2, content);
+          stmt.setBoolean(3, iss3);
+          stmt.setLong(4, contentLength);
+          stmt.executeUpdate();
+        }
+      }
+    }
+  }
+
+  private byte[] getAssetFile(String hash, Connection conn) throws SQLException {
+    boolean needToStore = false;
+    byte [] contentBytes = null;
+    String s3key = awsPrefix.get() + "/" + hash;
+    if (!(awsAccessKey.get().isEmpty())) {
+      try {
+        byte [] content = assetCache.get(hash);
+        if (content == null) {
+          content = s3access.get(s3key);
+          assetCache.put(hash, content);
+          LOG.log(Level.INFO,"assetCache: MISS hash = " + hash + " currentSize = " + assetCache.getCurrentByteSize() + " entryCount = " + assetCache.getEntryCount());
+        } else {
+          LOG.log(Level.INFO,"assetCache: HIT hash = " + hash + " currentSize = " + assetCache.getCurrentByteSize() + " entryCount = " + assetCache.getEntryCount());
+        }
+        return content;
+      } catch (Exception e) {
+        LOG.log(Level.INFO, "getAssetFile: " + s3key + " not found: " + e.toString());
+        needToStore = true;     // Assuming not present
+      }
+    }
+    try (PreparedStatement qstmt1 = conn.prepareStatement("SELECT content from assetFile WHERE hash = ?")) {
+      qstmt1.setString(1, hash);
+      ResultSet rs = qstmt1.executeQuery();
+      if (rs.next()) {
+        contentBytes = rs.getBytes("content");
+        if (contentBytes == null) {
+          LOG.log(Level.SEVERE, "getAssetFile: contentBytes == null hash = " + hash);
+        }
+        if (needToStore) {
+          storeAssetFile(hash, contentBytes, conn);
+        }
+      }
+    }
+    return contentBytes;
   }
 }
