@@ -96,7 +96,7 @@ public class PostgreSQLStorageIo implements StorageIo {
   private static final Flag<String> awsBucket = Flag.createFlag("aws.bucket", "");
   private static final Flag<String> awsPrefix = Flag.createFlag("aws.prefix", ""); // Prefix for content in bucket
   private static final Flag<String> awsRegion = Flag.createFlag("aws.region", "us-east-1");
-  private static final Flag<Integer> awsCacheSize = Flag.createFlag("aws.cachesize", 1000000); // Cache size in bytes
+  private static final Flag<Integer> assetCacheSize = Flag.createFlag("assets.cachesize", 1000000); // Cache size in bytes
   private static final Flag<Integer> awsReplacementPercent = Flag.createFlag("aws.replacementpercent", 5);
   private static final Flag<Boolean> stillTesting = Flag.createFlag("aws.testing", false); // Still put contents into the db
   private static final Logger LOG = Logger.getLogger(PostgreSQLStorageIo.class.getName());
@@ -140,10 +140,12 @@ public class PostgreSQLStorageIo implements StorageIo {
       throw CrashReport.createAndLogError(LOG, null, "Cannot setup database connection pool", e);
     }
 
+      // Initialize the in RAM cache
+      assetCache = new BinaryLRUCache(assetCacheSize.get());
+
     // Initialize S3 Access if configured
     if (!(awsAccessKey.get().isEmpty())) {
       s3access = new S3Access(awsAccessKey.get(), awsSecretKey.get(), awsRegion.get(), awsBucket.get());
-      assetCache = new BinaryLRUCache(awsCacheSize.get());
       LOG.log(Level.INFO, "We have awsAccessKey, S3 on");
     } else {
       LOG.log(Level.INFO, "*NO* AWS AccessKey, no S3");
@@ -3525,18 +3527,17 @@ public class PostgreSQLStorageIo implements StorageIo {
 
   private byte[] getAssetFile(String hash, Connection conn) throws SQLException {
     boolean needToStore = false;
-    byte [] contentBytes = null;
+    byte [] contentBytes = assetCache.get(hash);
+    if (contentBytes != null) {
+      LOG.log(Level.INFO,"assetCache: HIT hash = " + hash + " currentSize = " + assetCache.getCurrentByteSize() + " entryCount = " + assetCache.getEntryCount());
+      return contentBytes;
+    }
+    LOG.log(Level.INFO,"assetCache: MISS hash = " + hash + " currentSize = " + assetCache.getCurrentByteSize() + " entryCount = " + assetCache.getEntryCount());
     String s3key = awsPrefix.get() + "/" + hash;
     if (!(awsAccessKey.get().isEmpty())) {
       try {
-        byte [] content = assetCache.get(hash);
-        if (content == null) {
-          content = s3access.get(s3key);
-          assetCache.put(hash, content);
-          LOG.log(Level.INFO,"assetCache: MISS hash = " + hash + " currentSize = " + assetCache.getCurrentByteSize() + " entryCount = " + assetCache.getEntryCount());
-        } else {
-          LOG.log(Level.INFO,"assetCache: HIT hash = " + hash + " currentSize = " + assetCache.getCurrentByteSize() + " entryCount = " + assetCache.getEntryCount());
-        }
+        byte [] content = s3access.get(s3key);
+        assetCache.put(hash, content);
         return content;
       } catch (Exception e) {
         LOG.log(Level.INFO, "getAssetFile: " + s3key + " not found: " + e.toString());
@@ -3556,6 +3557,7 @@ public class PostgreSQLStorageIo implements StorageIo {
         }
       }
     }
+    assetCache.put(hash, contentBytes);
     return contentBytes;
   }
 }
