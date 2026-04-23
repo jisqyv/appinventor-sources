@@ -90,6 +90,7 @@ public class PostgreSQLStorageIo implements StorageIo {
   private static final Flag<String> jdbcReadOnlyUrl = Flag.createFlag("jdbc.readOnlyUrl", jdbcUrl.get());
   private static final Flag<Integer> c3p0MaxPoolSize = Flag.createFlag("c3p0.maxpoolsize", 15);
   private static final Flag<Integer> c3p0MaxConnectionAge = Flag.createFlag("c3p0.maxconnectionage", 0);
+  private static final Flag<Boolean> initializeData = Flag.createFlag("db.initialize", true); // if false, we skip the table creation
   private static final Logger LOG = Logger.getLogger(PostgreSQLStorageIo.class.getName());
   private static final String HOST_ID = String.format(
     "%s-%s-%s-%s",
@@ -127,206 +128,207 @@ public class PostgreSQLStorageIo implements StorageIo {
     }
 
     // Initialize database
-    try (Connection conn = this.cpds.getConnection()) {
-      try {
-        conn.setAutoCommit(false);
-        try (Statement stmt = conn.createStatement()) {
-          stmt.execute("DO $$ BEGIN " +
-                       "  CREATE TYPE project_kind AS ENUM ('YoungAndroid'); " +
-                       "EXCEPTION " +
-                       "  WHEN duplicate_object THEN null; " +
-                       "END $$;");
-          stmt.execute("DO $$ BEGIN " +
-                       "  CREATE TYPE file_role AS ENUM ('SOURCE', 'TARGET', 'TEMPORARY'); " +
-                       "EXCEPTION " +
-                       "  WHEN duplicate_object THEN null; " +
-                       "END $$;");
-          stmt.execute("CREATE TABLE IF NOT EXISTS account (" +
-                       "  id BIGSERIAL PRIMARY KEY," +
-                       "  uuid UUID UNIQUE NOT NULL," +
-                       "  email TEXT UNIQUE," +
-                       "  tosAccepted BOOLEAN DEFAULT FALSE NOT NULL," +
-                       "  isAdmin BOOLEAN DEFAULT FALSE NOT NULL," +
-                       "  isReadOnly BOOLEAN DEFAULT FALSE NOT NULL," +
-                       "  sessionId TEXT," +
-                       "  password TEXT CHECK (password <> '')," +
-                       "  backPackId TEXT," +
-                       "  settings TEXT NOT NULL DEFAULT ''," +
-                       "  visited TIMESTAMPTZ," +
-                       "  account_created TIMESTAMPTZ" +
-                       ")");
-          stmt.execute("CREATE TABLE IF NOT EXISTS project (" +
-                       "  id BIGSERIAL PRIMARY KEY," +
-                       "  userId BIGINT NOT NULL REFERENCES account ON DELETE CASCADE ON UPDATE CASCADE," +
-                       "  name TEXT NOT NULL CHECK (name <> '')," +
-                       "  type project_kind," +
-                       "  settings TEXT NOT NULL DEFAULT ''," +
-                       "  creationDate TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP," +
-                       "  modifiedDate TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP," +
-                       "  builtDate TIMESTAMPTZ," +
-                       "  trashflag BOOLEAN DEFAULT FALSE NOT NULL," +
-                       "  history TEXT" +
-                       ")");
-          stmt.execute("CREATE TABLE IF NOT EXISTS projectFile (" +
-                       "  id BIGSERIAL PRIMARY KEY," +
-                       "  projectId BIGINT NOT NULL REFERENCES project ON DELETE CASCADE ON UPDATE CASCADE," +
-                       "  userId BIGINT NOT NULL REFERENCES account ON DELETE CASCADE ON UPDATE CASCADE," +
-                       "  fileName TEXT NOT NULL," +
-                       "  role file_role NOT NULL," +
-                       "  hash TEXT," + // MD5 Hash of content iff it is an asset. content will be null
-                       "  content BYTEA," +
-                       "  ts TIMESTAMPTZ," +
-                       "  UNIQUE (projectId, userId, fileName)" +
-                       ")");
-          stmt.execute("CREATE TABLE IF NOT EXISTS assetFile (" +
-                       " id BIGSERIAL PRIMARY KEY," +
-                       " hash TEXT UNIQUE NOT NULL," +
-                       " modifiedDate TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP," +
-                       " content BYTEA" +
-                       ")");
-
-          stmt.execute("CREATE TABLE IF NOT EXISTS userFile (" +
-                       "  id BIGSERIAL PRIMARY KEY," +
-                       "  userId BIGINT NOT NULL REFERENCES account ON DELETE CASCADE ON UPDATE CASCADE," +
-                       "  fileName TEXT NOT NULL," +
-                       "  content BYTEA NOT NULL DEFAULT ''," +
-                       "  UNIQUE(userId, fileName)" +
-                       ")");
-          stmt.execute("CREATE TABLE IF NOT EXISTS tempFile (" +
-                       "  id BIGSERIAL PRIMARY KEY," +
-                       "  fileName TEXT NOT NULL," +
-                       "  modifiedDate TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP," +
-                       "  content BYTEA" +
-                       ")");
-          stmt.execute("CREATE TABLE IF NOT EXISTS corruptionReport (" +
-                       "  id BIGSERIAL PRIMARY KEY," +
-                       "  userId BIGINT NOT NULL," +
-                       "  projectId BIGINT NOT NULL," +
-                       "  fileName TEXT NOT NULL," +
-                       "  message TEXT NOT NULL," +
-                       "  timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP" +
-                       ")");
-          stmt.execute("CREATE TABLE IF NOT EXISTS ipAddress (" +
-                       "  id BIGSERIAL PRIMARY KEY," +
-                       "  key TEXT UNIQUE NOT NULL," +
-                       "  address TEXT NOT NULL" +
-                       ")");
-          stmt.execute("CREATE TABLE IF NOT EXISTS whitelist (" +
-                       "  id BIGSERIAL PRIMARY KEY," +
-                       "  email TEXT UNIQUE NOT NULL" +
-                       ")");
-          stmt.execute("CREATE TABLE IF NOT EXISTS feedback (" +
-                       "  id BIGSERIAL PRIMARY KEY," +
-                       "  notes TEXT," +
-                       "  foundId TEXT," +
-                       "  faultData TEXT," +
-                       "  comments TEXT," +
-                       "  datestamp TEXT," +
-                       "  email TEXT," +
-                       "  projectId TEXT" +
-                       ")");
-          stmt.execute("CREATE TABLE IF NOT EXISTS nonce (" +
-                       "  id BIGSERIAL PRIMARY KEY," +
-                       "  nonce TEXT UNIQUE NOT NULL," +
-                       "  strUserId UUID NOT NULL REFERENCES account(uuid) ON DELETE CASCADE ON UPDATE CASCADE," +
-                       "  projectId BIGINT NOT NULL REFERENCES project ON DELETE CASCADE ON UPDATE CASCADE," +
-                       "  timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP" +
-                       ")");
-          stmt.execute("CREATE TABLE IF NOT EXISTS pwData (" +
-                       "  id BIGSERIAL PRIMARY KEY," +
-                       "  uuid TEXT UNIQUE NOT NULL," +
-                       "  email TEXT NOT NULL," +
-                       "  timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP" +
-                       ")");
-          stmt.execute("CREATE TABLE IF NOT EXISTS backpack (" +
-                       "  id BIGSERIAL PRIMARY KEY," +
-                       "  backpackId TEXT UNIQUE NOT NULL," +
-                       "  content TEXT NOT NULL" +
-                       ")");
-          stmt.execute("CREATE TABLE IF NOT EXISTS buildStatus (" +
-                       "  id BIGSERIAL PRIMARY KEY," +
-                       "  host TEXT NOT NULL," +
-                       "  userId BIGINT NOT NULL," +
-                       "  projectId BIGINT NOT NULL," +
-                       "  progress INT," +
-                       "  UNIQUE(host, userId, projectId)" +
-                       ")");
-          stmt.execute("CREATE TABLE IF NOT EXISTS splashconfig (" +
-                       "  id BIGSERIAL PRIMARY KEY," +
-                       "  version INTEGER," +
-                       "  content TEXT," +
-                       "  width INTEGER," +
-                       "  height INTEGER," +
-                       "  active BOOLEAN" +
-                       ")");
-          stmt.execute("CREATE TABLE IF NOT EXISTS misc (" +
-                       "  id BIGSERIAL PRIMARY KEY," +
-                       "  key TEXT UNIQUE NOT NULL," +
-                       "  value TEXT" +
-                       ")");
-          stmt.executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS account_lower_email_index ON account (lower(email))");
-          stmt.executeUpdate("CREATE INDEX IF NOT EXISTS projectFile_index ON projectFile (projectId, userId, fileName)");
-          stmt.executeUpdate("CREATE INDEX IF NOT EXISTS userFile_index ON userFile (userId, fileName)");
-          stmt.executeUpdate("CREATE INDEX IF NOT EXISTS ipAddress_key_index ON ipAddress (key)");
-          stmt.executeUpdate("CREATE INDEX IF NOT EXISTS whitelist_email_index ON whitelist (email)");
-          stmt.executeUpdate("CREATE INDEX IF NOT EXISTS whitelist_lower_email_index ON whitelist (lower(email))");
-          stmt.executeUpdate("CREATE INDEX IF NOT EXISTS nonce_nonce_index ON nonce (nonce)");
-          stmt.executeUpdate("CREATE INDEX IF NOT EXISTS buildStatus_index ON buildStatus (host, userId, projectId)");
-          stmt.executeUpdate("CREATE INDEX IF NOT EXISTS pwData_uuid_index ON pwData (uuid)");
-          stmt.executeUpdate("CREATE INDEX IF NOT EXISTS misc_key_index ON misc (key)");
-          stmt.executeUpdate("CREATE INDEX IF NOT EXISTS projectFile_target_index  ON projectfile (role, substring(filename, position('.' in filename))) WHERE role = 'TARGET'");
-          stmt.executeUpdate("CREATE INDEX IF NOT EXISTS project_userid ON project (userId)");
-          stmt.executeUpdate(
-            "DO $DO$" +
-            " BEGIN" +
-            "    CREATE FUNCTION update_settings(input_uuid UUID, new_settings text) RETURNS boolean AS $$" +
-            "       DECLARE" +
-            "            old_settings text;" +
-            "       BEGIN" +
-            "            SELECT settings INTO old_settings FROM account WHERE uuid = input_uuid;" +
-            "            IF old_settings = '' THEN" +
-            "               UPDATE account SET settings = new_settings, account_created = CURRENT_TIMESTAMP, visited = CURRENT_TIMESTAMP WHERE uuid = input_uuid;" +
-            "            ELSE" +
-            "               UPDATE account SET settings = new_settings, visited = CURRENT_TIMESTAMP  WHERE uuid = input_uuid;" +
-            "            END IF;" +
-            "            RETURN true;" +
-            "       END;" +
-            "       $$ LANGUAGE plpgsql;" +
-            " EXCEPTION" +
-            "    WHEN duplicate_function THEN" +
-            "    null;" +
-            " END; $DO$");
-          stmt.executeUpdate(
-            "DO $DO$" +
-            "  BEGIN" +
-            "    CREATE FUNCTION do_gc() RETURNS boolean AS $$" +
-            "      BEGIN" +
-            "        CREATE TEMP TABLE gc1 AS SELECT hash FROM assetfile;" +
-            "        DELETE FROM gc1 WHERE hash IN (SELECT hash FROM projectfile WHERE hash IS NOT NULL);" +
-            "        DELETE FROM assetfile WHERE hash IN (SELECT hash FROM gc1) AND modifieddate < now() - interval '24 hours';" +
-            "        DROP TABLE gc1;" +
-            "        RETURN true;" +
-            "      END;" +
-            "      $$ LANGUAGE plpgsql;" +
-            "  EXCEPTION" +
-            "      WHEN duplicate_function THEN" +
-            "      null;" +
-            "" +
-            "  END;" +
-            "$DO$");
-        }
-        conn.commit();
-
-      } catch (SQLException e) {
+    if (initializeData.get()) {
+      try (Connection conn = this.cpds.getConnection()) {
         try {
-          conn.rollback();
-        } catch (SQLException rollbackExc) {
-          throw CrashReport.createAndLogError(LOG, null, "Rollback error", rollbackExc);
+          conn.setAutoCommit(false);
+          try (Statement stmt = conn.createStatement()) {
+            stmt.execute("DO $$ BEGIN " +
+                         "  CREATE TYPE project_kind AS ENUM ('YoungAndroid'); " +
+                         "EXCEPTION " +
+                         "  WHEN duplicate_object THEN null; " +
+                         "END $$;");
+            stmt.execute("DO $$ BEGIN " +
+                         "  CREATE TYPE file_role AS ENUM ('SOURCE', 'TARGET', 'TEMPORARY'); " +
+                         "EXCEPTION " +
+                         "  WHEN duplicate_object THEN null; " +
+                         "END $$;");
+            stmt.execute("CREATE TABLE IF NOT EXISTS account (" +
+                         "  id BIGSERIAL PRIMARY KEY," +
+                         "  uuid UUID UNIQUE NOT NULL," +
+                         "  email TEXT UNIQUE," +
+                         "  tosAccepted BOOLEAN DEFAULT FALSE NOT NULL," +
+                         "  isAdmin BOOLEAN DEFAULT FALSE NOT NULL," +
+                         "  isReadOnly BOOLEAN DEFAULT FALSE NOT NULL," +
+                         "  sessionId TEXT," +
+                         "  password TEXT CHECK (password <> '')," +
+                         "  backPackId TEXT," +
+                         "  settings TEXT NOT NULL DEFAULT ''," +
+                         "  visited TIMESTAMPTZ," +
+                         "  account_created TIMESTAMPTZ" +
+                         ")");
+            stmt.execute("CREATE TABLE IF NOT EXISTS project (" +
+                         "  id BIGSERIAL PRIMARY KEY," +
+                         "  userId BIGINT NOT NULL REFERENCES account ON DELETE CASCADE ON UPDATE CASCADE," +
+                         "  name TEXT NOT NULL CHECK (name <> '')," +
+                         "  type project_kind," +
+                         "  settings TEXT NOT NULL DEFAULT ''," +
+                         "  creationDate TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP," +
+                         "  modifiedDate TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP," +
+                         "  builtDate TIMESTAMPTZ," +
+                         "  trashflag BOOLEAN DEFAULT FALSE NOT NULL," +
+                         "  history TEXT" +
+                         ")");
+            stmt.execute("CREATE TABLE IF NOT EXISTS projectFile (" +
+                         "  id BIGSERIAL PRIMARY KEY," +
+                         "  projectId BIGINT NOT NULL REFERENCES project ON DELETE CASCADE ON UPDATE CASCADE," +
+                         "  userId BIGINT NOT NULL REFERENCES account ON DELETE CASCADE ON UPDATE CASCADE," +
+                         "  fileName TEXT NOT NULL," +
+                         "  role file_role NOT NULL," +
+                         "  hash TEXT," + // MD5 Hash of content iff it is an asset. content will be null
+                         "  content BYTEA," +
+                         "  ts TIMESTAMPTZ," +
+                         "  UNIQUE (projectId, userId, fileName)" +
+                         ")");
+            stmt.execute("CREATE TABLE IF NOT EXISTS assetFile (" +
+                         " id BIGSERIAL PRIMARY KEY," +
+                         " hash TEXT UNIQUE NOT NULL," +
+                         " modifiedDate TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP," +
+                         " content BYTEA" +
+                         ")");
+
+            stmt.execute("CREATE TABLE IF NOT EXISTS userFile (" +
+                         "  id BIGSERIAL PRIMARY KEY," +
+                         "  userId BIGINT NOT NULL REFERENCES account ON DELETE CASCADE ON UPDATE CASCADE," +
+                         "  fileName TEXT NOT NULL," +
+                         "  content BYTEA NOT NULL DEFAULT ''," +
+                         "  UNIQUE(userId, fileName)" +
+                         ")");
+            stmt.execute("CREATE TABLE IF NOT EXISTS tempFile (" +
+                         "  id BIGSERIAL PRIMARY KEY," +
+                         "  fileName TEXT NOT NULL," +
+                         "  modifiedDate TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP," +
+                         "  content BYTEA" +
+                         ")");
+            stmt.execute("CREATE TABLE IF NOT EXISTS corruptionReport (" +
+                         "  id BIGSERIAL PRIMARY KEY," +
+                         "  userId BIGINT NOT NULL," +
+                         "  projectId BIGINT NOT NULL," +
+                         "  fileName TEXT NOT NULL," +
+                         "  message TEXT NOT NULL," +
+                         "  timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP" +
+                         ")");
+            stmt.execute("CREATE TABLE IF NOT EXISTS ipAddress (" +
+                         "  id BIGSERIAL PRIMARY KEY," +
+                         "  key TEXT UNIQUE NOT NULL," +
+                         "  address TEXT NOT NULL" +
+                         ")");
+            stmt.execute("CREATE TABLE IF NOT EXISTS whitelist (" +
+                         "  id BIGSERIAL PRIMARY KEY," +
+                         "  email TEXT UNIQUE NOT NULL" +
+                         ")");
+            stmt.execute("CREATE TABLE IF NOT EXISTS feedback (" +
+                         "  id BIGSERIAL PRIMARY KEY," +
+                         "  notes TEXT," +
+                         "  foundId TEXT," +
+                         "  faultData TEXT," +
+                         "  comments TEXT," +
+                         "  datestamp TEXT," +
+                         "  email TEXT," +
+                         "  projectId TEXT" +
+                         ")");
+            stmt.execute("CREATE TABLE IF NOT EXISTS nonce (" +
+                         "  id BIGSERIAL PRIMARY KEY," +
+                         "  nonce TEXT UNIQUE NOT NULL," +
+                         "  strUserId UUID NOT NULL REFERENCES account(uuid) ON DELETE CASCADE ON UPDATE CASCADE," +
+                         "  projectId BIGINT NOT NULL REFERENCES project ON DELETE CASCADE ON UPDATE CASCADE," +
+                         "  timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP" +
+                         ")");
+            stmt.execute("CREATE TABLE IF NOT EXISTS pwData (" +
+                         "  id BIGSERIAL PRIMARY KEY," +
+                         "  uuid TEXT UNIQUE NOT NULL," +
+                         "  email TEXT NOT NULL," +
+                         "  timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP" +
+                         ")");
+            stmt.execute("CREATE TABLE IF NOT EXISTS backpack (" +
+                         "  id BIGSERIAL PRIMARY KEY," +
+                         "  backpackId TEXT UNIQUE NOT NULL," +
+                         "  content TEXT NOT NULL" +
+                         ")");
+            stmt.execute("CREATE TABLE IF NOT EXISTS buildStatus (" +
+                         "  id BIGSERIAL PRIMARY KEY," +
+                         "  host TEXT NOT NULL," +
+                         "  userId BIGINT NOT NULL," +
+                         "  projectId BIGINT NOT NULL," +
+                         "  progress INT," +
+                         "  UNIQUE(host, userId, projectId)" +
+                         ")");
+            stmt.execute("CREATE TABLE IF NOT EXISTS splashconfig (" +
+                         "  id BIGSERIAL PRIMARY KEY," +
+                         "  version INTEGER," +
+                         "  content TEXT," +
+                         "  width INTEGER," +
+                         "  height INTEGER," +
+                         "  active BOOLEAN" +
+                         ")");
+            stmt.execute("CREATE TABLE IF NOT EXISTS misc (" +
+                         "  id BIGSERIAL PRIMARY KEY," +
+                         "  key TEXT UNIQUE NOT NULL," +
+                         "  value TEXT" +
+                         ")");
+            stmt.executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS account_lower_email_index ON account (lower(email))");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS userFile_index ON userFile (userId, fileName)");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS ipAddress_key_index ON ipAddress (key)");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS whitelist_email_index ON whitelist (email)");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS whitelist_lower_email_index ON whitelist (lower(email))");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS nonce_nonce_index ON nonce (nonce)");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS buildStatus_index ON buildStatus (host, userId, projectId)");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS pwData_uuid_index ON pwData (uuid)");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS misc_key_index ON misc (key)");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS projectFile_target_index  ON projectfile (role, substring(filename, position('.' in filename))) WHERE role = 'TARGET'");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS project_userid ON project (userId)");
+            stmt.executeUpdate(
+              "DO $DO$" +
+              " BEGIN" +
+              "    CREATE FUNCTION update_settings(input_uuid UUID, new_settings text) RETURNS boolean AS $$" +
+              "       DECLARE" +
+              "            old_settings text;" +
+              "       BEGIN" +
+              "            SELECT settings INTO old_settings FROM account WHERE uuid = input_uuid;" +
+              "            IF old_settings = '' THEN" +
+              "               UPDATE account SET settings = new_settings, account_created = CURRENT_TIMESTAMP, visited = CURRENT_TIMESTAMP WHERE uuid = input_uuid;" +
+              "            ELSE" +
+              "               UPDATE account SET settings = new_settings, visited = CURRENT_TIMESTAMP  WHERE uuid = input_uuid;" +
+              "            END IF;" +
+              "            RETURN true;" +
+              "       END;" +
+              "       $$ LANGUAGE plpgsql;" +
+              " EXCEPTION" +
+              "    WHEN duplicate_function THEN" +
+              "    null;" +
+              " END; $DO$");
+            stmt.executeUpdate(
+              "DO $DO$" +
+              "  BEGIN" +
+              "    CREATE FUNCTION do_gc() RETURNS boolean AS $$" +
+              "      BEGIN" +
+              "        CREATE TEMP TABLE gc1 AS SELECT hash FROM assetfile;" +
+              "        DELETE FROM gc1 WHERE hash IN (SELECT hash FROM projectfile WHERE hash IS NOT NULL);" +
+              "        DELETE FROM assetfile WHERE hash IN (SELECT hash FROM gc1) AND modifieddate < now() - interval '24 hours';" +
+              "        DROP TABLE gc1;" +
+              "        RETURN true;" +
+              "      END;" +
+              "      $$ LANGUAGE plpgsql;" +
+              "  EXCEPTION" +
+              "      WHEN duplicate_function THEN" +
+              "      null;" +
+              "" +
+              "  END;" +
+              "$DO$");
+          }
+          conn.commit();
+
+        } catch (SQLException e) {
+          try {
+            conn.rollback();
+          } catch (SQLException rollbackExc) {
+            throw CrashReport.createAndLogError(LOG, null, "Rollback error", rollbackExc);
+          }
+          throw CrashReport.createAndLogError(LOG, null, String.format("Failed to initialize database with url=\"%s\" user=\"%s\"", jdbcUrl.get(), jdbcUser.get()), e);
         }
-        throw CrashReport.createAndLogError(LOG, null, String.format("Failed to initialize database with url=\"%s\" user=\"%s\"", jdbcUrl.get(), jdbcUser.get()), e);
+      } catch (SQLException e) {
+        throw CrashReport.createAndLogError(LOG, null, DATABASE_ERROR, e);
       }
-    } catch (SQLException e) {
-      throw CrashReport.createAndLogError(LOG, null, DATABASE_ERROR, e);
     }
   }
 
