@@ -120,6 +120,8 @@ public class PostgreSQLStorageIo implements StorageIo {
       this.cpds.setAutoCommitOnClose(false);
       this.cpds.setMaxConnectionAge(c3p0MaxConnectionAge.get());
       this.cpds.setMaxPoolSize(c3p0MaxPoolSize.get());
+      this.cpds.setAutoCommitOnClose(false);
+      this.cpds.setPreferredTestQuery("SELECT 1");
       this.readOnlySource = DataSources.unpooledDataSource(jdbcReadOnlyUrl.get(), jdbcUser.get(), jdbcPassword.get());
     } catch (PropertyVetoException e) {
       throw CrashReport.createAndLogError(LOG, null, "Cannot setup database connection pool", e);
