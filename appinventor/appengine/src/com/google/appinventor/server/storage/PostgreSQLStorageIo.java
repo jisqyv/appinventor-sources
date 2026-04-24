@@ -3533,12 +3533,16 @@ public class PostgreSQLStorageIo implements StorageIo {
       return contentBytes;
     }
     LOG.log(Level.INFO,"assetCache: MISS hash = " + hash + " currentSize = " + assetCache.getCurrentByteSize() + " entryCount = " + assetCache.getEntryCount());
-    String s3key = awsPrefix.get() + "/" + hash;
     if (!(awsAccessKey.get().isEmpty())) {
+      String s3key = awsPrefix.get() + "/" + hash;
       try {
-        byte [] content = s3access.get(s3key);
-        assetCache.put(hash, content);
-        return content;
+        if (isInS3(hash, conn)) {
+          byte [] content = s3access.get(s3key);
+          assetCache.put(hash, content);
+          return content;
+        } else {
+          needToStore = true;   // We need to store it in S3
+        }
       } catch (Exception e) {
         LOG.log(Level.INFO, "getAssetFile: " + s3key + " not found: " + e.toString());
         needToStore = true;     // Assuming not present
@@ -3560,4 +3564,27 @@ public class PostgreSQLStorageIo implements StorageIo {
     assetCache.put(hash, contentBytes);
     return contentBytes;
   }
+
+  /*
+   * Returns true if the database claims that the asset is stored in S3.
+   * This isn't a guarantee, so we have to deal with the case where we atempt
+   * to fetch the asset from S3 and it isn't there. This check just saves us
+   * the trip to S3 in cases where we believe it isn't there.
+   *
+   * Note: Because multiple installations of App Inventor might share a common
+   * S3 asset store, an asset might actually be in S3 and we don't know it yet.
+   * But that's OK, we'll figure it out.
+   */
+  private boolean isInS3(String hash, Connection conn) throws SQLException {
+    try (PreparedStatement qstmt = conn.prepareStatement("SELECT id from assetFile where hash = ? and iss3 = true")) {
+      qstmt.setString(1, hash);
+      ResultSet rs = qstmt.executeQuery();
+      if (rs.next()) {
+        return true;
+      } else {
+        return false;
+      }
+    }
+  }
+
 }
