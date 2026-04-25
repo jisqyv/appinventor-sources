@@ -63,6 +63,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
+
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -73,6 +75,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import javax.sql.DataSource;
+
 
 /**
  * Interface of methods to simplify access to the storage systems.
@@ -3525,6 +3528,12 @@ public class PostgreSQLStorageIo implements StorageIo {
     }
   }
 
+  /*
+   * getAssetFile: Fetch an asset file. All asset files have an entry in the assetFile table.
+   *               The actual content of the asset will either be stored in the content column
+   *               of the table, or if it is null, in an S3 bucket as configured by the variables
+   *               declared near the top of this file.
+   */
   private byte[] getAssetFile(String hash, Connection conn) throws SQLException {
     boolean needToStore = false;
     byte [] contentBytes = assetCache.get(hash);
@@ -3541,11 +3550,24 @@ public class PostgreSQLStorageIo implements StorageIo {
           assetCache.put(hash, content);
           return content;
         } else {
-          needToStore = true;   // We need to store it in S3
+          // Probabilistically decide whether to store this asset in S3.
+          // awsReplacementPercent of 0 means never replace, 100 means always replace.
+          int replacementPercent = awsReplacementPercent.get();
+          if (replacementPercent >= 100
+              || (replacementPercent > 0
+                  && ThreadLocalRandom.current().nextInt(100) < replacementPercent)) {
+            needToStore = true;
+          }
         }
       } catch (Exception e) {
         LOG.log(Level.INFO, "getAssetFile: " + s3key + " not found: " + e.toString());
-        needToStore = true;     // Assuming not present
+        // Asset was expected in S3 but fetch failed — probabilistically re-store it
+        int replacementPercent = awsReplacementPercent.get();
+        if (replacementPercent >= 100
+            || (replacementPercent > 0
+                && ThreadLocalRandom.current().nextInt(100) < replacementPercent)) {
+          needToStore = true;
+        }
       }
     }
     try (PreparedStatement qstmt1 = conn.prepareStatement("SELECT content from assetFile WHERE hash = ?")) {
